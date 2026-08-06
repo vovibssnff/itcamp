@@ -1,0 +1,102 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+pip-wheel-metadata/
+.python-version
+
+# Node / frontend
+node_modules/
+frontend/dist/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE / editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+**/secrets/**
+!**/secrets/.gitkeep
+
+# Docker / k8s local overrides (charts stay tracked)
+**/values.local.yaml
+**/values-local.yaml
+**/values.secrets.yaml
+**/secrets.yaml
+!**/charts/**/values.yaml
+
+# Proto: committed stubs under libs/py-common/ktk_contracts/ stay tracked;
+# ignore only local/temp generation dirs if present
+**/generated/tmp/
+**/_gen/
+**/proto_gen_tmp/
+
+# Terraform (keep .terraform.lock.hcl)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Helm chart dependencies / vendored charts
+charts/*.tgz
+**/charts/**/charts/
+*.tgz
+
+# Misc
+*.log
+tmp/
+temp/
+.cache/
+*.tmp
+.direnv/

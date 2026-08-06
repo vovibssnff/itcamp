@@ -7,7 +7,7 @@
 
 | Поле                | Значение                                                                                                      |
 | ------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Версия              | 2.1                                                                                                           |
+| Версия              | 2.2                                                                                                           |
 | Статус              | Целевое решение / черновик для обсуждения                                                                     |
 | Язык документа      | Русский                                                                                                       |
 | Дата                | 2026-08-06                                                                                                    |
@@ -241,7 +241,7 @@
 | ID          | Требование                                                                                                                                                           | Приоритет |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
 | FR-TMPL-01  | Создание нового шаблона установки (пустой canvas или из существующего шаблона)                                                                                       | Must      |
-| FR-TMPL-02  | Сохранение шаблона с метаданными: название, версия, автор, описание, дата, статус (черновик/опубликован/архив)                                                       | Must      |
+| FR-TMPL-02  | Сохранение шаблона с метаданными: название, автор, описание, дата, статус (черновик/опубликован/архив)                                                              | Must      |
 | FR-TMPL-03  | Копирование (fork) шаблона с созданием независимой копии (со всеми сценариями и пресетами)                                                                          | Must      |
 | FR-TMPL-04  | Удаление шаблона (мягкое: перевод в архив; жёсткое: для Admin с подтверждением)                                                                                     | Must      |
 | FR-TMPL-05  | Редактирование шаблона: изменение графа, параметров компонентов, метаданных                                                                                         | Must      |
@@ -262,7 +262,7 @@
 | FR-SCEN-03  | Комбинирование неисправностей в одном сценарии (цепочка/параллельно) с задаваемыми условиями (по времени, по событию, по параметру)                                 | Must      |
 | FR-SCEN-04  | ИИ-дополнение: на основе графа установки и профиля ошибок оператора ИИ предлагает адаптивный сценарий                                                              | Must      |
 | FR-SCEN-05  | Каждый сценарий содержит: описание, тип (тренировочный/экзаменационный), стартовый пресет, каталог неисправностей с таймингом, эталонные действия, критерии оценки  | Must      |
-| FR-SCEN-06  | Сценарий привязывается к конкретной версии шаблона установки                                                                                                        | Must      |
+| FR-SCEN-06  | Сценарий привязывается к шаблону установки (без версионирования; шаблоны — CRUD)                                                                                     | Must      |
 | FR-SCEN-07  | Копирование сценария (с адаптацией к другому шаблону при совместимости типов компонентов)                                                                           | Should    |
 | FR-SCEN-08  | Предустановленные сценарии для демо-шаблона: ≥5 (см. §3.5); каталог типовых неисправностей покрывает все блоки (ЭЛОУ, Атмосфера, ГДМ)                               | Must      |
 
@@ -321,7 +321,7 @@
 | FR-SNAP-03 | Стартовые пресеты (≥3 для демонстрационного шаблона) как immutable-снапшоты                                                                                         | Must      |
 | FR-SNAP-04 | Метаданные снапшота — в БД; payload — в object storage; целостность — SHA-256                                                                                        | Must      |
 | FR-SNAP-05 | Барьер тика при сохранении (непротиворечивое состояние)                                                                                                              | Must      |
-| FR-SNAP-06 | Версионирование снапшота (`schema_version` + версия шаблона); отказ при несовместимости                                                                             | Must      |
+| FR-SNAP-06 | Версионирование снапшота по `schema_version`; отказ при несовместимости схемы состояния (версионирование шаблонов не используется — CRUD)                             | Must      |
 
 
 ### 3.9. Аутентификация и ролевая модель
@@ -374,7 +374,7 @@
 
 | ID        | Требование                                                                                                                                                           | Приоритет |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| FR-HMI-01 | Мнемосхема генерируется автоматически из графа установки (с возможностью ручной коррекции раскладки)                                                                | Must      |
+| FR-HMI-01 | Мнемосхема формируется инструктором вручную в конструкторе (drag-and-drop, ручное соединение и раскладка — см. `FR-CNST-05`); HMI оператора рендерит сохранённый layout шаблона | Must      |
 | FR-HMI-02 | Динамическое отображение ключевых тегов (T, P, F, L, статусы оборудования)                                                                                          | Must      |
 | FR-HMI-03 | Тренды (4–8 параметров одновременно)                                                                                                                                 | Must      |
 | FR-HMI-04 | Алармы HH/H/L/LL с визуальной индикацией и журналом; квитирование                                                                                                  | Must      |
@@ -545,15 +545,14 @@
 | -------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------- |
 | User                 | id, login, ФИО, role_ids, hash пароля, статус                                                                 | Picodata          |
 | Role                 | id, name, permissions[]                                                                                       | Picodata          |
-| ComponentType        | id, name, version, ports[], parameters_schema, model_code, icon, documentation                                | Picodata          |
-| InstallationTemplate | id, name, version, author_id, status, graph (JSON), created_at, published_at                                  | Picodata          |
-| TemplateVersion      | id, template_id, version, graph_snapshot, immutable                                                           | Picodata          |
-| Scenario             | id, template_version_id, name, type, faults[], reference_actions[], criteria, start_preset_id                 | Picodata          |
+| ComponentType        | id, name, category, ports[], parameters_schema, model_code, icon, documentation                               | Picodata          |
+| InstallationTemplate | id, name, description, author_id, status, graph (JSON), layout (JSON), created_at, updated_at                  | Picodata          |
+| Scenario             | id, template_id, name, type, faults[], reference_actions[], criteria, start_preset_id                          | Picodata          |
 | Session              | id, scenario_id, instructor_id, operator_ids[], mode, speed, status, start/stop                               | Picodata          |
 | Snapshot             | id, session_id, name, model_time, author, schema_version, SHA-256, storage_key, is_preset                     | meta: Picodata, payload: S3 |
 | AlarmEvent           | id, session_id, component_instance_id, tag_id, priority, raised/ack time                                     | Picodata          |
 | OperatorAction       | id, session_id, user_id, type, target, value, model_time, server_time                                         | Picodata (append-only) |
-| FaultInjection       | id, session_id, instructor_id, component_instance_id, fault_type, params, model_time                          | Picodata          |
+| FaultEvent           | id, session_id, fault_id, component_instance_id, params, trigger, fired_model_time (авто-событие из сценария)  | Picodata (append-only) |
 | Assessment           | id, session_id, penalties, critical_errors, total_score, override_by, override_comment                         | Picodata          |
 | ExamProtocol         | id, session_id, canonical_json, hmac_algorithm, hmac_key_version, hmac_signature                              | meta: Picodata, PDF: S3 |
 | AIInsight            | id, session_id, type, input, output, model_time                                                               | Picodata          |
@@ -569,7 +568,6 @@
     {
       "id": "pump-n2-001",
       "component_type_id": "centrifugal_pump",
-      "component_type_version": "1.2",
       "label": "Н-2",
       "position": { "x": 120, "y": 340 },
       "parameters": { "Q_nom": 560, "P_max": 22, "N_kw": 400 },
@@ -994,6 +992,7 @@
 | ------ | ---------- | -------------------------------------------------------------------------------------------------------- |
 | 2.0    | 2026-08-06 | Полная переработка: переход от фиксированного КТК ЭЛОУ к **Конструктору КТК**. Визуальный редактор установок (drag-and-drop). Библиотека компонентов — полная схема КТС. |
 | 2.1    | 2026-08-06 | Мердж с архитектурой микросервисов. 3 роли (Админ, Инструктор, Оператор). Инструктор наблюдает (read-only), без live-инъекций. Неисправности — только из сценария (по времени/условию). Убрано версионирование (CRUD). Istio mesh + Angie BFF. NATS JetStream. KUMA (SIEM). MinIO (S3). Constructor Service — отдельный сервис. REST между сервисами, gRPC для sim/ai. |
+| 2.2    | 2026-08-07 | Согласование с планом реализации: `FR-HMI-01` — ручная сборка мнемосхемы (было авто из графа); `FR-SNAP-06` — версионирование снапшота по `schema_version` без привязки к версии шаблона; `FR-SCEN-06` — привязка к шаблону без версий; §6.1 — удалена сущность `TemplateVersion`, `Scenario.template_version_id`→`template_id`, `FaultInjection`→`FaultEvent` (авто-событие сценария, append-only), убраны поля `version` у `ComponentType`/`InstallationTemplate` и в графе. |
 
 ---
 

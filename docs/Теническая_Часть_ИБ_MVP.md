@@ -832,3 +832,11 @@ LDAP\_BIND\_DN=cn=readonly,ou=services,dc=your-domain, dc=ru
 LDAP\_PASSWORD=your\_ldap\_password
 
 \```
+🔥 Критические изменения для K8s
+
+1. Не храните секреты в Docker-образе — используйте K8s Secrets / Vault
+2. Не пишите логи в файлы внутри контейнера — пишите в stdout/stderr (их соберет Fluentd / Loki)
+3. Используйте StatefulSet для БД, а не Deployment (для сохранения состояния)
+4. Настройте readiness/liveness пробы — K8s будет перезапускать упавшие поды
+5. Network Policies — изолируйте поды друг от друга (важно для безопасности)
+

@@ -42,10 +42,10 @@ Python-сервис (rule-based + таблицы эталонов).
 | Session Orchestrator (`orchestrator`) | микросервис | HTTPS/REST, mTLS |
 | Scenario / Catalog (`scenario`) | микросервис | HTTPS/REST (эталон), mTLS |
 | AI Service (`ai`) | микросервис | HTTPS/gRPC + mTLS (статистика для разбора) |
-| Брокер сообщений (`broker`) | инфраструктура | события — AMQP / Kafka / NATS |
+| Брокер сообщений (`broker`) | инфраструктура | события — NATS |
 | Picodata (`db`) | СУБД | SQL (append-only оценки) |
 | KUMA | SIEM | события ИБ (переопределение оценки) |
-| flPent/promColl | observability | логи, `/metrics` |
+| Пульт / Fluent Bit | observability | логи, `/metrics` |
 
 ## 7. Данные
 
@@ -62,7 +62,7 @@ Python-сервис (rule-based + таблицы эталонов).
 | Secret | ключ HMAC/тьфу для подписи протокола |
 | Pod + sidecar `istio-proxy` | mTLS |
 
-## 9. Метрики (в Astra Monitoring)
+## 9. Метрики (в Пульт + Графиня)
 
 - Число оценённых сессий/событий.
 - Задержка оценки, время до вердикта.

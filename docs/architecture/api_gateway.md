@@ -13,7 +13,7 @@
 
 ## 2. Основные функции
 
-- **Проверка JWT** и применение **RBAC** по ролям (бизнес-полномочия на уровне запроса).
+- **Проверка JWT** и применение **RBAC** по 3 ролям: Админ, Инструктор, Оператор (бизнес-полномочия на уровне запроса).
 - **Агрегация (BFF-паттерн):** один клиентский запрос может собраться из нескольких внутренних сервисов.
 - **Версионирование API** и поддержание стабильного прикладного контракта (схемы).
 - **Rate limiting** на уровне пользователя/сессии (авторизация ≤10/мин, API ≤50/мин на endpoint) — тоньше, чем по IP.
@@ -51,7 +51,8 @@ Nginx (→ отечественный форк **Angie**) или Backend-for-Fro
 | Scenario / Catalog (`scenario`) | микросервис | HTTPS/REST, mTLS |
 | Assessment Engine (`assessment`) | микросервис | HTTPS/REST, mTLS |
 | Reporting (`report`) | микросервис | HTTPS/REST (запуск задач), mTLS |
-| Fluent Bit / promColl | observability | логи, `/metrics` |
+| Fluent Bit / Пульт | observability | логи, `/metrics` |
+| Constructor Service (`constructor`) | микросервис | HTTPS/REST, mTLS |
 
 **Принцип:** никогда не ходит в `sim`, `db`, `s3` напрямую — только в свой внутренний слой.
 
@@ -71,7 +72,7 @@ Nginx (→ отечественный форк **Angie**) или Backend-for-Fro
 | NetworkPolicy | accept от Ingress, egress только к внутренним сервисам |
 | Pod + sidecar `istio-proxy` | mTLS, AuthorizationPolicy |
 
-## 9. Метрики (в Astra Monitoring)
+## 9. Метрики (в Пульт + Графиня)
 
 - HTTP-коды (2xx/4xx/5xx), задержки, число активных WS.
 - Срабатывания rate-limit, ошибки авторизации.

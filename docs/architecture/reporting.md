@@ -31,7 +31,7 @@ Python, WeasyPrint (PDF), S3 SDK, HMAC-подпись.
 | Направление | Протокол | Методы |
 |---|---|---|
 | от `gw` | HTTPS/REST | `POST /reports (запрос на отчет)`, `GET /reports/{id}` |
-| из `broker` | AMQP/Kafka/NATS | задача «сформировать протокол» |
+| из `broker` | NATS JetStream | задача «сформировать протокол» |
 | к S3 | S3 API | PUT PDF |
 | к Picodata | SQL | чтение данных, запись `ExamProtocol` |
 
@@ -40,8 +40,8 @@ Python, WeasyPrint (PDF), S3 SDK, HMAC-подпись.
 | Взаимодействует с | Тип | Протокол |
 |---|---|---|
 | API Gateway (`gw`) | микросервис | HTTPS/REST, mTLS |
-| Брокер сообщений (`broker`) | инфраструктура | AMQP / Kafka / NATS |
-| S3 (Object Storage) | хранилище | S3 API (HTTPS) |
+| Брокер сообщений (`broker`) | инфраструктура | NATS JetStream |
+| S3 / MinIO | хранилище | S3 API (HTTPS) |
 | Picodata (`db`) | СУБД | SQL |
 | HMAC seal API (сервисный) | сервис подписи | внутренний сервисный протокол |
 | KUMA | SIEM | события ИБ (формирование/подпись протокола) |
@@ -61,7 +61,7 @@ Python, WeasyPrint (PDF), S3 SDK, HMAC-подпись.
 | Secret | ключ HMAC (из Vault) |
 | Pod + sidecar `istio-proxy` | mTLS |
 
-## 9. Метрики (в Astra Monitoring)
+## 9. Метрики (в Пульт + Графиня)
 
 - Время генерации PDF (PERF-05).
 - Длина очереди, успешность подписи, ошибки.

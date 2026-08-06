@@ -17,7 +17,7 @@
 
 ## 3. Технологии
 
-Python, S3 SDK, сериализация состояния (канонический JSON + версия схемы).
+Python, S3 SDK (MinIO — MVP, отечественное S3-совместимое — target), сериализация состояния (канонический JSON).
 
 ## 4. Внутренняя структура
 
@@ -42,7 +42,7 @@ Python, S3 SDK, сериализация состояния (каноничес�
 | S3 (Object Storage) | хранилище | S3 API (HTTPS, AWS Signature V4) |
 | Picodata (`db`) | СУБД | SQL (метаданные снапшотов) |
 | Simulation Engine (через orchestrator) | микросервис | Model API |
-| promColl | observability | `/metrics` (время restore) |
+| Пульт | observability | `/metrics` (время restore) |
 | KUMA | SIEM | события аудита операций save/restore (антифрод) |
 
 ## 7. Данные
@@ -60,7 +60,7 @@ Python, S3 SDK, сериализация состояния (каноничес�
 | NetworkPolicy | accept от `orchestrator`; egress к `db`, `s3` |
 | Pod + sidecar `istio-proxy` | mTLS |
 
-## 9. Метрики (в Astra Monitoring)
+## 9. Метрики (в Пульт + Графиня)
 
 - Время save/restore (PERF-03 ≤15 с).
 - Число операций, размер payload, ошибки целостности.

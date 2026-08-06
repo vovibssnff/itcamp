@@ -31,7 +31,7 @@ GPU-хост: vLLM/Ollama (LLM), PyTorch/scikit-learn. DCGM-exporter / nvidia-ex
 | Направление | Протокол | Методы |
 |---|---|---|
 | от `orchestrator`/`assessment` | HTTPS/gRPC + mTLS | `explain`, `predict_physics`, `predict_behaviour`, `generate_scenario`, `analyze` |
-| из `broker` | AMQP/Kafka/NATS | очереди задач инференса |
+| из `broker` | NATS JetStream | очереди задач инференса |
 
 ## 6. Зависимости и протоколы
 
@@ -39,8 +39,8 @@ GPU-хост: vLLM/Ollama (LLM), PyTorch/scikit-learn. DCGM-exporter / nvidia-ex
 |---|---|---|
 | Session Orchestrator (`orchestrator`) | микросервис | AI API — HTTPS/gRPC + mTLS |
 | Assessment Engine (`assessment`) | микросервис | HTTPS/gRPC + mTLS (статистика для разбора) |
-| Брокер сообщений (`broker`) | инфраструктура | очередь инференса — AMQP / Kafka / NATS |
-| promColl / DCGM | observability | метрики GPU/VRAM/очереди, `/metrics` |
+| Брокер сообщений (`broker`) | инфраструктура | очередь инференса — NATS JetStream |
+| Пульт / DCGM | observability | метрики GPU/VRAM/очереди, `/metrics` |
 | Picodata (`db`) | СУБД | SQL (чтение истории/результатов, опционально) |
 
 **Не имеет**: внешнего сетевого доступа (egress запрещён), изолированный serviceAccount.
@@ -62,7 +62,7 @@ GPU-хост: vLLM/Ollama (LLM), PyTorch/scikit-learn. DCGM-exporter / nvidia-ex
 | Secret / serviceAccount | изолирован от других сервисов |
 | Pod + sidecar `istio-proxy` | mTLS (если в сетке; возможен вариант вне mesh) |
 
-## 9. Метрики (в Astra Monitoring)
+## 9. Метрики (в Пульт + Графиня)
 
 - GPU utilization, VRAM, температура, очередь инференса.
 - Время ответа explain/predict, ошибки ИИ.

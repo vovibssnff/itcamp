@@ -1,7 +1,6 @@
 # Сервис: Session Orchestrator — `orchestrator`
 
 > Слой: Прикладной | Namespace: `ktc-app` | Под: `orchestrator`
-> Смежно: `Реестр_сервисов...`, `Сценарии_экзамен...`, `Архитектура_КТК_K8s.drawio`, `Simulation_Engine...k8s.md`
 
 ## 1. Назначение
 
@@ -9,12 +8,15 @@
 
 ## 2. Основные функции
 
-- Создание/запуск/пауза/стоп сессий, управление режимом (Тренировка/Экзамен/Демо).
+- Создание/запуск/пауза/стоп сессий, управление режимом (Тренировка/Экзамен).
+- Получение конфигурации шаблона из `constructor` (init state) при старте сессии.
 - Управление **модельным временем** (0.1×–10×) через `sim`.
 - Рассылка **телеметрии 1 Гц** клиентам (WebSocket).
+- **Автоматическая инъекция неисправностей** из сценария (по времени/условию) → вызов `sim.inject_fault`.
 - **Чекпоинты** и координация save/restore (через snapshot).
 - Координация Simulation Engine, Assessment, AI, Broker.
 - Фиксация действий оператора и событий (журнал в Picodata).
+- Подключение инструктора в режиме **read-only** (наблюдение телеметрии через WS).
 
 ## 3. Технологии
 
@@ -24,6 +26,7 @@ Python/FastAPI, WebSocket, асинхронные задачи.
 
 - Диспетчер сессий (map session_id → состояние).
 - Цикл телеметрии: опрос `sim` (step) → push клиентам → кэш в Radix.
+- **Планировщик событий сценария**: проверка триггеров (время/условие) → inject_fault в sim.
 - Обработка команд клиентов (REST/WS).
 - Планировщик чекпоинтов и взаимодействие с snapshot/ai/broker.
 
@@ -31,46 +34,50 @@ Python/FastAPI, WebSocket, асинхронные задачи.
 
 | Направление | Протокол | Методы |
 |---|---|---|
-| от `gw` | HTTPS/REST | `POST /session/start`, `/pause`, `/stop`, `GET /session/{id}`, `inject_fault`, `set_speed` |
-| к клиенту | WebSocket | push телеметрии/статуса |
-| к `sim` | Model API (gRPC/REST) | `step`, `get_state`, `set_state`, `inject_fault`, `set_speed` |
+| от `gw` | HTTPS/REST | `POST /session/start`, `/pause`, `/stop`, `GET /session/{id}`, `set_speed` |
+| к клиенту (оператор) | WebSocket | push телеметрии/статуса (RW — команды оператора) |
+| к клиенту (инструктор) | WebSocket | push телеметрии/статуса (read-only наблюдение) |
+| к `sim` | gRPC (Model API) | `step`, `get_state`, `set_state`, `inject_fault`, `set_speed` |
+| к `constructor` | HTTPS/REST | `GET /templates/{id}/export` (init state при старте) |
 | к `assessment` | HTTPS/REST | события действия/аларма, запрос оценки |
 | к `snapshot` | HTTPS/REST | save/restore |
 | к `ai` | HTTPS/gRPC + mTLS | подсказки/разбор (не в экзамене) |
-| к `broker` | AMQP/Kafka/NATS | асинхронные задачи/события |
+| к `broker` | NATS | асинхронные события сессии |
 
 ## 6. Зависимости и протоколы
 
 | Взаимодействует с | Тип | Протокол |
 |---|---|---|
 | API Gateway (`gw`) | микросервис | HTTPS/REST, WS |
-| Simulation Engine (`sim`) | микросервис | Model API (gRPC/REST), mTLS |
+| Constructor Service (`constructor`) | микросервис | HTTPS/REST, mTLS |
+| Simulation Engine (`sim`) | микросервис | gRPC (Model API), mTLS |
 | Assessment Engine (`assessment`) | микросервис | HTTPS/REST, mTLS |
 | Snapshot Service (`snapshot`) | микросервис | HTTPS/REST, mTLS |
 | AI Service (`ai`) | микросервис | HTTPS/gRPC + mTLS (fallback) |
-| Брокер сообщений (`broker`) | инфраструктура | AMQP / Kafka / NATS |
+| Брокер сообщений (`broker`) | инфраструктура | NATS |
 | Picodata (`db`) | СУБД | SQL (PostgreSQL-wire) |
 | Radix (`cache`) | кэш | Redis-протокол (RESP), TCP |
-| Fluent Bit / promColl | observability | логи, `/metrics` (tick-lag) |
+| Fluent Bit / Пульт | observability | логи, `/metrics` (tick-lag) |
 
 ## 7. Данные
 
-- Пикодата: сессии, журналы действий/алармов, чекпоинт-метаданные.
+- Picodata: сессии, журналы действий/алармов, чекпоинт-метаданные.
 - Radix: горячее состояние сессии для мгновенного доступа.
 
 ## 8. Объекты Kubernetes (namespace `ktc-app`)
 
 | Объект | Описание |
 |---|---|
-| Deployment `orchestrator` | N≥2 реплики (stateless диспетчер-мастер), HPA |
+| Deployment `orchestrator` | N≥2 реплики (stateless диспетчер), HPA |
 | Service `orchestrator` | ClusterIP |
-| NetworkPolicy | egress к `sim`, `assessment`, `snapshot`, `ai`, `broker`, `db`, `cache` |
+| NetworkPolicy | egress к `sim`, `constructor`, `assessment`, `snapshot`, `ai`, `broker`, `db`, `cache` |
 | Pod + sidecar `istio-proxy` | mTLS |
 
-## 9. Метрики (в Astra Monitoring)
+## 9. Метрики (в Пульт + Графиня)
 
 - **tick-lag** (главная метрика real-time), число активных сессий.
 - WS-нагрузка, latency телеметрии, время restore/чека.
+- Число подключённых инструкторов (read-only WS).
 
 ## 10. Отказоустойчивость / масштабирование
 

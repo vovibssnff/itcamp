@@ -42,7 +42,7 @@ Python + NumPy/SciPy (численное интегрирование ODE), со
 | Session Orchestrator (`orchestrator`) | микросервис | Model API (gRPC/REST), mTLS |
 | Snapshot Service (через orchestrator) | микросервис | Model API (get_state/set_state) |
 | Пикодата (`db`) | СУБД | SQL (журнал аварий/действий) |
-| promColl / fluent | observability | `/metrics` (tick-lag), stdout |
+| Пульт / Fluent Bit | observability | `/metrics` (tick-lag), stdout |
 
 **Не связан** с фронтом, ИИ, assessment, репортом напрямую (изоляция OT и сети).
 
@@ -67,7 +67,7 @@ Python + NumPy/SciPy (численное интегрирование ODE), со
 
 Подробный жизненный цикл пода, отказоустойчивость, гарантия 1 Гц — в `Simulation_Engine_модель_namespace_k8s.md`.
 
-## 9. Метрики (в Astra Monitoring)
+## 9. Метрики (в Пульт + Графиня)
 
 - **tick-lag** (главная метрика real-time).
 - Число активных сессий (под-движков).

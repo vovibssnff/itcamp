@@ -1,0 +1,25 @@
+{
+  "schema_version": "2.0",
+  "nodes": [
+    {
+      "id": "pump-n2-001",
+      "component_type_id": "centrifugal_pump",
+      "label": "Н-2",
+      "position": { "x": 120, "y": 340 },
+      "parameters": { "Q_nom": 560, "P_max": 22, "N_kw": 400 },
+      "ports": {
+        "inlet":  { "type": "liquid", "connected_to": "pipe-003" },
+        "outlet": { "type": "liquid", "connected_to": "pipe-004" }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "pipe-003",
+      "type": "liquid",
+      "from": { "node_id": "column-k1", "port": "bottom_outlet" },
+      "to":   { "node_id": "pump-n2-001", "port": "inlet" }
+    }
+  ],
+  "layout": { "mnemo_positions": {}, "custom_labels": {} }
+}

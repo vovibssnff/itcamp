@@ -1,0 +1,22 @@
+{
+  "id": "sc-1",
+  "template_id": "t-1",
+  "name": "Рост P в К-1 до блокировки",
+  "description": "...",
+  "type": "training",
+  "start_preset_id": "snap-preset-1",
+  "faults": [
+    { "id": "f-1", "fault_id": "pressure_rise_k1", "component_instance_id": "column-k1",
+      "params": { "severity_pct": 100, "ramp_seconds": 120 },
+      "trigger": { "type": "time", "at_model_time": 300 }, "hidden": false },
+    { "id": "f-2", "fault_id": "pump_failure", "component_instance_id": "pump-n2-001",
+      "params": { "severity_pct": 100, "ramp_seconds": 0 },
+      "trigger": { "type": "condition", "condition": { "tag": "PRSA-204", "op": ">=", "value": 4.5, "for_seconds": 10 } } }
+  ],
+  "reference_actions": [
+    { "step": 1, "description": "Снизить подачу топлива в П-1", "expected": { "target": "TRC-9", "action": "set_mode", "value": "MANUAL" }, "deadline_seconds": 30, "mandatory": true },
+    { "step": 2, "description": "Прекратить подачу пара", "expected": { "target": "FR-803", "action": "close" }, "deadline_seconds": 60, "mandatory": true }
+  ],
+  "criteria": { "max_score": 100, "penalty_late": 10, "penalty_miss": 25, "penalty_forbidden": 40,
+                "critical_actions": ["esd_without_reason"], "pass_threshold": 70 }
+}

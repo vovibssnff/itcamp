@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ktk.local/schemas/sim_state.json",
+  "title": "SimState",
+  "description": "Init-state для sim (результат constructor.export) и формат снапшота (plan §4, FR-SNAP-01). Канонический JSON — единица save/restore.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string" },
+    "model_time": {
+      "type": "number",
+      "description": "Секунды модельного времени (float)."
+    },
+    "seed": {
+      "type": "integer",
+      "description": "Seed ГПСЧ — для детерминированного restore (FR-SNAP-02)."
+    },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/node" }
+    },
+    "connections": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/connection" }
+    },
+    "regulators": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/regulator" }
+    },
+    "alarms": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/alarm" }
+    },
+    "tags": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/tag" }
+    }
+  },
+  "required": ["schema_version", "model_time", "seed", "nodes"],
+  "additionalProperties": false,
+  "$defs": {
+    "node": {
+      "type": "object",
+      "properties": {
+        "instance_id": { "type": "string" },
+        "model_code": { "type": "string" },
+        "parameters": { "type": "object" },
+        "state": {
+          "type": "object",
+          "description": "Внутреннее состояние узла (специфично для ODE-класса)."
+        }
+      },
+      "required": ["instance_id", "model_code"],
+      "additionalProperties": true
+    },
+    "connection": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["liquid", "gas", "signal", "electric"]
+        },
+        "from": {
+          "type": "string",
+          "description": "Формат node_id:port, напр. column-k1:bottom_outlet."
+        },
+        "to": { "type": "string" }
+      },
+      "required": ["id", "type", "from", "to"],
+      "additionalProperties": false
+    },
+    "regulator": {
+      "type": "object",
+      "properties": {
+        "tag_id": { "type": "string" },
+        "pv": { "type": "number" },
+        "sp": { "type": "number" },
+        "out": { "type": "number" },
+        "mode": { "type": "string", "enum": ["AUTO", "MANUAL"] },
+        "Kp": { "type": "number" },
+        "Ki": { "type": "number" },
+        "Kd": { "type": "number" }
+      },
+      "required": ["tag_id", "pv", "sp", "out", "mode"],
+      "additionalProperties": true
+    },
+    "alarm": {
+      "type": "object",
+      "properties": {
+        "alarm_id": { "type": "string" },
+        "tag_id": { "type": "string" },
+        "priority": { "type": "string", "enum": ["NONE", "LL", "L", "H", "HH"] },
+        "active": { "type": "boolean" },
+        "acknowledged": { "type": "boolean" },
+        "raised_model_time": { "type": "number" }
+      },
+      "required": ["tag_id", "priority"],
+      "additionalProperties": true
+    },
+    "tag": {
+      "type": "object",
+      "properties": {
+        "tag_id": { "type": "string" },
+        "value": { "type": "number" },
+        "unit": { "type": "string" },
+        "quality": { "type": "string" }
+      },
+      "required": ["tag_id", "value"],
+      "additionalProperties": true
+    }
+  }
+}

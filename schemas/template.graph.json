@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ktk.local/schemas/template.graph.json",
+  "title": "InstallationGraph",
+  "description": "Граф установки (plan §4, SRD §6.2). Единица конфигурации (ARCH-07). Хранится в installation_templates.graph (JSONB).",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Версия формата графа/снапшота; включена в граф и снапшот (plan §1)."
+    },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/node" }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edge" }
+    },
+    "layout": {
+      "type": "object",
+      "description": "Раскладка мнемосхемы (ручная, FR-CNST-05).",
+      "properties": {
+        "mnemo_positions": { "type": "object" },
+        "custom_labels": { "type": "object" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "required": ["schema_version", "nodes", "edges"],
+  "additionalProperties": false,
+  "$defs": {
+    "node": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Instance id узла в графе." },
+        "component_type_id": {
+          "type": "string",
+          "description": "Ссылка на component_types.id."
+        },
+        "label": { "type": "string" },
+        "position": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          },
+          "required": ["x", "y"],
+          "additionalProperties": false
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Значения параметров экземпляра (FR-CNST-04)."
+        },
+        "ports": {
+          "type": "object",
+          "description": "Порты узла: имя порта -> { type, connected_to }.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["liquid", "gas", "signal", "electric"]
+              },
+              "connected_to": {
+                "type": ["string", "null"],
+                "description": "id ребра, к которому подключён порт, либо null."
+              }
+            },
+            "required": ["type"],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": ["id", "component_type_id"],
+      "additionalProperties": true
+    },
+    "edge": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["liquid", "gas", "signal", "electric"]
+        },
+        "from": { "$ref": "#/$defs/endpoint" },
+        "to": { "$ref": "#/$defs/endpoint" }
+      },
+      "required": ["id", "type", "from", "to"],
+      "additionalProperties": false
+    },
+    "endpoint": {
+      "type": "object",
+      "properties": {
+        "node_id": { "type": "string" },
+        "port": { "type": "string" }
+      },
+      "required": ["node_id", "port"],
+      "additionalProperties": false
+    }
+  }
+}

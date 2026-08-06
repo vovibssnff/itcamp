@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "py-common"
+version = "0.1.0"
+description = "Общие модули сервисов КТК: config, logging, jwt, picodata, nats, health/metrics, RFC7807, pagination + сгенерированные gRPC-стабы (ktk_contracts)."
+requires-python = ">=3.11"
+authors = [{ name = "KTK Platform Team" }]
+dependencies = [
+  "fastapi==0.141.1",
+  "pydantic==2.13.4",
+  "pyjwt[crypto]==2.13.0",
+  "cryptography==50.0.0",
+  "prometheus-client==0.26.0",
+  "grpcio==1.83.0",
+  "protobuf==7.35.1",
+  "nats-py==2.9.0",
+  "asyncpg==0.30.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "grpcio-tools==1.83.0",
+  "pytest==9.1.1",
+  "ruff==0.14.5",
+  "black==25.9.0",
+  "jsonschema==4.26.0",
+]
+
+[tool.setuptools]
+packages = ["py_common", "ktk_contracts"]
+
+[tool.setuptools.package-dir]
+py_common = "py_common"
+ktk_contracts = "ktk_contracts"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

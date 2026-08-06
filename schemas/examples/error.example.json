@@ -1,0 +1,8 @@
+{
+  "type": "about:blank",
+  "title": "Validation failed",
+  "status": 422,
+  "detail": "port type mismatch",
+  "instance": "/api/v1/templates/42/validate",
+  "errors": [ { "field": "edges[3]", "code": "PORT_TYPE_MISMATCH" } ]
+}

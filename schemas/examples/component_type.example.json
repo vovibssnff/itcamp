@@ -1,0 +1,17 @@
+{
+  "id": "centrifugal_pump",
+  "name": "Центробежный насос",
+  "category": "Общие",
+  "description": "Q-H характеристика, кавитация",
+  "ports": [
+    { "id": "inlet", "name": "Вход", "type": "liquid", "direction": "in", "required": true },
+    { "id": "outlet", "name": "Выход", "type": "liquid", "direction": "out", "required": true }
+  ],
+  "parameters": [
+    { "id": "Q_nom", "name": "Номинальная подача", "unit": "м3/ч", "type": "float", "default": 560, "min": 0, "max": 2000 },
+    { "id": "P_max", "name": "Макс. напор", "unit": "кгс/см2", "type": "float", "default": 22 }
+  ],
+  "model_code": "centrifugal_pump",
+  "icon_s3_key": "component-icons/pump.svg",
+  "documentation": "..."
+}

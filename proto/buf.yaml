@@ -1,0 +1,12 @@
+version: v2
+modules:
+  - path: .
+lint:
+  use:
+    - STANDARD
+  except:
+    - PACKAGE_VERSION_SUFFIX
+  # Пакеты уже версионированы как ktk.sim.v1 / ktk.ai.v1 (см. plan §5).
+breaking:
+  use:
+    - FILE

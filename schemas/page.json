@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ktk.local/schemas/page.json",
+  "title": "Page",
+  "description": "Конверт пагинации (plan §5): { items, total, limit, offset }.",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "description": "Страница элементов; тип элемента специфичен для эндпоинта."
+    },
+    "total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Общее число элементов, удовлетворяющих фильтру."
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 500,
+      "description": "Размер страницы (?limit=, по умолчанию 50)."
+    },
+    "offset": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Смещение (?offset=, по умолчанию 0)."
+    }
+  },
+  "required": ["items", "total", "limit", "offset"],
+  "additionalProperties": false
+}

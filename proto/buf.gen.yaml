@@ -1,0 +1,8 @@
+version: v2
+managed:
+  enabled: false
+plugins:
+  - remote: buf.build/protocolbuffers/python
+    out: ../libs/py-common/ktk_contracts
+  - remote: buf.build/grpc/python
+    out: ../libs/py-common/ktk_contracts

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ktk.local/schemas/component_type.json",
+  "title": "ComponentType",
+  "description": "Тип компонента библиотеки КТС (plan §9.1, FR-LIB-01).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Стабильный идентификатор типа (совпадает с ключом ODE-класса при model_code)."
+    },
+    "name": { "type": "string", "description": "Отображаемое имя." },
+    "category": {
+      "type": "string",
+      "enum": ["Общие", "ЭЛОУ", "Атмосфера", "ГДМ"],
+      "description": "Категория каталога (plan §4)."
+    },
+    "description": { "type": "string" },
+    "ports": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/port" }
+    },
+    "parameters": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/parameter" }
+    },
+    "model_code": {
+      "type": "string",
+      "description": "Ключ ODE-класса в sim (ARCH-01, стабильный Model API)."
+    },
+    "icon_s3_key": {
+      "type": "string",
+      "description": "Ключ иконки в MinIO bucket component-icons."
+    },
+    "documentation": { "type": "string" }
+  },
+  "required": ["id", "name", "category", "ports", "parameters", "model_code"],
+  "additionalProperties": false,
+  "$defs": {
+    "port": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["liquid", "gas", "signal", "electric"],
+          "description": "Типизация потока (FR-CNST-02)."
+        },
+        "direction": { "type": "string", "enum": ["in", "out"] },
+        "required": { "type": "boolean", "default": false }
+      },
+      "required": ["id", "name", "type", "direction"],
+      "additionalProperties": false
+    },
+    "parameter": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "unit": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["float", "int", "bool", "string", "enum"]
+        },
+        "default": {},
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "options": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "name", "type"],
+      "additionalProperties": false
+    }
+  }
+}

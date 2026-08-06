@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ktk.local/schemas/error.json",
+  "title": "Problem",
+  "description": "RFC 7807 application/problem+json (plan §5). Единый формат ошибок всех REST-сервисов.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "format": "uri-reference",
+      "default": "about:blank",
+      "description": "URI типа проблемы; about:blank для generic-ошибок."
+    },
+    "title": {
+      "type": "string",
+      "description": "Краткое человекочитаемое описание типа проблемы."
+    },
+    "status": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 599,
+      "description": "HTTP-код, дублирующий статус ответа."
+    },
+    "detail": {
+      "type": "string",
+      "description": "Пояснение к конкретному экземпляру проблемы."
+    },
+    "instance": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "URI ресурса, на котором возникла проблема."
+    },
+    "errors": {
+      "type": "array",
+      "description": "Детализация ошибок валидации (опционально).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "field": { "type": "string" },
+          "code": { "type": "string" },
+          "message": { "type": "string" }
+        },
+        "required": ["code"],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": ["title", "status"],
+  "additionalProperties": true
+}

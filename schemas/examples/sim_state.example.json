@@ -1,0 +1,14 @@
+{
+  "schema_version": "2.0",
+  "model_time": 0.0,
+  "seed": 20260806,
+  "nodes": [
+    { "instance_id": "pump-n2-001", "model_code": "centrifugal_pump",
+      "parameters": { "Q_nom": 560, "P_max": 22 },
+      "state": { "running": true, "Q": 0.0, "P_out": 0.0 } }
+  ],
+  "connections": [ { "id": "pipe-003", "type": "liquid", "from": "column-k1:bottom_outlet", "to": "pump-n2-001:inlet" } ],
+  "regulators": [ { "tag_id": "FRC-458", "pv": 0, "sp": 300, "out": 0, "mode": "AUTO", "Kp": 1.2, "Ki": 0.05, "Kd": 0 } ],
+  "alarms": [],
+  "tags": [ { "tag_id": "PRSA-204", "value": 1.2, "unit": "кгс/см2" } ]
+}

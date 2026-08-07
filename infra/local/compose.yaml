@@ -1,0 +1,151 @@
+# Local data-plane: Picodata (CE) + Redis-as-Radix + MinIO + NATS JetStream
+# Usage: cp .env.example .env && docker compose up -d
+
+name: ktc-local
+
+services:
+  picodata:
+    image: ${PICODATA_IMAGE:-docker.binary.picodata.io/picodata:25.5.9}
+    hostname: picodata
+    # Image USER is 1000; named volume is root-owned — run as root locally.
+    user: "0:0"
+    environment:
+      PICODATA_ADMIN_PASSWORD: ${PICODATA_ADMIN_PASSWORD:-T0psecret}
+      PICODATA_CLUSTER_NAME: ${PICODATA_CLUSTER_NAME:-ktc}
+      PICODATA_INSTANCE_DIR: /var/lib/picodata/data
+      PICODATA_INSTANCE_NAME: picodata-1
+      PICODATA_IPROTO_LISTEN: 0.0.0.0:3301
+      PICODATA_IPROTO_ADVERTISE: picodata:3301
+      PICODATA_PG_LISTEN: 0.0.0.0:4327
+      PICODATA_PG_ADVERTISE: picodata:4327
+    volumes:
+      - picodata-data:/var/lib/picodata/data
+    ports:
+      - "${PICODATA_HOST_PORT:-5432}:4327"
+    networks: [ktc-data]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/4327'",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 15s
+    restart: unless-stopped
+
+  # Dev stand-in for Radix (commercial Picodata plugin). Same host/port as Radix standalone.
+  radix:
+    image: ${RADIX_IMAGE:-redis:7.4-alpine}
+    hostname: radix
+    command: ["redis-server", "--port", "7379", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - radix-data:/data
+    ports:
+      - "${RADIX_HOST_PORT:-7379}:7379"
+    networks: [ktc-data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  minio:
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-04-22T22-12-26Z}
+    hostname: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ktcminio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-ktcminio_secret}
+    volumes:
+      - minio-data:/data
+    ports:
+      - "${MINIO_API_HOST_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
+    networks: [ktc-data]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  minio-init:
+    image: ${MINIO_MC_IMAGE:-minio/mc:RELEASE.2025-04-16T18-13-26Z}
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ktcminio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-ktcminio_secret}
+    volumes:
+      - ./data/minio/init-buckets.sh:/init-buckets.sh:ro
+    entrypoint: ["/bin/sh", "/init-buckets.sh"]
+    networks: [ktc-data]
+    restart: "no"
+
+  nats:
+    image: ${NATS_IMAGE:-nats:2.11-alpine}
+    hostname: nats
+    command: ["-c", "/etc/nats/nats.conf"]
+    volumes:
+      - ./data/nats/nats.conf:/etc/nats/nats.conf:ro
+      - nats-data:/data
+    ports:
+      - "${NATS_CLIENT_HOST_PORT:-4222}:4222"
+      - "${NATS_MONITOR_HOST_PORT:-8222}:8222"
+    networks: [ktc-data]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  nats-init:
+    image: ${NATS_BOX_IMAGE:-natsio/nats-box:0.16.0}
+    depends_on:
+      nats:
+        condition: service_healthy
+    volumes:
+      - ./init/nats/init-streams.sh:/init-streams.sh:ro
+    entrypoint: ["/bin/sh", "/init-streams.sh"]
+    environment:
+      NATS_URL: nats://nats:4222
+    networks: [ktc-data]
+    restart: "no"
+
+  picodata-init:
+    image: ${PSQL_IMAGE:-postgres:16-alpine}
+    depends_on:
+      picodata:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${PICODATA_ADMIN_PASSWORD:-T0psecret}
+    volumes:
+      - ./init/sql/0001_bootstrap.sql:/sql/0001_bootstrap.sql:ro
+      - ./init/wait-for.sh:/wait-for.sh:ro
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "psql -h picodata -p 4327 -U admin -d postgres -v ON_ERROR_STOP=1 -f /sql/0001_bootstrap.sql",
+      ]
+    networks: [ktc-data]
+    restart: "no"
+
+networks:
+  ktc-data:
+    name: ktc-data
+    driver: bridge
+
+volumes:
+  picodata-data:
+  radix-data:
+  minio-data:
+  nats-data:

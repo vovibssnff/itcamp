@@ -1,0 +1,274 @@
+openapi: 3.1.0
+info:
+  title: KTC Constructor Service API
+  version: 1.0.0
+  description: |
+    Библиотека компонентов КТС, CRUD шаблонов установок, валидация графа, экспорт init-state.
+    SRD §3.1 (FR-CNST-*), §3.2 (FR-LIB-*), §3.3 (FR-TMPL-*).
+    Сервис вызывается через gw (instructor/admin). Export — internal (orchestrator).
+servers:
+  - url: https://constructor.ktc-app.svc.cluster.local
+    description: Внутренний (mTLS через Istio)
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+
+  schemas:
+    ComponentType:
+      $ref: https://ktc.itcamp/schemas/component_type.json
+
+    Template:
+      type: object
+      properties:
+        id:          { type: string }
+        name:        { type: string }
+        description: { type: string }
+        author_id:   { type: string }
+        status:      { type: string, enum: [draft, published, archived] }
+        graph:       { $ref: https://ktc.itcamp/schemas/template_graph.json }
+        created_at:  { type: string, format: date-time }
+        updated_at:  { type: string, format: date-time }
+
+    CreateTemplateRequest:
+      type: object
+      required: [name]
+      properties:
+        name:        { type: string }
+        description: { type: string }
+        graph:       { $ref: https://ktc.itcamp/schemas/template_graph.json }
+
+    CopyTemplateRequest:
+      type: object
+      required: [new_name]
+      properties:
+        new_name: { type: string }
+
+    ValidationResult:
+      type: object
+      properties:
+        valid: { type: boolean }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              code:     { type: string, example: PORT_TYPE_MISMATCH }
+              message:  { type: string }
+              edge_id:  { type: string }
+              node_id:  { type: string }
+
+    Error:
+      $ref: https://ktc.itcamp/schemas/error.json
+
+paths:
+  /components:
+    get:
+      summary: Каталог компонентов с фильтром/поиском (FR-LIB-10)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: category, in: query, schema: { type: string, enum: [Общие, ЭЛОУ, Атмосфера, ГДМ] } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ComponentType' }
+    post:
+      summary: Создать тип компонента (FR-LIB-03)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ComponentType' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComponentType' }
+
+  /components/{id}:
+    get:
+      summary: Тип компонента целиком
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComponentType' }
+    put:
+      summary: Изменить тип компонента (FR-LIB-03)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ComponentType' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComponentType' }
+    delete:
+      summary: Удалить тип (409 если используется в шаблонах)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: OK }
+        '409': { description: Используется в шаблонах }
+
+  /components/{id}/icon:
+    post:
+      summary: Загрузка иконки (multipart → S3)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200': { description: OK }
+
+  /templates:
+    get:
+      summary: Каталог шаблонов (FR-TMPL-08)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: author_id, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [draft, published, archived] } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Template' }
+    post:
+      summary: Создать шаблон (FR-TMPL-01)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTemplateRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Template' }
+
+  /templates/{id}:
+    get:
+      summary: Шаблон целиком (граф + layout) (FR-TMPL-10)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Template' }
+    put:
+      summary: Изменить граф/параметры/метаданные (FR-TMPL-05)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTemplateRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Template' }
+    delete:
+      summary: Удалить (soft→archived / hard для admin ?force=true) (FR-TMPL-04)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: force, in: query, schema: { type: boolean, default: false } }
+      responses:
+        '204': { description: OK }
+
+  /templates/{id}/copy:
+    post:
+      summary: Deep clone шаблона (FR-TMPL-03/06)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CopyTemplateRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Template' }
+
+  /templates/{id}/validate:
+    post:
+      summary: Валидация графа (FR-CNST-03)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ValidationResult' }
+
+  /templates/{id}/export:
+    get:
+      summary: Init-state для sim (internal, orchestrator)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: https://ktc.itcamp/schemas/sim_state.json }
+
+  /templates/{id}/export-file:
+    get:
+      summary: Выгрузка графа JSON (attachment) (FR-CNST-09)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: https://ktc.itcamp/schemas/template_graph.json }
+
+  /templates/import:
+    post:
+      summary: Импорт графа JSON (FR-CNST-09)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTemplateRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Template' }
+
+  /healthz:
+    get:
+      responses:
+        '200': { description: OK }

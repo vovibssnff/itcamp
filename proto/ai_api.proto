@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package ktk.ai.v1;
+
+// AI Service — gRPC контракт (SRD §3.14, FR-AI-01..07).
+// GPU-узел, изолированный serviceAccount, egress запрещён.
+// Деградация: падение ИИ не останавливает симуляцию и rule-based оценку (FR-AI-01, NFR-REL-03).
+// Вызывается orchestrator и assessment. В экзамене проактивные подсказки отключены (FR-AI-06).
+
+service AiApi {
+  rpc Explain          (ExplainRequest)          returns (Explanation);       // FR-AI-02: причина → следствие → рекомендация
+  rpc PredictPhysics   (PredictPhysicsRequest)   returns (PhysicsPrediction); // FR-AI-03: прогноз достижения уставки
+  rpc PredictBehaviour (PredictBehaviourRequest) returns (BehaviourRisk);     // FR-AI-04: риск ошибочного действия
+  rpc GenerateScenario (GenerateScenarioRequest) returns (ScenarioDraft);     // FR-AI-05 / FR-SCEN-04: адаптивный сценарий
+  rpc Analyze          (AnalyzeRequest)          returns (Analysis);          // post-exam разбор (FR-AI-06)
+}
+
+message AlarmCtx {
+  string tag_id      = 1;
+  string priority    = 2;
+  double model_time  = 3;
+}
+
+message TagSample {
+  double model_time = 1;
+  double value      = 2;
+}
+
+message ExplainRequest {
+  string  session_id            = 1;
+  double  model_time            = 2;
+  repeated AlarmCtx alarms      = 3;
+  string  tags_json             = 4;  // срез ключевых тегов
+  string  recent_actions_json   = 5;  // псевдонимизированные действия (FR-AI-07)
+}
+
+message Explanation {
+  string cause          = 1;
+  string effect         = 2;
+  string recommendation = 3;
+  double confidence     = 4;
+}
+
+message PredictPhysicsRequest {
+  string  session_id    = 1;
+  string  tag_id        = 2;
+  repeated TagSample history = 3;
+  double  setpoint      = 4;
+}
+
+message PhysicsPrediction {
+  string tag_id                = 1;
+  double eta_seconds_to_setpoint = 2;  // прогноз времени до достижения уставки
+  double predicted_value       = 3;
+  string risk_level            = 4;    // low | medium | high
+}
+
+message PredictBehaviourRequest {
+  string session_id              = 1;
+  string proposed_action_json    = 2;  // псевдонимизированное действие
+}
+
+message BehaviourRisk {
+  double risk_score = 1;  // 0..1
+  string rationale  = 2;
+}
+
+message GenerateScenarioRequest {
+  string template_id        = 1;
+  string graph_json         = 2;  // граф установки
+  string error_profile_json = 3;  // профиль ошибок оператора
+  string difficulty         = 4;  // easy | medium | hard
+}
+
+message ScenarioDraft {
+  string scenario_json = 1;  // черновик по schemas/scenario.json
+}
+
+message AnalyzeRequest {
+  string session_id   = 1;
+  string errors_json  = 2;  // статистика ошибок для разбора
+}
+
+message Analysis {
+  string summary        = 1;
+  repeated string weak_points = 2;
+  string training_plan  = 3;
+}

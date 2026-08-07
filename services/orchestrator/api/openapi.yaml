@@ -1,0 +1,228 @@
+openapi: 3.1.0
+info:
+  title: KTC Orchestrator Service API
+  version: 1.0.0
+  description: |
+    Жизненный цикл сессий, WS-телеметрия 1 Гц, автоинъекция из сценария, чекпоинты.
+    SRD §3.6 (FR-SESS-*), §3.7 (FR-FLT-*).
+    REST — через gw. WS — прямые каналы к orchestrator (прокси через gw).
+servers:
+  - url: https://orchestrator.ktc-app.svc.cluster.local
+    description: Внутренний (mTLS через Istio)
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+
+  schemas:
+    CreateSessionRequest:
+      type: object
+      required: [template_id, scenario_id, operator_ids, mode]
+      properties:
+        template_id:  { type: string }
+        scenario_id:  { type: string }
+        operator_ids: { type: array, items: { type: string } }
+        mode:         { type: string, enum: [training, exam, demo] }
+        speed:        { type: number, default: 1.0 }
+
+    Session:
+      type: object
+      properties:
+        id:            { type: string }
+        template_id:   { type: string }
+        scenario_id:   { type: string }
+        operator_ids:  { type: array, items: { type: string } }
+        instructor_id: { type: string }
+        mode:          { type: string, enum: [training, exam, demo] }
+        speed:         { type: number }
+        status:        { type: string, enum: [created, running, paused, stopped, finished] }
+        model_time:    { type: number }
+        started_at:    { type: string, format: date-time }
+        stopped_at:    { type: string, format: date-time }
+
+    CheckpointRequest:
+      type: object
+      properties:
+        name: { type: string }
+
+    RestoreRequest:
+      type: object
+      required: [snapshot_id]
+      properties:
+        snapshot_id: { type: string }
+
+    ActuatorCommand:
+      type: object
+      required: [tag, value]
+      properties:
+        tag:   { type: string }
+        value: {}
+
+    SpeedRequest:
+      type: object
+      required: [factor]
+      properties:
+        factor: { type: number, minimum: 0.1, maximum: 10 }
+
+    Error:
+      $ref: https://ktc.itcamp/schemas/error.json
+
+paths:
+  /sessions:
+    get:
+      summary: Список сессий (FR-SESS-05)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: operator_id, in: query, schema: { type: string } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Session' }
+    post:
+      summary: Создать сессию (FR-SESS-01)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSessionRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
+  /sessions/{id}:
+    get:
+      summary: Статус/метаданные сессии
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
+  /sessions/{id}/start:
+    post:
+      summary: Запустить сессию (FR-SESS-02)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
+  /sessions/{id}/pause:
+    post:
+      summary: Пауза (FR-SESS-02)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
+  /sessions/{id}/stop:
+    post:
+      summary: Остановить (FR-SESS-02)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
+  /sessions/{id}/speed:
+    put:
+      summary: Скорость 0.1×–10× (FR-SESS-03)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SpeedRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
+  /sessions/{id}/checkpoint:
+    post:
+      summary: Ручной снапшот (вызывает snapshot.Save по gRPC)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckpointRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  snapshot_id: { type: string }
+
+  /sessions/{id}/restore:
+    post:
+      summary: Восстановить из снапшота (в экзамене operator — 403)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RestoreRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
+  /sessions/{id}/actuator:
+    post:
+      summary: Команда на исполнительный механизм (альтернатива WS)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ActuatorCommand' }
+      responses:
+        '202': { description: Accepted }
+
+  /sessions/{id}/alarms/{alarm_id}/ack:
+    post:
+      summary: Квитирование аларма
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: alarm_id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+
+  /healthz:
+    get:
+      responses:
+        '200': { description: OK }
+
+# WebSocket-каналы (AsyncAPI, не OpenAPI — описаны здесь для документации)
+# Канал оператора (RW):   wss://<host>/api/v1/ws/sessions/{id}/operator?token=<jwt>
+#   server→client: telemetry, alarm, session_status, ai_hint (не в экзамене)
+#   client→server: actuator, ack_alarm, esd
+# Канал наблюдения (RO):  wss://<host>/api/v1/ws/sessions/{id}/observe?token=<jwt>
+#   server→client: telemetry, alarm, session_status, operator_action
+#   client→server: любые команды отклоняются (4403)

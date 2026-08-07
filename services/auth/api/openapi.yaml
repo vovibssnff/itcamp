@@ -1,0 +1,281 @@
+openapi: 3.1.0
+info:
+  title: KTC Auth Service API
+  version: 1.1.0
+  description: |
+    Аутентификация через LDAP/AD → JWT, RBAC (3 роли), 2FA (TOTP).
+    Trust boundary (auth.md §6): `gw` проверяет токен через `POST /introspect`,
+    внутренние сервисы токен не валидируют — контекст передаётся заголовками.
+    Сервис вызывается только API Gateway (gw).
+servers:
+  - url: https://auth.ktc-app.svc.cluster.local
+    description: Внутренний (mTLS через Istio)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    TokenResponse:
+      type: object
+      required: [access_token, refresh_token, expires_in, token_type]
+      properties:
+        access_token:  { type: string }
+        refresh_token: { type: string }
+        expires_in:    { type: integer, example: 900 }
+        token_type:    { type: string, example: Bearer }
+
+    LoginRequest:
+      type: object
+      required: [login, password]
+      properties:
+        login:    { type: string }
+        password: { type: string, format: password }
+        mfa_code: { type: string, description: TOTP-код если включён MFA }
+
+    MFARequiredResponse:
+      type: object
+      properties:
+        mfa_required: { type: boolean, example: true }
+
+    IntrospectRequest:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
+
+    IntrospectResponse:
+      type: object
+      properties:
+        active:   { type: boolean }
+        user_id:  { type: string }
+        login:    { type: string }
+        roles:    { type: array, items: { type: string }, example: [admin, instructor] }
+        token_id: { type: string }
+
+    User:
+      type: object
+      properties:
+        id:          { type: string }
+        login:       { type: string }
+        full_name:   { type: string }
+        ldap_dn:     { type: string }
+        roles:       { type: array, items: { type: string, enum: [admin, instructor, operator] } }
+        status:      { type: string, enum: [active, locked, disabled] }
+        mfa_enabled: { type: boolean }
+
+    CreateUserRequest:
+      type: object
+      required: [login]
+      properties:
+        login:     { type: string }
+        full_name: { type: string }
+        ldap_dn:   { type: string }
+        roles:     { type: array, items: { type: string } }
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        full_name: { type: string }
+        ldap_dn:   { type: string }
+        status:    { type: string, enum: [active, locked, disabled] }
+        roles:     { type: array, items: { type: string } }
+
+    MFASetupResponse:
+      type: object
+      properties:
+        secret: { type: string }
+
+    MFAStatusResponse:
+      type: object
+      properties:
+        enabled: { type: boolean }
+
+    Error:
+      $ref: https://ktc.itcamp/schemas/error.json
+
+paths:
+  /login:
+    post:
+      summary: Аутентификация через LDAP/AD → JWT (FR-AUTH-01)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Успешный вход или требуется MFA
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenResponse'
+                  - $ref: '#/components/schemas/MFARequiredResponse'
+        '401': { description: Неверные учётные данные }
+        '429': { description: Заблокировано (lockout после 5 попыток, FR-AUTH-05) }
+        '503': { description: LDAP недоступен }
+
+  /refresh:
+    post:
+      summary: Ротация refresh-токена (FR-AUTH-06)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { description: Токен отозван/истёк }
+
+  /logout:
+    post:
+      summary: Отзыв refresh-токена
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token: { type: string }
+      responses:
+        '200': { description: OK }
+
+  /me:
+    get:
+      summary: Профиль текущего пользователя
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  /introspect:
+    post:
+      summary: Проверка JWT для gw (trust boundary, auth.md §6)
+      description: |
+        Единственная точка валидации токена — вызывается API Gateway.
+        gw передаёт проверенный контекст downstream заголовками X-User-ID / X-Roles.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IntrospectRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntrospectResponse' }
+
+  /users:
+    get:
+      summary: Список пользователей (Admin, FR-ROLE-02)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
+    post:
+      summary: Создание пользователя (Admin, FR-ROLE-02)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateUserRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '409': { description: Логин занят }
+
+  /users/{id}:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+    put:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateUserRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+    delete:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: OK }
+
+  /users/{userID}/mfa/setup:
+    post:
+      summary: Генерация TOTP-секрета (auth.md §2)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: userID, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MFASetupResponse' }
+
+  /users/{userID}/mfa/enable:
+    post:
+      summary: Включение MFA (проверка кода)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: userID, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code: { type: string }
+      responses:
+        '200': { description: OK }
+
+  /users/{userID}/mfa:
+    get:
+      summary: Статус MFA
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: userID, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MFAStatusResponse' }
+
+  /healthz:
+    get:
+      summary: Health check
+      responses:
+        '200': { description: OK }

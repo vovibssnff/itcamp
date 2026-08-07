@@ -3,10 +3,10 @@ name: MVP КТК Конструктор
 overview: "Самодостаточный план реализации MVP Конструктора КТК: 12 микросервисов (Deckhouse + Istio) на VKCloud, детальные API-контракты (REST/gRPC/WS/NATS) прямо в плане, инлайн релевантных требований SRD и архитектуры, физика L2, LLM на GPU. ИБ частично отложена."
 todos:
   - id: phase0
-    content: "Фаза 0: VKCloud (Terraform) + Deckhouse + Istio, namespaces/node-pools, data layer (Picodata/Radix/NATS/MinIO), CI/CD, libs/py-common"
+    content: "Фаза 0: VKCloud (Terraform) + Deckhouse + Istio, namespaces/node-pools, data layer (Picodata/Radix/NATS/MinIO), CI/CD, libs/pkg-go"
     status: pending
   - id: phase1
-    content: "Фаза 1: миграции Picodata, gRPC-контракты (model_api, ai_api), JSON-схемы графа/сценария/состояния, общие API-конвенции"
+    content: "Фаза 1: миграции Picodata, gRPC-контракты (model_api, snapshot_api, ai_api), JSON-схемы графа/сценария/состояния, общие API-конвенции"
     status: pending
   - id: phase2
     content: "Фаза 2: auth (JWT RS256, RBAC 3 роли, users CRUD, blacklist) + gw (Angie/BFF, WS-proxy) + Istio Ingress/VirtualService"
@@ -57,9 +57,9 @@ isProject: false
 - Оркестрация — **Deckhouse** (российский дистрибутив Kubernetes).
 - Service Mesh — **Istio** (mTLS между сервисами, Ingress Gateway, traffic policies, AuthorizationPolicy).
 - API Gateway / BFF — **Angie** (отечественный форк nginx; JWT, RBAC, rate-limit-задел, агрегация, WS-проксирование) за Istio Ingress.
-- Внешний API — **REST** (OpenAPI 3.1) + **WebSocket** (телеметрия 1 Гц). Внутренний — **HTTPS/REST + mTLS** для CRUD-сервисов; **gRPC** для `sim` (Model API) и `ai` (AI API); события — **NATS JetStream**.
+- Внешний API — **REST** (OpenAPI 3.1) + **WebSocket** (телеметрия 1 Гц). Внутренний — **HTTPS/REST + mTLS** для CRUD-сервисов; **gRPC** для `sim` (Model API), `snapshot` и `ai` (AI API); события — **NATS JetStream**.
 - Frontend — React 18 + TypeScript + Vite; **Konva** (canvas конструктора и мнемосхемы); **uPlot** (тренды 4–8 серий); Ant Design; Zustand; нативный WS-клиент с авто-reconnect; i18next (ru/en). Клиент — Chromium-based, в т.ч. Яндекс.Браузер (`NFR-COMP-01`).
-- Backend — Python 3.12 + FastAPI (REST/оркестрация), grpcio (`sim`/`ai`). Go допустим для `gw`-middleware. У всех сервисов служебные `/healthz`, `/readyz`, `/metrics` (Prometheus-формат для Пульт).
+- Backend — **Go 1.22** для всех сервисов, кроме фронтенда (`ui`/`frontend` — React SPA). REST (net/http + chi/gin), gRPC (google.golang.org/grpc). У всех сервисов служебные `/healthz`, `/readyz`, `/metrics` (Prometheus-формат для Пульт).
 - СУБД — **Picodata** (PG-wire, Raft-репликация, ФСТЭК УД4, РРПО). Кэш — **Radix** (Redis-совместимый плагин Picodata). Объектное хранилище — **MinIO** (S3, MVP-заглушка отечественного решения). Очередь — **NATS JetStream**. SIEM — **KUMA** (в MVP отложено).
 - Мониторинг — **Пульт** (Prometheus-совместимый) + **Графиня** (дашборды); логи — Fluent Bit → Пульт.
 
@@ -73,7 +73,7 @@ isProject: false
 
 **Инженерные конвенции проекта:**
 - Сериализация графа/состояния — канонический JSON по `schemas/`; `schema_version` включён в граф и снапшот.
-- Picodata-нюанс (SRD §7.4): системные каталоги PG реализованы частично → **raw SQL / SQLAlchemy Core без reflection**, миграции — SQL-скрипты (не Alembic autogenerate).
+- Picodata-нюанс (SRD §7.4): системные каталоги PG реализованы частично → **raw SQL (pgx) без reflection**, миграции — SQL-скрипты.
 
 ## 2. Монорепо (структура)
 
@@ -81,19 +81,20 @@ isProject: false
 itcamp/
   infra/            # Terraform (VKCloud) + Ansible + Deckhouse ModuleConfig + Istio манифесты
   deploy/           # Helm-chart на каждый сервис + umbrella chart + values-{dev,prod}
-  proto/            # model_api.proto (ktk.sim.v1), ai_api.proto (ktk.ai.v1) → codegen py stubs
-  schemas/          # component_type / template(graph) / scenario / sim_state / error / page  (JSON Schema)
-  openapi/          # собранные OpenAPI 3.1 спеки всех REST-сервисов (артефакт CI)
-  libs/py-common/   # config, json-logging, jwt_verify, picodata_client, nats_helpers, health/metrics, problem(RFC7807)
+  proto/            # model_api.proto (ktk.sim.v1), snapshot_api.proto (ktk.snap.v1), ai_api.proto (ktk.ai.v1)
+  schemas/          # component_type / template_graph / scenario / sim_state / error / page  (JSON Schema)
+  db/migrations/    # централизованные SQL-миграции Picodata (диапазоны: 0001-0099 auth, 0100-0199 constructor, ...)
+  tools/migrator/   # единый мигратор (golang-migrate, apply/down/version/force/create)
   services/
-    gw/             # Angie conf + (опц.) Go/py BFF middleware
-    auth/ constructor/ scenario/ orchestrator/ assessment/ snapshot/ report/   # FastAPI
+    auth/           # ✅ готово (Go 1.22, LDAP+JWT+MFA+introspect)
+    gw/             # Angie conf + Go BFF middleware
+    constructor/ scenario/ orchestrator/ assessment/ snapshot/ report/   # Go 1.22
     sim/            # sim-manager (K8s API) + sim-worker (gRPC Model API) + models/
     ai/             # gRPC AI API server + inference adapters (vLLM/Ollama) + rule-based
   frontend/         # React SPA (screens/, canvas/, ws/, store/, i18n/)
   seeds/            # библиотека КТС (24 типа) + demo-template + ≥5 сценариев + ≥3 пресета
 ```
-Каждый Python-сервис: `app/`, `Dockerfile`, `pyproject.toml`, `tests/`, `migrations/*.sql`. Контейнеризация и monorepo покрывают `NFR-SCL-04`.
+Каждый Go-сервис строится по образцу `services/auth`: `cmd/<svc>/main.go`, `internal/{config,domain,repository,security,service,transport,server}`, `api/openapi.yaml`, `deploy/`, `go.mod` (Go 1.22). Миграции — централизованно в `db/migrations/` (префикс `NNNN_<service>_*`), применяется через `tools/migrator`. Контейнеризация и monorepo покрывают `NFR-SCL-04`.
 
 ## 3. Namespaces, node pools, потоки
 
@@ -109,7 +110,7 @@ flowchart TB
   gw --> report
   orchestrator -->|gRPC Model API| sim["sim-worker (per session)"]
   orchestrator -->|gRPC AI API| ai["ai (GPU)"]
-  orchestrator --> snapshot
+  orchestrator -->|gRPC Snapshot API| snapshot
   orchestrator -->|NATS| broker[("NATS JetStream")]
   broker --> report
   broker --> ai
@@ -143,7 +144,7 @@ flowchart TB
 
 Сущности из SRD §6.1, адаптированные под мердж (убрано версионирование шаблонов и `TemplateVersion`; `FaultInjection` перешёл в авто-событие из сценария). Все таблицы — в Picodata; payload-и — в MinIO.
 
-- **`users`** — id, login, fio, role (`admin|instructor|operator`), password_hash (bcrypt), is_active, created_at, updated_at.
+- **`users`** — id, login, full_name, ldap_dn, status (`active|locked|disabled`), mfa_enabled, created_at, updated_at. Паролей не хранит — аутентификация через LDAP/AD (FR-AUTH-01/02 v2.1).
 - **`component_types`** — id, name, category (`Общие|ЭЛОУ|Атмосфера|ГДМ`), description, ports (JSONB), parameters (JSONB), model_code (ключ ODE-класса в `sim`), icon_s3_key, documentation.
 - **`installation_templates`** — id, name, description, author_id, status (`draft|published|archived`), graph (JSONB), layout (JSONB), created_at, updated_at.
 - **`scenarios`** — id, template_id, name, description, type (`training|exam`), start_preset_id, faults (JSONB), reference_actions (JSONB), criteria (JSONB), author_id, created_at.
@@ -207,27 +208,25 @@ flowchart TB
 ## 5. Общие API-конвенции (для всех REST-сервисов)
 
 - **Внешняя база:** `https://<host>/api/v1`. Внутри mesh сервисы слушают свой ClusterIP; `gw` префиксует пути на апстримы.
-- **Аутентификация:** заголовок `Authorization: Bearer <access_jwt>` на всех эндпоинтах, кроме `POST /auth/login` и `POST /auth/refresh`. JWT RS256; `gw` и сервисы проверяют подпись публичным ключом `auth` локально.
-- **Claims JWT:** `sub` (user id), `login`, `role`, `type` (`access|refresh`), `iat`, `exp`, `jti`.
-- **RBAC:** проверяется дважды — на маршруте в `gw` и в самом сервисе. Ответ при нехватке прав — `403`.
-- **Ошибки — RFC 7807 (`application/problem+json`)**, схема `schemas/error.json`:
-```json
-{ "type": "about:blank", "title": "Validation failed", "status": 422,
-  "detail": "port type mismatch", "instance": "/api/v1/templates/42/validate",
-  "errors": [ { "field": "edges[3]", "code": "PORT_TYPE_MISMATCH" } ] }
-```
-- **Пагинация:** `?limit=50&offset=0`; ответ-конверт `schemas/page.json`: `{ "items": [...], "total": 123, "limit": 50, "offset": 0 }`.
+- **Trust boundary (auth.md §6):** `gw` — единственная точка проверки JWT (через `auth /introspect`). Проверенный контекст передаётся downstream заголовками `X-User-ID` / `X-Roles`. Внутренние сервисы токен не валидируют и ключ подписи не знают. Сервисы обязаны стирать входящие `X-User-ID`/`X-Roles` от клиента.
+- **RBAC:** проверяется в `gw` на маршруте. Внутренние сервисы доверяют заголовкам от `gw` (mTLS + NetworkPolicy). Ответ при нехватке прав — `403`.
+- **Ошибки — RFC 7807 (`application/problem+json`)**, схема `schemas/error.json`.
+- **Пагинация:** `?limit=50&offset=0`; ответ-конверт `schemas/page.json`.
 - **Идемпотентность/трассировка:** сквозной `X-Request-Id` (генерит `gw`, пробрасывается в NATS-события и логи).
 - **Время:** ISO-8601 UTC для серверного времени; `model_time` — секунды (float) модельного времени.
-- **Версионирование:** REST — префикс `/api/v1`; gRPC — пакеты `ktk.sim.v1`, `ktk.ai.v1`.
-- **Документация (обязательна для каждого сервиса):** REST-сервисы отдают собственный OpenAPI 3.1 на `/openapi.json` + Swagger UI `/docs` + ReDoc `/redoc` (нативно из FastAPI); gRPC-сервисы (`sim`, `ai`) документируются `.proto` + buf + protoc-gen-doc; WS/NATS — AsyncAPI 2.6. Общие модели — в `schemas/`, подключаются через `$ref`. `gw` агрегирует все спеки в единый портал `/docs-portal` (сборка в CI: spectral для OpenAPI, buf lint/breaking для proto).
+- **Версионирование:** REST — префикс `/api/v1`; gRPC — пакеты `ktk.sim.v1`, `ktk.snap.v1`, `ktk.ai.v1`.
+- **Контракты (артефакты, не инлайн):**
+  - OpenAPI 3.1: `services/<svc>/api/openapi.yaml` (auth, gw, constructor, scenario, orchestrator, assessment, snapshot, report)
+  - gRPC proto: `proto/model_api.proto` (sim), `proto/snapshot_api.proto`, `proto/ai_api.proto`
+  - JSON Schemas: `schemas/{error,page,component_type,template_graph,scenario,sim_state}.json`
+  - WS/NATS — AsyncAPI 2.6 (описаны в `services/orchestrator/api/openapi.yaml` в комментариях)
 
 ## 6. Фаза 0 — Инфраструктура и фундамент
 
 - **Terraform (VKCloud):** VPC/подсети, ВМ Deckhouse (3 master + N worker), node-pools `app`/`sim`/`ai`(GPU)/`db`, object storage (S3) или ВМ под MinIO, DNS/сертификаты для Ingress.
 - **Ansible + Deckhouse:** базовая настройка узлов; Deckhouse ModuleConfig; включение Istio (Ingress Gateway, sidecar-injection на `ktc-app`/`ktc-sim`/`ktc-ai`).
 - **Data layer:** Picodata (StatefulSet, Raft, anti-affinity; failover <30 с — `NFR-REL-01`), Radix, NATS JetStream (StatefulSet N≥3, PV), MinIO (buckets `snapshots`/`reports`/`component-icons`).
-- **`libs/py-common`:** env-config, JSON-логи, JWT-verify middleware (публичный ключ от `auth`), Picodata-клиент (raw SQL, пул), NATS pub/sub, health/metrics, RFC7807-хелпер.
+- **`pkg/` (Go 1.22):** env-config, JSON-логи, JWT-verify middleware (публичный ключ от `auth`), Picodata-клиент (raw SQL, пул), NATS pub/sub, health/metrics, RFC7807-хелпер.
 - **CI/CD:** сборка/push образов в registry, линт+юнит-тесты, spectral(OpenAPI)+buf(proto), Helm-деплой; umbrella chart в `deploy/`.
 - **Выход фазы:** пустой кластер со всеми зависимостями, общий пакет, сгенерированные gRPC-стабы, применённые SQL-миграции и JSON-схемы.
 
@@ -235,63 +234,63 @@ flowchart TB
 
 ## 7. Сервис `auth` — аутентификация и RBAC
 
-**Назначение (архитектура):** идентификация и управление доступом. Локальная база пользователей (без внешних каталогов). Эмиссия и проверка JWT. Чувствителен к правам — изолированный сегмент, отдельное масштабирование.
+**Назначение (архитектура):** идентификация и управление доступом. Аутентификация через **LDAP/AD** (FR-AUTH-01/02 v2.1). После успешной проверки выдаются JWT. 2FA (TOTP) для привилегированных ролей. Эмиссия и проверка JWT. Чувствителен к правам — изолированный сегмент, отдельное масштабирование.
 
-**Реализация:** FastAPI; bcrypt-хэш паролей; JWT RS256 (access TTL 15 мин, refresh TTL 24 ч, ротация refresh при использовании); RBAC 3 роли; blacklist отозванных refresh (`jti`) в Radix с TTL = сроку жизни refresh; seed Админа при первом старте; аудит входов в лог (KUMA отложена). JWT-валидация не зависит от БД (подпись проверяется по публичному ключу); при недоступности Radix — graceful degradation (токены живут до истечения TTL).
+**Реализация:** Go 1.22 (готово, `services/auth/`); LDAP bind через `go-ldap/ldap/v3`; JWT HS256 (access TTL 15 мин, refresh TTL 24 ч, ротация refresh при использовании); RBAC 3 роли; 2FA TOTP (`pquerna/otp`, секреты шифруются AES-256-GCM); lockout после 5 неудачных попыток (FR-AUTH-05); аудит входов в лог (KUMA отложена). Локальных паролей **нет** — пароли хранит LDAP.
 
-### 7.1 REST API `auth` (OpenAPI `/docs`)
+**Trust boundary (auth.md §6):** `gw` — единственная точка проверки JWT. При запросе `gw` вызывает `auth /introspect`, проверяет токен (подпись, срок, отзыв) и получает роли. Проверенный контекст `gw` передаёт downstream заголовками `X-User-ID` / `X-Roles`. **Внутренние сервисы токен не проверяют и ключ подписи не знают.** Запрос от `gw` считается авторизованным — доверие через mTLS + NetworkPolicy «accept only from gw». Сервисы обязаны стирать входящие `X-User-ID`/`X-Roles` от клиента.
+
+**Контракт:** `services/auth/api/openapi.yaml` (OpenAPI 3.1, актуализирован под LDAP+MFA+trust boundary).
+
+### 7.1 REST API `auth` (OpenAPI `services/auth/api/openapi.yaml`)
 
 | Метод и путь | Роль | Назначение |
 |---|---|---|
-| `POST /auth/login` | public | вход по логину/паролю |
-| `POST /auth/refresh` | public (по refresh) | ротация токенов |
-| `POST /auth/logout` | any | отзыв refresh (в blacklist) |
-| `GET /auth/me` | any | профиль текущего пользователя |
-| `POST /auth/introspect` | internal (mesh) | валидация токена для сервисов |
-| `GET /users` | admin | список пользователей (пагинация, фильтры) |
+| `POST /login` | public | вход по логину/паролю через LDAP → JWT (+ mfa_code если MFA) |
+| `POST /refresh` | public (по refresh) | ротация токенов |
+| `POST /logout` | any | отзыв refresh |
+| `GET /me` | any | профиль текущего пользователя |
+| `POST /introspect` | internal (mesh) | валидация JWT для gw (trust boundary) |
+| `GET /users` | admin | список пользователей (пагинация) |
 | `POST /users` | admin | создать учётку |
 | `GET /users/{id}` | admin | карточка |
-| `PUT /users/{id}` | admin | изменить fio/role/is_active |
-| `DELETE /users/{id}` | admin | деактивировать (soft) |
-| `POST /users/{id}/password` | admin | сброс пароля |
+| `PUT /users/{id}` | admin | изменить fio/roles/status |
+| `DELETE /users/{id}` | admin | удалить |
+| `POST /users/{id}/mfa/setup` | any auth | генерация TOTP-секрета |
+| `POST /users/{id}/mfa/enable` | any auth | включение MFA (проверка кода) |
+| `GET /users/{id}/mfa` | any auth | статус MFA |
 
-**`POST /auth/login`** — запрос `{ "login": "ivanov", "password": "..." }`; ответ `200`:
+**`POST /login`** — запрос `{ "login": "ivanov", "password": "...", "mfa_code": "123456" }`; ответ `200`:
 ```json
 { "access_token": "eyJ...", "refresh_token": "eyJ...", "token_type": "Bearer",
-  "expires_in": 900, "user": { "id": "u-1", "login": "ivanov", "fio": "Иванов И.И.", "role": "instructor" } }
+  "expires_in": 900 }
 ```
-`401` — неверные креды; `403` — `is_active=false`.
+Если MFA требуется — `200 { "mfa_required": true }`. `401` — неверные креды; `429` — lockout; `503` — LDAP недоступен.
 
-**`POST /auth/refresh`** — `{ "refresh_token": "eyJ..." }` → `200 { access_token, refresh_token, expires_in }`; `401` если refresh в blacklist/просрочен.
-
-**`POST /auth/logout`** — `{ "refresh_token": "eyJ..." }` → `204`; `jti` заносится в Radix-blacklist.
-
-**`GET /auth/me`** → `200 { "id","login","fio","role","created_at" }`.
-
-**`POST /auth/introspect`** (сервис-сервис) — `{ "token": "eyJ..." }` → `{ "active": true, "sub": "u-1", "role": "instructor", "exp": 1770000000, "jti": "..." }`.
-
-**`GET /users?role=&is_active=&q=&limit=&offset=`** → `page` из `{ id, login, fio, role, is_active, created_at }`.
-**`POST /users`** — `{ "login","fio","role","password" }` → `201` карточка (без хэша). `409` — логин занят.
-**`PUT /users/{id}`** — `{ "fio"?, "role"?, "is_active"? }` → `200`.
-**`DELETE /users/{id}`** → `204` (soft: `is_active=false`).
-**`POST /users/{id}/password`** — `{ "new_password" }` → `204`.
+**`POST /introspect`** (сервис-сервис) — `{ "token": "eyJ..." }` → `{ "active": true, "user_id": "u-1", "login": "ivanov", "roles": ["instructor"], "token_id": "..." }`. Если токен недействителен — `{ "active": false }`.
 
 ### 7.2 Данные / K8s
-- Picodata `users`; Radix blacklist (`jti` → TTL).
-- Deployment N≥2, HPA; Service ClusterIP; Secret (пара ключей JWT); NetworkPolicy (accept только от `gw`; egress к Picodata, Radix); istio-sidecar (mTLS).
+- Picodata `users` (без password_hash — пароли в LDAP), `roles`, `user_roles`, `refresh_tokens`, `login_attempts`, `mfa_secrets`. Миграции — `db/migrations/0001-0006_auth_*.sql`.
+- Deployment N≥2, HPA; Service ClusterIP; Secret (ключ подписи JWT); NetworkPolicy (accept только от `gw`; egress к Picodata, LDAP через Egress Gateway, PAM); istio-sidecar (mTLS).
 
-### 7.3 Покрывает (инлайн требований SRD)
-- `FR-AUTH-01` Локальная аутентификация (логин/пароль), токены JWT (access + refresh) — **Must**.
+### 7.3 Покрывает (инлайн требований SRD v2.1)
+- `FR-AUTH-01` Аутентификация через LDAP/AD → JWT (access + refresh) — **Must**.
+- `FR-AUTH-02` Без LDAP вход запрещён; локальных паролей нет — **Must**.
 - `FR-AUTH-03` RBAC с 3 ролями: Админ, Инструктор, Оператор — **Must**.
 - `FR-AUTH-04` Разграничение доступа к API и экранам по ролям — **Must**.
+- `FR-AUTH-05` Парольная политика (≥8, сложность), блокировка после 5 неудачных — **Must**.
 - `FR-AUTH-06` Access TTL 15 мин, refresh TTL 24 ч, ротация refresh — **Must**.
 - `FR-ROLE-01` Реализованы 3 роли — **Must**; `FR-ROLE-02` Админ назначает/отзывает роли, создаёт учётки — **Must**.
 - Частично `NFR-SEC-01` (HTTPS TLS 1.2+, JWT, RBAC на каждом запросе).
-- **Отложено:** `FR-AUTH-05` (парольная политика ≥8 символов, блокировка после 5 неудач) и `FR-AUTH-02` LDAP/AD — **Won't** (по решению).
+- **2FA (TOTP)** для привилегированных ролей (admin, instructor) — auth.md §2.
 
 ## 8. Сервис `gw` — API Gateway / BFF (Angie)
 
-**Назначение (архитектура):** прикладной контрактный слой между клиентом и внутренними сервисами. Istio Ingress Gateway делает сетевой вход (TLS-терминация, маршрутизация по host/path, mTLS внутрь). Angie/BFF делает прикладную логику: проверку JWT, RBAC по ролям, агрегацию, версии, задел под rate-limit, WS-проксирование, раздачу статики SPA, хостинг `/docs-portal`. Никогда не ходит в `sim`/`db`/`s3` напрямую.
+**Назначение (архитектура):** прикладной контрактный слой между клиентом и внутренними сервисами. Istio Ingress Gateway делает сетевой вход (TLS-терминация, маршрутизация по host/path, mTLS внутрь). Angie/BFF делает прикладную логику: проверку JWT через `auth /introspect` (trust boundary — см. §7), RBAC по ролям, агрегацию, версии, задел под rate-limit, WS-проксирование, раздачу статики SPA, хостинг `/docs-portal`. Никогда не ходит в `sim`/`db`/`s3` напрямую.
+
+**Trust boundary (auth.md §6):** `gw` — единственная точка проверки JWT. Проверенный контекст передаётся downstream заголовками `X-User-ID` / `X-Roles`. Внутренние сервисы токен не валидируют. Сервисы обязаны стирать входящие `X-User-ID`/`X-Roles` от клиента (защита от подделки).
+
+**Контракт:** `services/gw/api/openapi.yaml` (OpenAPI 3.1, полная таблица маршрутизации).
 
 ### 8.1 Таблица маршрутизации (внешние `/api/v1/*` → апстрим)
 
@@ -304,11 +303,12 @@ flowchart TB
 | `/api/v1/sessions/*` | `orchestrator` | REST | instructor (управление), operator (свои) |
 | `/api/v1/assessment/*` | `assessment` | REST | instructor/admin |
 | `/api/v1/reports/*` | `report` | REST | instructor/operator (свои) |
+| `/api/v1/snapshots/*` (метаданные/список) | `snapshot` | REST | instructor/admin (presets) |
 | `/api/v1/ws/sessions/{id}/operator` | `orchestrator` | WS upgrade | operator (назначенный) |
 | `/api/v1/ws/sessions/{id}/observe` | `orchestrator` | WS upgrade | instructor/admin |
 | `/` (статика SPA), `/docs-portal` | `fe` / портал | HTTP | any |
 
-**Middleware-цепочка:** `TLS(Ingress)` → `JWT verify` → `RBAC на маршрут` → `rate-limit (задел)` → `route/aggregate` → `upstream (mTLS)`. Снапшоты наружу не публикуются: UI управляет ими через `orchestrator` (`/sessions/{id}/checkpoint|restore`).
+**Middleware-цепочка:** `TLS(Ingress)` → `JWT verify (auth /introspect)` → `инъекция X-User-ID/X-Roles` → `RBAC на маршрут` → `rate-limit (задел)` → `route/aggregate` → `upstream (mTLS)`. Сохранение/восстановление снапшота наружу не публикуется: UI управляет ими через `orchestrator` (`/sessions/{id}/checkpoint|restore`), который ходит в `snapshot` по gRPC; `gw` лишь отдаёт метаданные/список `/api/v1/snapshots/*` (REST в `snapshot`).
 
 ### 8.2 K8s / покрывает
 - Istio: Gateway (443, TLS) + VirtualService (host/path) + AuthorizationPolicy (allow внутри mesh). Deployment N≥2, HPA (CPU/соединения), PDB minAvailable≥1, Service ClusterIP из Ingress.
@@ -320,9 +320,11 @@ flowchart TB
 
 **Назначение (архитектура):** ядро конструктора. CRUD библиотеки компонентов (типы, порты, параметры, иконки, категории), CRUD шаблонов установок (граф + layout мнемосхемы), валидация топологии, экспорт init-state для `sim`, поиск/фильтрация каталога.
 
-**Реализация:** FastAPI; Picodata (метаданные + граф/layout в JSONB); MinIO (иконки/SVG). Валидатор графа и экспортёр — отдельные модули. Копирование шаблона — атомарная транзакция (deep clone).
+**Реализация:** Go 1.22; Picodata (метаданные + граф/layout в JSONB); MinIO (иконки/SVG). Валидатор графа и экспортёр — отдельные модули. Копирование шаблона — атомарная транзакция (deep clone).
 
-### 9.1 REST API `constructor` (OpenAPI `/docs`)
+**Контракт:** `services/constructor/api/openapi.yaml` (OpenAPI 3.1). Схемы: `schemas/component_type.json`, `schemas/template_graph.json`, `schemas/sim_state.json`.
+
+### 9.1 REST API `constructor`
 
 **Компоненты библиотеки:**
 
@@ -394,7 +396,9 @@ flowchart TB
 
 **Назначение (архитектура):** цифровой двойник техпроцесса ЭЛОУ-АВТ — единственный источник истины о технологическом состоянии (`FR-ISO-03`). Самый ресурсоёмкий и детерминированный сервис. `sim-manager` создаёт/удаляет `sim-worker` под сессию (1 pod/session), `sim-worker` держит Model API и тик-цикл.
 
-**Реализация:** Python + NumPy/SciPy (численное интегрирование ODE). По `SetState` (init из `constructor.export`) строит систему уравнений по графу (`FR-SIM-01`). Тик ≥1 Гц модельного времени (`FR-SIM-02`); `SetSpeed` 0.1×–10× (`FR-SESS-03`) через внутренние подшаги. Детерминизм — seed ГПСЧ в состоянии. Порождает теги и алармы HH/H/L/LL, реализует ПАЗ. Стабильный Model API для замены L2→L3 без изменений HMI/ИИ (`FR-SIM-04`, `ARCH-01`).
+**Реализация:** Go 1.22; численное интегрирование ODE (gonum/diff, gonum/mat). По `SetState` (init из `constructor.export`) строит систему уравнений по графу (`FR-SIM-01`). Тик ≥1 Гц модельного времени (`FR-SIM-02`); `SetSpeed` 0.1×–10× (`FR-SESS-03`) через внутренние подшаги. Детерминизм — seed ГПСЧ в состоянии. Порождает теги и алармы HH/H/L/LL, реализует ПАЗ. Стабильный Model API для замены L2→L3 без изменений HMI/ИИ (`FR-SIM-04`, `ARCH-01`).
+
+**Контракт:** `proto/model_api.proto` (gRPC, пакет `ktk.sim.v1`). Схема состояния: `schemas/sim_state.json`.
 
 ### 10.1 gRPC-контракт `proto/model_api.proto`
 ```proto
@@ -457,12 +461,12 @@ message Ack { bool ok = 1; string message = 2; }
 ```
 
 ### 10.2 Физика L2 и ПАЗ
-- L2-модели (NumPy/SciPy): насос (Q-H, кавитация), теплообменник, печь трубчатая (инерция 30–60 с, многопоточность до 6 — `FR-LIB-07`/`FR-SIM-06`), ректификационная колонна (тарелки, T-профиль, боковые отборы, подача пара), стриппинг, электродегидратор (уровень раздела фаз, U/I, HV-блокировки), реактор ГДМ (зоны, ВСГ), ПИД-регуляторы, клапаны/задвижки.
+- L2-модели (Go, gonum): насос (Q-H, кавитация), теплообменник, печь трубчатая (инерция 30–60 с, многопоточность до 6 — `FR-LIB-07`/`FR-SIM-06`), ректификационная колонна (тарелки, T-профиль, боковые отборы, подача пара), стриппинг, электродегидратор (уровень раздела фаз, U/I, HV-блокировки), реактор ГДМ (зоны, ВСГ), ПИД-регуляторы, клапаны/задвижки.
 - **ПАЗ атмосферного блока (`FR-SIM-07`):** P(К-1) ≥ 4,8 кгс/см² → отсечка топлива; расход через печь < min → отсечка; погасание горелки → отсечка.
 - `InjectFault` применяет неисправность каталога к экземпляру (по вызову `orchestrator` из сценария; `sim` сам триггеры не считает).
 
 ### 10.3 K8s / покрывает
-- `ktc-sim`: Deployment `sim-manager` (1 реплика), Pod `sim-worker-N` (до 50), Service, ResourceQuota/LimitRange, NetworkPolicy (только от `orchestrator`/`snapshot`), PDB. Node-pool `sim` (guaranteed QoS), taint `sim=true`.
+- `ktc-sim`: Deployment `sim-manager` (1 реплика), Pod `sim-worker-N` (до 50), Service, ResourceQuota/LimitRange, NetworkPolicy (только от `orchestrator`), PDB. Node-pool `sim` (guaranteed QoS), taint `sim=true`.
 - Изоляция сессий (`FR-SIM-05`): падение одного worker не влияет на другие; рестарт + restore ≤15 с (`NFR-REL-05`).
 - Покрывает: `FR-SIM-01..07`, `FR-ISO-03`, `ARCH-01/03/08`, `NFR-SCL-02` (1 сессия = 1 экземпляр), `NFR-PERF-02` (≥1 Гц).
 
@@ -470,9 +474,11 @@ message Ack { bool ok = 1; string message = 2; }
 
 **Назначение (архитектура):** «дирижёр» real-time контура. Управляет сессиями, рассылает телеметрию 1 Гц по WS, автоматически инжектит неисправности из сценария (по триггерам), координирует `sim`/`assessment`/`snapshot`/`ai`/`broker`, ведёт журнал действий. Критичен к задержке (`NFR-PERF-02`), переживает отказы движка и ИИ. Инструктор подключается **read-only**.
 
-**Реализация:** FastAPI + WebSocket + async-задачи. Диспетчер сессий (map `session_id → runtime`), цикл телеметрии (`sim.Step` → push клиентам → hot-state в Radix), планировщик триггеров сценария, планировщик чекпоинтов. Stateless-диспетчер (состояние в Picodata/Radix) — перезапуск безопасен.
+**Реализация:** Go 1.22 + WebSocket + async-задачи (goroutines). Диспетчер сессий (map `session_id → runtime`), цикл телеметрии (`sim.Step` → push клиентам → hot-state в Radix), планировщик триггеров сценария, планировщик чекпоинтов. Stateless-диспетчер (состояние в Picodata/Radix) — перезапуск безопасен.
 
-### 11.1 REST API `orchestrator` (OpenAPI `/docs`)
+**Контракт:** `services/orchestrator/api/openapi.yaml` (OpenAPI 3.1, REST + WS-описание). WS-каналы (AsyncAPI) описаны в комментариях.
+
+### 11.1 REST API `orchestrator`
 
 | Метод и путь | Роль | Назначение |
 |---|---|---|
@@ -483,7 +489,7 @@ message Ack { bool ok = 1; string message = 2; }
 | `PUT /sessions/{id}/speed` | instructor | скорость 0.1×–10× |
 | `GET /sessions/{id}` | instructor/admin; operator (свои) | статус/метаданные |
 | `GET /sessions?status=&operator_id=` | instructor/admin (все); operator (свои) | список сессий |
-| `POST /sessions/{id}/checkpoint` | instructor | ручной снапшот (вызывает snapshot.save) |
+| `POST /sessions/{id}/checkpoint` | instructor | ручной снапшот (вызывает snapshot.Save по gRPC) |
 | `POST /sessions/{id}/restore` | instructor/admin (в экзамене оператору запрещено) | восстановить из снапшота |
 | `POST /sessions/{id}/actuator` | operator | команда на исполнительный механизм (альтернатива WS) |
 | `POST /sessions/{id}/alarms/{alarm_id}/ack` | operator | квитирование аларма |
@@ -527,7 +533,7 @@ message Ack { bool ok = 1; string message = 2; }
 ### 11.3 Триггер-движок сценария и управление состоянием
 - Планировщик каждый тик проверяет триггеры сценария: `time` (по модельному времени) и `condition` (значение тега пересекает порог, опц. «удерживается N сек») → авто `sim.InjectFault(...)`, запись в `fault_events`. Инструктор live-инъекций не делает (`FR-ROLE-04`).
 - **Слои состояния тренажёра:** runtime-истина в RAM `sim-worker`; hot-state (телеметрия/буфер переподключения) в Radix; персистентные снапшоты через `snapshot` (payload MinIO + метаданные Picodata + SHA-256); журнал (`operator_actions`/`alarm_events`/`fault_events`) для replay; метаданные сессии в Picodata.
-- **Save/restore:** барьер на границе тика → `sim.GetState` → `snapshot.save`. Restore: `snapshot.restore` → `sim.SetState` → детерминированное продолжение (seed). Чекпоинты периодические: при падении `sim` — авто-restore ≤15 с (`NFR-REL-05`); обрыв клиента ≤3 мин без потери прогресса (`NFR-REL-02`); при падении `ai` — деградация (`NFR-REL-03`).
+- **Save/restore:** барьер на границе тика → `sim.GetState` → `snapshot.Save` (gRPC). Restore: `snapshot.Restore` → `sim.SetState` → детерминированное продолжение (seed). Чекпоинты периодические: при падении `sim` — авто-restore ≤15 с (`NFR-REL-05`); обрыв клиента ≤3 мин без потери прогресса (`NFR-REL-02`); при падении `ai` — деградация (`NFR-REL-03`).
 - События сессии в NATS `session.events` (для `assessment`/`report`/аудита).
 
 ### 11.4 K8s / покрывает
@@ -542,9 +548,11 @@ message Ack { bool ok = 1; string message = 2; }
 
 **Назначение (архитектура):** библиотека учебных/экзаменационных сценариев. Сценарий привязан к шаблону установки (из `constructor`), содержит неисправности с триггерами (время/условие), эталонные действия и критерии оценки. Инструктор правит свои сценарии (RBAC). Хранит каталог типовых неисправностей.
 
-**Реализация:** FastAPI; метаданные/сценарии в Picodata; каталог неисправностей в Picodata. Экспорт «готового сценария с эталоном» оркестратору; экзаменационные — случайная выдача.
+**Реализация:** Go 1.22; метаданные/сценарии в Picodata; каталог неисправностей в Picodata. Экспорт «готового сценария с эталоном» оркестратору; экзаменационные — случайная выдача.
 
-### 12.1 REST API `scenario` (OpenAPI `/docs`)
+**Контракт:** `services/scenario/api/openapi.yaml` (OpenAPI 3.1). Схема: `schemas/scenario.json`.
+
+### 12.1 REST API `scenario`
 
 | Метод и путь | Роль | Назначение |
 |---|---|---|
@@ -606,9 +614,11 @@ message Ack { bool ok = 1; string message = 2; }
 
 **Назначение (архитектура):** «экзаменатор и судья». Сравнивает действия оператора с эталоном сценария, копит штрафы, отмечает критические ошибки, выдаёт вердикт. Работает даже без ИИ (rule-based фолбэк). Журнал append-only.
 
-**Реализация:** Python/FastAPI (rule-based + таблицы эталонов из `scenario`). Модуль вердикта и переопределения (RBAC). HMAC-подпись протокола — отложена.
+**Реализация:** Go 1.22 (rule-based + таблицы эталонов из `scenario`). Модуль вердикта и переопределения (RBAC). HMAC-подпись протокола — отложена.
 
-### 13.1 REST API `assessment` (OpenAPI `/docs`)
+**Контракт:** `services/assessment/api/openapi.yaml` (OpenAPI 3.1).
+
+### 13.1 REST API `assessment`
 
 | Метод и путь | Роль | Назначение |
 |---|---|---|
@@ -646,30 +656,50 @@ message Ack { bool ok = 1; string message = 2; }
 
 **Назначение (архитектура):** «сохранение игры». Сохраняет и восстанавливает полное состояние сессии (метаданные в Picodata + payload в MinIO), делает barrier на границе тика, контролирует целостность SHA-256. В экзамене restore ученику запрещён (антифрод). Вызывается только `orchestrator`.
 
-**Реализация:** Python + S3 SDK; сериализация состояния — канонический JSON (`sim_state.json`). Restore валидируется по SHA-256 перед применением; при сбое — фолбэк на последний валидный.
+**Реализация:** Go 1.22 + AWS SDK (S3); сериализация состояния — канонический JSON (`sim_state.json`). Restore валидируется по SHA-256 перед применением; при сбое — фолбэк на последний валидный. Протоколы — по `protocols.csv`: Orchestrator→Snapshot = **gRPC** (большие payloads), GW→Snapshot = **REST** (метаданные/список).
 
-### 14.1 REST API `snapshot` (OpenAPI `/docs`, internal)
+**Контракты:** gRPC — `proto/snapshot_api.proto` (пакет `ktk.snap.v1`); REST — `services/snapshot/api/openapi.yaml` (OpenAPI 3.1, метаданные). Схема: `schemas/sim_state.json`.
+
+### 14.1 Контракты `snapshot` (internal)
+
+**gRPC (orchestrator, большие payload) — `proto/snapshot_api.proto`, пакет `ktk.snap.v1`:**
+
+| RPC | Вызывающий | Назначение |
+|---|---|---|
+| `Save` | orchestrator | сохранить состояние (payload → MinIO, метаданные → Picodata) |
+| `Restore` | orchestrator | получить состояние для set_state |
+
+**REST (gw, OpenAPI `/docs`) — метаданные:**
 
 | Метод и путь | Вызывающий | Назначение |
 |---|---|---|
-| `POST /snapshots/save` | orchestrator | сохранить состояние |
-| `POST /snapshots/restore` | orchestrator | получить состояние для set_state |
-| `GET /snapshots/{id}` | orchestrator/gw | метаданные |
-| `GET /snapshots?session_id=&is_preset=` | orchestrator/gw | список/пресеты |
+| `GET /snapshots/{id}` | gw | метаданные |
+| `GET /snapshots?session_id=&is_preset=` | gw | список/пресеты |
 | `DELETE /snapshots/{id}` | admin | удалить (не для пресетов) |
 
-**Поток save:** оркестратор делает barrier на границе тика, вызывает `sim.GetState`, затем:
-`POST /snapshots/save`
-```json
-{ "session_id":"sess-42", "name":"before-fault", "is_preset":false,
-  "schema_version":"2.0", "model_time":812.0, "seed":20260806, "payload": { /* State */ } }
+**Поток save:** оркестратор делает barrier на границе тика, вызывает `sim.GetState`, затем gRPC `snapshot.Save`:
+```proto
+message SaveRequest {
+  string session_id   = 1;
+  string name         = 2;
+  bool   is_preset    = 3;
+  string schema_version = 4;
+  double model_time   = 5;
+  int64  seed         = 6;
+  bytes  payload_json = 7;   // канонический sim_state.json (State)
+}
+message SaveResponse {
+  string snapshot_id = 1;
+  string sha256      = 2;
+  string storage_key = 3;    // snapshots/sess-42/snap-7.json.gz
+}
 ```
-→ `201 { "snapshot_id":"snap-7", "sha256":"9f2c...", "storage_key":"snapshots/sess-42/snap-7.json.gz" }`. Payload сжимается и кладётся в MinIO, метаданные — в Picodata.
+Payload сжимается и кладётся в MinIO, метаданные — в Picodata.
 
-**Поток restore:** `POST /snapshots/restore` `{ "snapshot_id":"snap-7" }` → `200 { "payload": { /* State */ }, "model_time":812.0, "seed":20260806, "sha256_valid":true }`. Оркестратор применяет `sim.SetState(payload)` → детерминированное продолжение (`FR-SNAP-02`, ≤15 с — `NFR-PERF-04`).
+**Поток restore:** `Restore(RestoreRequest{ snapshot_id })` → `RestoreResponse{ payload_json, model_time, seed, sha256_valid }`. Оркестратор применяет `sim.SetState(payload)` → детерминированное продолжение (`FR-SNAP-02`, ≤15 с — `NFR-PERF-04`).
 
 ### 14.2 Данные / K8s / покрывает
-- Picodata `snapshots` (meta); MinIO bucket `snapshots` (immutable payload); ёмкость ≥10 000 состояний (`NFR-SCL-03`). Deployment N≥2, HPA; NetworkPolicy (accept `orchestrator`; egress `db`/`s3`).
+- Picodata `snapshots` (meta); MinIO bucket `snapshots` (immutable payload); ёмкость ≥10 000 состояний (`NFR-SCL-03`). Deployment N≥2, HPA; NetworkPolicy (accept `orchestrator`/`gw`; egress `db`/`s3`).
 - Покрывает (инлайн):
   - `FR-SNAP-01` сохранение полного состояния (модель, регуляторы, алармы, оценка, модельное время, ГПСЧ); `FR-SNAP-02` детерминированное восстановление; `FR-SNAP-03` стартовые пресеты (≥3, immutable); `FR-SNAP-04` метаданные в БД + payload в object storage + SHA-256; `FR-SNAP-05` барьер тика — **Must**.
   - `FR-SNAP-06` версионирование снапшота (`schema_version`) — оставляем; привязку к «версии шаблона» убираем (версионирование шаблонов удалено, см. §23).
@@ -680,9 +710,11 @@ message Ack { bool ok = 1; string message = 2; }
 
 **Назначение (архитектура):** «секретарь». Генерация PDF-отчётов о сессии/экзамене. Тяжёлая асинхронная задача через очередь — не блокирует real-time контур.
 
-**Реализация:** Python + WeasyPrint (PDF); consumer `report.tasks` из NATS; сбор данных сессии из Picodata; PDF → MinIO; уведомление на `fe`. HMAC-подпись протокола экзамена — отложена.
+**Реализация:** Go 1.22 + PDF-генерация (WeasyPrint как внешний асинхронный шаг/сервис или Go-PDF); consumer `report.tasks` из NATS; сбор данных сессии из Picodata; PDF → MinIO; уведомление на `fe`. HMAC-подпись протокола экзамена — отложена.
 
-### 15.1 REST API `report` (OpenAPI `/docs`)
+**Контракт:** `services/report/api/openapi.yaml` (OpenAPI 3.1).
+
+### 15.1 REST API `report`
 
 | Метод и путь | Роль | Назначение |
 |---|---|---|
@@ -704,7 +736,9 @@ message Ack { bool ok = 1; string message = 2; }
 
 **Назначение (архитектура):** интеллектуальный анализ и генерация. Требует GPU, изолированный serviceAccount, egress запрещён. Должен **деградировать**: падение ИИ не останавливает симуляцию и rule-based оценку (`FR-AI-01`, `NFR-REL-03`).
 
-**Реализация:** node-pool `ai` (GPU); vLLM/Ollama (LLM для Explain) + PyTorch/scikit-learn/rule-based (Predict/Adaptive). Асинхронная очередь инференса через NATS `ai.tasks` (не блокирует контур управления, `NFR-PERF-05` ≤10 с). Метрики GPU util/VRAM/очередь (DCGM-exporter).
+**Реализация:** Go 1.22 (gRPC AI API + adapters к внешнему LLM); node-pool `ai` (GPU) для vLLM/Ollama (Explain, внешний HTTP-инференс) + rule-based/ML (Predict/Adaptive в Go, при необходимости вынос скоринга в отдельный компонент). Асинхронная очередь инференса через NATS `ai.tasks` (не блокирует контур управления, `NFR-PERF-05` ≤10 с). Метрики GPU util/VRAM/очередь (DCGM-exporter).
+
+**Контракт:** `proto/ai_api.proto` (gRPC, пакет `ktk.ai.v1`).
 
 ### 16.1 gRPC-контракт `proto/ai_api.proto`
 ```proto
@@ -826,7 +860,9 @@ flowchart LR
 
 ## 22. Отложено по ИБ (по указанию)
 
-Не делаем в MVP: HMAC-подпись протокола экзамена (`NFR-SEC-02`), KUMA/SIEM аудит, Vault (`NFR-SEC-07`), rate-limiting (`NFR-SEC-05`), SHA-256 integrity шаблонов (`NFR-SEC-09`; SHA-256 снапшота оставляем — нужен для детерминизма), парольные политики/блокировки (`FR-AUTH-05`), анти-XSS/CSRF/SQLi hardening (`NFR-SEC-08`), пентест (`TEST-08`). Оставляем «бесплатное»: Istio mTLS (`NFR-SEC-06`), JWT+RBAC (`NFR-SEC-01` частично), server-authoritative (`NFR-SEC-03`), минимизация ПДн в промптах (`FR-AI-07`).
+Не делаем в MVP: HMAC-подпись протокола экзамена (`NFR-SEC-02`), KUMA/SIEM аудит, Vault (`NFR-SEC-07`), rate-limiting (`NFR-SEC-05`), SHA-256 integrity шаблонов (`NFR-SEC-09`; SHA-256 снапшота оставляем — нужен для детерминизма), анти-XSS/CSRF/SQLi hardening (`NFR-SEC-08`), пентест (`TEST-08`). Оставляем «бесплатное»: Istio mTLS (`NFR-SEC-06`), JWT+RBAC (`NFR-SEC-01` частично), server-authoritative (`NFR-SEC-03`), минимизация ПДн в промптах (`FR-AI-07`).
+
+**Реализовано в auth (вопреки более раннему плану):** `FR-AUTH-01/02` LDAP/AD аутентификация, `FR-AUTH-05` парольная политика + блокировка после 5 неудач, 2FA TOTP для привилегированных ролей. Trust boundary (auth.md §6): gw проверяет JWT через introspect, downstream получает контекст заголовками.
 
 ## 23. Риски
 

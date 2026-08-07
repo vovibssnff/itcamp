@@ -1,0 +1,150 @@
+openapi: 3.1.0
+info:
+  title: KTC Assessment Service API
+  version: 1.0.0
+  description: |
+    Оценка квалификации: сравнение с эталоном, штрафы, критические ошибки, вердикт.
+    SRD §3.13 (FR-ASSESS-*). HMAC-подпись протокола — отложена.
+servers:
+  - url: https://assessment.ktc-app.svc.cluster.local
+    description: Внутренний (mTLS через Istio)
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+
+  schemas:
+    AssessmentEvent:
+      type: object
+      required: [session_id, type]
+      properties:
+        session_id:  { type: string }
+        type:        { type: string, enum: [action, alarm] }
+        user_id:     { type: string }
+        target:      { type: string }
+        action:      { type: string }
+        value:       {}
+        tag_id:      { type: string }
+        priority:    { type: string, enum: [HH, H, L, LL] }
+        model_time:  { type: number }
+        server_time: { type: string, format: date-time }
+
+    Score:
+      type: object
+      properties:
+        session_id:        { type: string }
+        reaction_times:
+          type: array
+          items:
+            type: object
+            properties:
+              alarm_id: { type: string }
+              seconds:  { type: number }
+        penalties:
+          type: array
+          items:
+            type: object
+            properties:
+              code:        { type: string }
+              description: { type: string }
+              points:      { type: integer }
+              model_time:  { type: number }
+        critical_errors:
+          type: array
+          items:
+            type: object
+            properties:
+              code:        { type: string }
+              description: { type: string }
+              model_time:  { type: number }
+        total_score: { type: integer }
+        verdict:     { type: string, enum: [pass, fail, pending] }
+
+    OverrideRequest:
+      type: object
+      required: [session_id, new_score, verdict, comment]
+      properties:
+        session_id: { type: string }
+        new_score:  { type: integer }
+        verdict:    { type: string, enum: [pass, fail] }
+        comment:    { type: string }
+
+    Error:
+      $ref: https://ktc.itcamp/schemas/error.json
+
+paths:
+  /assessment/event:
+    post:
+      summary: Событие действия/аларма — internal (orchestrator)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssessmentEvent' }
+      responses:
+        '202': { description: Accepted }
+
+  /assessment/session/{id}/score:
+    get:
+      summary: Текущая оценка (FR-ASSESS-01..04)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Score' }
+
+  /assessment/session/{id}/result:
+    post:
+      summary: Финализировать вердикт — internal/instructor
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Score' }
+
+  /assessment/override:
+    post:
+      summary: Переопределить оценку (FR-ASSESS-05, UI-15)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OverrideRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Score' }
+
+  /assessment/session/{id}/replay:
+    get:
+      summary: Данные для replay сессии (FR-ASSESS-06)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  actions:
+                    type: array
+                    items: { type: object }
+                  alarms:
+                    type: array
+                    items: { type: object }
+                  faults:
+                    type: array
+                    items: { type: object }
+
+  /healthz:
+    get:
+      responses:
+        '200': { description: OK }

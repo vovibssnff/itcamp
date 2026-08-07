@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package ktk.snap.v1;
+
+// Snapshot Service — gRPC контракт для orchestrator (SRD §3.8, FR-SNAP-01..06).
+// Большие payload идут через gRPC (не REST). REST-метаданные — в openapi snapshot.yaml.
+// Вызывается только orchestrator (NetworkPolicy: accept от orchestrator).
+
+service SnapshotApi {
+  rpc Save    (SaveRequest)    returns (SaveResponse);     // сохранить состояние (payload → MinIO, meta → Picodata)
+  rpc Restore (RestoreRequest) returns (RestoreResponse);  // получить состояние для sim.SetState
+}
+
+message SaveRequest {
+  string session_id     = 1;
+  string name           = 2;
+  bool   is_preset      = 3;   // immutable стартовый пресет (FR-SNAP-03)
+  string schema_version = 4;
+  double model_time     = 5;
+  int64  seed           = 6;   // ГПСЧ включается в снапшот (FR-SNAP-01)
+  bytes  payload_json   = 7;   // канонический sim_state.json
+}
+
+message SaveResponse {
+  string snapshot_id  = 1;
+  string sha256       = 2;     // целостность (FR-SNAP-04)
+  string storage_key  = 3;     // snapshots/{session_id}/{snapshot_id}.json.gz
+}
+
+message RestoreRequest {
+  string snapshot_id = 1;
+}
+
+message RestoreResponse {
+  bytes  payload_json  = 1;    // sim_state.json
+  double model_time    = 2;
+  int64  seed          = 3;
+  bool   sha256_valid  = 4;    // проверка целостности перед применением
+  string schema_version = 5;
+}

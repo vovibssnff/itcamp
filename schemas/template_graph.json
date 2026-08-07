@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ktc.itcamp/schemas/template_graph.json",
+  "title": "Installation Template Graph",
+  "description": "Граф установки — направленный граф (SRD §6.2, §2.2)",
+  "type": "object",
+  "required": ["schema_version", "nodes", "edges"],
+  "properties": {
+    "schema_version": { "type": "string", "default": "2.0" },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "component_type_id", "label", "position", "parameters", "ports"],
+        "properties": {
+          "id":                 { "type": "string", "example": "pump-n2-001" },
+          "component_type_id":  { "type": "string", "example": "centrifugal_pump" },
+          "label":              { "type": "string", "example": "Н-2" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } }
+          },
+          "parameters": { "type": "object" },
+          "ports": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "type":         { "type": "string" },
+                "connected_to": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "from", "to"],
+        "properties": {
+          "id":   { "type": "string", "example": "pipe-003" },
+          "type": { "type": "string", "enum": ["liquid", "gas", "steam", "electric", "signal"] },
+          "from": {
+            "type": "object",
+            "required": ["node_id", "port"],
+            "properties": { "node_id": { "type": "string" }, "port": { "type": "string" } }
+          },
+          "to": {
+            "type": "object",
+            "required": ["node_id", "port"],
+            "properties": { "node_id": { "type": "string" }, "port": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "layout": {
+      "type": "object",
+      "properties": {
+        "mnemo_positions": { "type": "object" },
+        "custom_labels":   { "type": "object" }
+      }
+    }
+  }
+}

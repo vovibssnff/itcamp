@@ -1,0 +1,184 @@
+openapi: 3.1.0
+info:
+  title: KTC Scenario Service API
+  version: 1.0.0
+  description: |
+    Сценарии тренировки/экзамена, каталог неисправностей, триггеры.
+    SRD §3.4 (FR-SCEN-*), §3.7 (FR-FLT-*), §3.5 (FR-AV-*).
+    Сервис вызывается через gw (instructor/admin). /full и /exam — internal (orchestrator).
+servers:
+  - url: https://scenario.ktc-app.svc.cluster.local
+    description: Внутренний (mTLS через Istio)
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+
+  schemas:
+    Scenario:
+      $ref: https://ktc.itcamp/schemas/scenario.json
+
+    CreateScenarioRequest:
+      type: object
+      required: [template_id, name, type]
+      properties:
+        template_id:     { type: string }
+        name:            { type: string }
+        description:     { type: string }
+        type:            { type: string, enum: [training, exam] }
+        start_preset_id: { type: string }
+        faults:          { type: array, items: { type: object } }
+        reference_actions: { type: array, items: { type: object } }
+        criteria:        { type: object }
+
+    CloneScenarioRequest:
+      type: object
+      properties:
+        template_id: { type: string, description: опц. другой шаблон }
+
+    Fault:
+      type: object
+      properties:
+        fault_id:                  { type: string }
+        name:                      { type: string }
+        applicable_component_types: { type: array, items: { type: string } }
+        description:               { type: string }
+        affected_tags:             { type: array, items: { type: string } }
+        severity:                  { type: string, enum: [low, medium, high, critical] }
+        damage_per_sec:            { type: number }
+
+    Error:
+      $ref: https://ktc.itcamp/schemas/error.json
+
+paths:
+  /scenarios:
+    get:
+      summary: Каталог сценариев (FR-SCEN-08)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: template_id, in: query, schema: { type: string } }
+        - { name: type, in: query, schema: { type: string, enum: [training, exam] } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Scenario' }
+    post:
+      summary: Создать сценарий (FR-SCEN-02)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateScenarioRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+
+  /scenarios/{id}:
+    get:
+      summary: Сценарий целиком
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+    put:
+      summary: Изменить сценарий
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateScenarioRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+    delete:
+      summary: Удалить сценарий
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: OK }
+
+  /scenarios/{id}/clone:
+    post:
+      summary: Клон (опц. на другой template_id) (FR-SCEN-07)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CloneScenarioRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+
+  /scenarios/{id}/full:
+    get:
+      summary: Полный сценарий (триггеры+эталон+критерии) — internal (orchestrator)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+
+  /scenarios/exam:
+    get:
+      summary: Случайный экзаменационный сценарий — internal (orchestrator)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: template_id, in: query, required: true, schema: { type: string } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+
+  /faults:
+    get:
+      summary: Каталог неисправностей (FR-SCEN-01, FR-FLT-01)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: component_type, in: query, schema: { type: string } }
+        - { name: severity, in: query, schema: { type: string } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Fault' }
+
+  /faults/{fault_id}:
+    get:
+      summary: Карточка неисправности
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: fault_id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Fault' }
+
+  /healthz:
+    get:
+      responses:
+        '200': { description: OK }

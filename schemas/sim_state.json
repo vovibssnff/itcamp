@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ktc.itcamp/schemas/sim_state.json",
+  "title": "Simulation State",
+  "description": "Полное состояние симуляции (init-state из constructor.export, формат снапшота — SRD §6.2, FR-SNAP-01)",
+  "type": "object",
+  "required": ["schema_version", "model_time", "seed", "nodes", "connections"],
+  "properties": {
+    "schema_version": { "type": "string", "default": "2.0" },
+    "model_time":     { "type": "number", "minimum": 0 },
+    "seed":           { "type": "integer" },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["instance_id", "model_code"],
+        "properties": {
+          "instance_id": { "type": "string" },
+          "model_code":  { "type": "string" },
+          "parameters":  { "type": "object" },
+          "state":       { "type": "object" }
+        }
+      }
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "from", "to"],
+        "properties": {
+          "id":   { "type": "string" },
+          "type": { "type": "string" },
+          "from": { "type": "string" },
+          "to":   { "type": "string" }
+        }
+      }
+    },
+    "regulators": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "tag_id": { "type": "string" },
+          "pv":     { "type": "number" },
+          "sp":     { "type": "number" },
+          "out":    { "type": "number" },
+          "mode":   { "type": "string", "enum": ["AUTO", "MANUAL"] },
+          "Kp":     { "type": "number" },
+          "Ki":     { "type": "number" },
+          "Kd":     { "type": "number" }
+        }
+      }
+    },
+    "alarms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "alarm_id":          { "type": "string" },
+          "tag_id":            { "type": "string" },
+          "priority":          { "type": "string", "enum": ["HH", "H", "L", "LL", "NONE"] },
+          "active":            { "type": "boolean" },
+          "acknowledged":      { "type": "boolean" },
+          "raised_model_time": { "type": "number" }
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "tag_id": { "type": "string" },
+          "value":  { "type": "number" },
+          "unit":   { "type": "string" }
+        }
+      }
+    }
+  }
+}

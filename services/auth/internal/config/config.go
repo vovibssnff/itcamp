@@ -13,16 +13,29 @@ type Config struct {
 	HTTP     HTTPConfig     `toml:"http"`
 	DB       DBConfig       `toml:"db"`
 	JWT      JWTConfig      `toml:"jwt"`
+	Auth     AuthConfig     `toml:"auth"`
 	LDAP     LDAPConfig     `toml:"ldap"`
 	PAM      PAMConfig      `toml:"pam"`
 	Security SecurityConfig `toml:"security"`
 }
 
+type AuthConfig struct {
+	Mode      string     `toml:"mode"`
+	StubUsers []StubUser `toml:"stub_users"`
+}
+
+type StubUser struct {
+	Login    string   `toml:"login"`
+	Password string   `toml:"password"`
+	FullName string   `toml:"full_name"`
+	Roles    []string `toml:"roles"`
+}
+
 type HTTPConfig struct {
-	Addr            string        `toml:"addr"`
-	ReadTimeout     Duration      `toml:"read_timeout"`
-	WriteTimeout    Duration      `toml:"write_timeout"`
-	ShutdownTimeout Duration      `toml:"shutdown_timeout"`
+	Addr            string   `toml:"addr"`
+	ReadTimeout     Duration `toml:"read_timeout"`
+	WriteTimeout    Duration `toml:"write_timeout"`
+	ShutdownTimeout Duration `toml:"shutdown_timeout"`
 }
 
 type DBConfig struct {
@@ -137,14 +150,36 @@ func (c Config) validate() error {
 	if len(c.JWT.SigningKey) < 32 {
 		return fmt.Errorf("jwt.signing_key must be at least 32 bytes")
 	}
-	if c.LDAP.URL == "" {
-		return fmt.Errorf("ldap.url is required")
+
+	mode := c.Auth.Mode
+	if mode == "" {
+		mode = "ldap"
 	}
-	if c.LDAP.BindDN == "" {
-		return fmt.Errorf("ldap.bind_dn is required")
-	}
-	if c.LDAP.BaseDN == "" {
-		return fmt.Errorf("ldap.base_dn is required")
+	switch mode {
+	case "ldap":
+		if c.LDAP.URL == "" {
+			return fmt.Errorf("ldap.url is required (or set auth.mode = \"stub\" for dev)")
+		}
+		if c.LDAP.BindDN == "" {
+			return fmt.Errorf("ldap.bind_dn is required")
+		}
+		if c.LDAP.BaseDN == "" {
+			return fmt.Errorf("ldap.base_dn is required")
+		}
+	case "stub":
+		if len(c.Auth.StubUsers) == 0 {
+			return fmt.Errorf("auth.stub_users requires at least one entry in stub mode")
+		}
+		for i, u := range c.Auth.StubUsers {
+			if u.Login == "" {
+				return fmt.Errorf("auth.stub_users[%d]: login is required", i)
+			}
+			if u.Password == "" {
+				return fmt.Errorf("auth.stub_users[%d]: password is required", i)
+			}
+		}
+	default:
+		return fmt.Errorf("auth.mode must be \"ldap\" or \"stub\", got %q", mode)
 	}
 
 	if c.JWT.AccessTTL.Std() <= 0 || c.JWT.RefreshTTL.Std() <= 0 {

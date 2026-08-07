@@ -23,6 +23,29 @@ access_ttl        = "15m"
 refresh_ttl       = "24h"
 issuer            = "ktc-auth"
 
+# Режим аутентификации: "ldap" (prod) или "stub" (dev без LDAP)
+[auth]
+mode              = "ldap"
+
+# Тестовые пользователи для stub-режима (mode = "stub")
+# [[auth.stub_users]]
+# login    = "admin"
+# password = "admin123"
+# full_name = "Администратор"
+# roles    = ["admin"]
+#
+# [[auth.stub_users]]
+# login    = "instructor"
+# password = "instructor123"
+# full_name = "Инструктор"
+# roles    = ["instructor"]
+#
+# [[auth.stub_users]]
+# login    = "operator"
+# password = "operator123"
+# full_name = "Оператор"
+# roles    = ["operator"]
+
 [ldap]
 url               = "ldaps://dc01.corp.example.ru:636"
 bind_dn           = "CN=svc-ktc,OU=ServiceAccounts,DC=corp,DC=example,DC=ru"

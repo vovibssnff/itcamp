@@ -44,7 +44,28 @@ func main() {
 	mfaRepo := repository.NewMFARepo(pg)
 	attemptRepo := repository.NewLoginAttemptRepo(pg)
 
-	ldapClient := security.NewLDAPClient(cfg.LDAP)
+	mode := cfg.Auth.Mode
+	if mode == "" {
+		mode = "ldap"
+	}
+	var authenticator security.Authenticator
+	switch mode {
+	case "stub":
+		stub, err := security.NewStubAuthenticator(cfg.Auth.StubUsers)
+		if err != nil {
+			log.Error("stub authenticator init failed", "error", err)
+			os.Exit(1)
+		}
+		authenticator = stub
+		log.Info("running in STUB mode (no LDAP)")
+	case "ldap":
+		authenticator = security.NewLDAPClient(cfg.LDAP)
+		log.Info("running in LDAP mode")
+	default:
+		log.Error("unknown auth mode", "mode", mode)
+		os.Exit(1)
+	}
+
 	totpSvc, err := security.NewTOTPService([]byte(cfg.JWT.SigningKey))
 	if err != nil {
 		log.Error("totp init failed", "error", err)
@@ -54,7 +75,7 @@ func main() {
 	auditSvc := service.NewAuditService(log)
 	tokenSvc := service.NewTokenService(cfg.JWT, refreshRepo)
 	mfaSvc := service.NewMFAService(mfaRepo, totpSvc, auditSvc)
-	authSvc := service.NewAuthService(cfg.Security, userRepo, ldapClient, tokenSvc, mfaSvc, attemptRepo, auditSvc, log)
+	authSvc := service.NewAuthService(cfg.Security, userRepo, authenticator, tokenSvc, mfaSvc, attemptRepo, auditSvc, log)
 	userSvc := service.NewUserService(userRepo, auditSvc)
 	introspectSvc := service.NewIntrospectService(tokenSvc)
 

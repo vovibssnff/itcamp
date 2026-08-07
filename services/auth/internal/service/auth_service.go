@@ -13,20 +13,20 @@ import (
 )
 
 type AuthService struct {
-	cfg       config.SecurityConfig
-	userRepo  *repository.UserRepo
-	ldap      *security.LDAPClient
-	token     *TokenService
-	mfa       *MFAService
-	attempts  *repository.LoginAttemptRepo
-	audit     *AuditService
-	log       *slog.Logger
+	cfg           config.SecurityConfig
+	userRepo      *repository.UserRepo
+	authenticator security.Authenticator
+	token         *TokenService
+	mfa           *MFAService
+	attempts      *repository.LoginAttemptRepo
+	audit         *AuditService
+	log           *slog.Logger
 }
 
 func NewAuthService(
 	cfg config.SecurityConfig,
 	userRepo *repository.UserRepo,
-	ldap *security.LDAPClient,
+	authenticator security.Authenticator,
 	token *TokenService,
 	mfa *MFAService,
 	attempts *repository.LoginAttemptRepo,
@@ -34,7 +34,7 @@ func NewAuthService(
 	log *slog.Logger,
 ) *AuthService {
 	return &AuthService{
-		cfg: cfg, userRepo: userRepo, ldap: ldap, token: token, mfa: mfa,
+		cfg: cfg, userRepo: userRepo, authenticator: authenticator, token: token, mfa: mfa,
 		attempts: attempts, audit: audit, log: log,
 	}
 }
@@ -59,7 +59,7 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginResult, er
 		return LoginResult{}, domain.ErrTooManyAttempts
 	}
 
-	ldapUser, err := s.ldap.Authenticate(ctx, in.Login, in.Password)
+	authUser, err := s.authenticator.Authenticate(ctx, in.Login, in.Password)
 	if err != nil {
 		s.recordFailedAttempt(ctx, in.Login, in.IP, "")
 		if errors.Is(err, domain.ErrInvalidCredentials) {
@@ -68,16 +68,16 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginResult, er
 		return LoginResult{}, err
 	}
 
-	user, err := s.userRepo.GetByLDAPDN(ctx, ldapUser.DN)
+	user, err := s.userRepo.GetByLDAPDN(ctx, authUser.DN)
 	if errors.Is(err, domain.ErrUserNotFound) {
-		user = s.buildUserFromLDAP(ldapUser)
+		user = s.buildUser(authUser)
 		if err := s.userRepo.Create(ctx, user); err != nil && !errors.Is(err, domain.ErrLoginTaken) {
 			return LoginResult{}, err
 		}
 	} else if err != nil {
 		return LoginResult{}, err
 	} else {
-		if changed := s.syncUserFromLDAP(&user, ldapUser); changed {
+		if changed := s.syncUser(&user, authUser); changed {
 			_ = s.userRepo.Update(ctx, user)
 		}
 	}
@@ -147,26 +147,25 @@ func (s *AuthService) recordSuccessfulAttempt(ctx context.Context, login, ip, us
 	})
 }
 
-func (s *AuthService) buildUserFromLDAP(ldapUser security.LDAPUser) domain.User {
+func (s *AuthService) buildUser(authUser security.AuthenticatedUser) domain.User {
 	return domain.User{
 		ID:       newUUID(),
-		Login:    ldapUser.Login,
-		FullName: ldapUser.FullName,
-		LDAPDN:   ldapUser.DN,
-		Roles:    s.ldap.MapRoles(ldapUser.Groups),
+		Login:    authUser.Login,
+		FullName: authUser.FullName,
+		LDAPDN:   authUser.DN,
+		Roles:    authUser.Roles,
 		Status:   domain.UserStatusActive,
 	}
 }
 
-func (s *AuthService) syncUserFromLDAP(user *domain.User, ldapUser security.LDAPUser) bool {
+func (s *AuthService) syncUser(user *domain.User, authUser security.AuthenticatedUser) bool {
 	changed := false
-	if user.FullName != ldapUser.FullName {
-		user.FullName = ldapUser.FullName
+	if user.FullName != authUser.FullName {
+		user.FullName = authUser.FullName
 		changed = true
 	}
-	newRoles := s.ldap.MapRoles(ldapUser.Groups)
-	if !rolesEqual(user.Roles, newRoles) {
-		user.Roles = newRoles
+	if !rolesEqual(user.Roles, authUser.Roles) {
+		user.Roles = authUser.Roles
 		changed = true
 	}
 	return changed

@@ -28,31 +28,36 @@ type LDAPUser struct {
 	Groups   []string
 }
 
-func (c *LDAPClient) Authenticate(ctx context.Context, login, password string) (LDAPUser, error) {
+func (c *LDAPClient) Authenticate(ctx context.Context, login, password string) (AuthenticatedUser, error) {
 	if password == "" {
-		return LDAPUser{}, domain.ErrInvalidCredentials
+		return AuthenticatedUser{}, domain.ErrInvalidCredentials
 	}
 
 	conn, err := c.dial()
 	if err != nil {
-		return LDAPUser{}, fmt.Errorf("%w: %v", domain.ErrLDAPUnavailable, err)
+		return AuthenticatedUser{}, fmt.Errorf("%w: %v", domain.ErrLDAPUnavailable, err)
 	}
 	defer conn.Close()
 
 	if err := c.bindService(conn); err != nil {
-		return LDAPUser{}, fmt.Errorf("%w: service bind: %v", domain.ErrLDAPUnavailable, err)
+		return AuthenticatedUser{}, fmt.Errorf("%w: service bind: %v", domain.ErrLDAPUnavailable, err)
 	}
 
-	user, err := c.findUser(conn, login)
+	ldapUser, err := c.findUser(conn, login)
 	if err != nil {
-		return LDAPUser{}, err
+		return AuthenticatedUser{}, err
 	}
 
-	if err := conn.Bind(user.DN, password); err != nil {
-		return LDAPUser{}, domain.ErrInvalidCredentials
+	if err := conn.Bind(ldapUser.DN, password); err != nil {
+		return AuthenticatedUser{}, domain.ErrInvalidCredentials
 	}
 
-	return user, nil
+	return AuthenticatedUser{
+		Login:    ldapUser.Login,
+		FullName: ldapUser.FullName,
+		DN:       ldapUser.DN,
+		Roles:    c.MapRoles(ldapUser.Groups),
+	}, nil
 }
 
 func (c *LDAPClient) dial() (*ldap.Conn, error) {

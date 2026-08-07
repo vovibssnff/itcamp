@@ -1,0 +1,140 @@
+# Конфигурация gw-сервиса (API Gateway / BFF)
+# Формат: TOML. Путь через флаг -config (по умолчанию ./config.toml)
+
+[http]
+addr              = ":8080"
+read_timeout      = "10s"
+write_timeout     = "30s"
+shutdown_timeout  = "15s"
+
+[auth_client]
+url               = "http://auth.ktc-app.svc.cluster.local:8080/introspect"
+timeout           = "3s"
+cache_ttl         = "30s"
+cache_max_size    = 1000
+
+[security]
+rate_limit_per_min = 100
+
+# === Upstreams (внутренние сервисы, mTLS через Istio) ===
+
+[upstreams.auth]
+url = "http://auth.ktc-app.svc.cluster.local:8080"
+
+[upstreams.constructor]
+url = "http://constructor.ktc-app.svc.cluster.local:8080"
+
+[upstreams.scenario]
+url = "http://scenario.ktc-app.svc.cluster.local:8080"
+
+[upstreams.orchestrator]
+url = "http://orchestrator.ktc-app.svc.cluster.local:8080"
+
+[upstreams.assessment]
+url = "http://assessment.ktc-app.svc.cluster.local:8080"
+
+[upstreams.snapshot]
+url = "http://snapshot.ktc-app.svc.cluster.local:8080"
+
+[upstreams.report]
+url = "http://report.ktc-app.svc.cluster.local:8080"
+
+# === Маршруты (таблица маршрутизации /api/v1/* → upstream) ===
+# auth = true → проверка JWT через introspect + инъекция X-User-ID/X-Roles
+# roles = [...] → RBAC (только указанные роли)
+# strip_prefix → префикс, вырезаемый перед проксированием
+# websocket = true → проксирование WS-upgrade
+
+# --- Auth (public + any) ---
+[[routes]]
+prefix       = "/api/v1/auth/login"
+upstream     = "auth"
+strip_prefix = "/api/v1"
+auth         = false
+
+[[routes]]
+prefix       = "/api/v1/auth/refresh"
+upstream     = "auth"
+strip_prefix = "/api/v1"
+auth         = false
+
+[[routes]]
+prefix       = "/api/v1/auth"
+upstream     = "auth"
+strip_prefix = "/api/v1"
+auth         = true
+
+[[routes]]
+prefix       = "/api/v1/users"
+upstream     = "auth"
+strip_prefix = "/api/v1"
+auth         = true
+roles        = ["admin"]
+
+# --- Constructor (instructor/admin) ---
+[[routes]]
+prefix       = "/api/v1/components"
+upstream     = "constructor"
+strip_prefix = "/api/v1"
+auth         = true
+roles        = ["instructor", "admin"]
+
+[[routes]]
+prefix       = "/api/v1/templates"
+upstream     = "constructor"
+strip_prefix = "/api/v1"
+auth         = true
+roles        = ["instructor", "admin"]
+
+# --- Scenario (instructor/admin) ---
+[[routes]]
+prefix       = "/api/v1/scenarios"
+upstream     = "scenario"
+strip_prefix = "/api/v1"
+auth         = true
+roles        = ["instructor", "admin"]
+
+[[routes]]
+prefix       = "/api/v1/faults"
+upstream     = "scenario"
+strip_prefix = "/api/v1"
+auth         = true
+roles        = ["instructor", "admin"]
+
+# --- Sessions (instructor/operator) ---
+[[routes]]
+prefix       = "/api/v1/sessions"
+upstream     = "orchestrator"
+strip_prefix = "/api/v1"
+auth         = true
+
+# --- Assessment (instructor/admin) ---
+[[routes]]
+prefix       = "/api/v1/assessment"
+upstream     = "assessment"
+strip_prefix = "/api/v1"
+auth         = true
+roles        = ["instructor", "admin"]
+
+# --- Snapshots metadata (instructor/admin) ---
+[[routes]]
+prefix       = "/api/v1/snapshots"
+upstream     = "snapshot"
+strip_prefix = "/api/v1"
+auth         = true
+roles        = ["instructor", "admin"]
+
+# --- Reports (instructor/operator) ---
+[[routes]]
+prefix       = "/api/v1/reports"
+upstream     = "report"
+strip_prefix = "/api/v1"
+auth         = true
+
+# --- WebSocket (orchestrator) ---
+[[routes]]
+prefix       = "/api/v1/ws/sessions"
+upstream     = "orchestrator"
+strip_prefix = "/api/v1"
+auth         = true
+websocket    = true

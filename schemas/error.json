@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ktc.itcamp/schemas/error.json",
+  "title": "Problem Details (RFC 7807)",
+  "type": "object",
+  "required": ["type", "title", "status"],
+  "properties": {
+    "type":     { "type": "string", "format": "uri-reference", "default": "about:blank" },
+    "title":    { "type": "string" },
+    "status":   { "type": "integer", "minimum": 100, "maximum": 599 },
+    "detail":   { "type": "string" },
+    "instance": { "type": "string", "format": "uri-reference" },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "field": { "type": "string" },
+          "code":  { "type": "string" }
+        }
+      }
+    }
+  }
+}

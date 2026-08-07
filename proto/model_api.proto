@@ -1,0 +1,121 @@
+syntax = "proto3";
+
+package ktk.sim.v1;
+
+// Simulation Engine — Model API (SRD §3.11, FR-SIM-03).
+// Стабильный контракт для замены L2→L3 без изменения HMI/ИИ (ARCH-01).
+// Вызывается только orchestrator (NetworkPolicy: accept от orchestrator).
+
+// Диспетчер жизненного цикла рабочих подов (sim-manager).
+service SimManager {
+  rpc CreateSession  (CreateSessionRequest) returns (SessionEndpoint); // создать sim-worker под сессию
+  rpc DestroySession (SessionId)            returns (Ack);              // удалить под
+  rpc ListSessions   (Empty)                returns (SessionList);
+}
+
+// Model API — стабильный контракт взаимодействия с sim-worker.
+service ModelApi {
+  rpc Step            (StepRequest)    returns (State);          // один/несколько шагов интегрирования (FR-SIM-02: ≥1 Гц)
+  rpc GetState        (StateRequest)   returns (State);          // полное состояние (телеметрия / снапшот)
+  rpc SetState        (State)          returns (Ack);            // установить состояние (init / restore)
+  rpc InjectFault     (InjectFaultRequest) returns (Ack);        // внедрить неисправность (вызов из orchestrator)
+  rpc SetSpeed        (SetSpeedRequest) returns (Ack);           // коэффициент 0.1×–10× (FR-SESS-03)
+  rpc StreamTelemetry (StreamRequest)  returns (stream Telemetry); // опц. серверный стрим 1 Гц
+}
+
+message Empty {}
+
+message SessionId { string session_id = 1; }
+
+message CreateSessionRequest {
+  string session_id  = 1;
+  bytes  init_state  = 2;  // sim_state.json (schemas/sim_state.json)
+  int64  seed        = 3;  // ГПСЧ для детерминизма
+}
+
+message SessionEndpoint {
+  string session_id    = 1;
+  string grpc_address  = 2;
+}
+
+message SessionList { repeated SessionId sessions = 1; }
+
+message StepRequest {
+  string session_id = 1;
+  int32  ticks      = 2;  // сколько тиков выполнить (1 = 1 секунда модельного времени)
+}
+
+message StateRequest { string session_id = 1; }
+
+message StreamRequest {
+  string session_id = 1;
+  double hz         = 2;  // частота телеметрии (по умолчанию 1.0)
+}
+
+enum Priority {
+  NONE = 0;
+  LL   = 1;
+  L    = 2;
+  H    = 3;
+  HH   = 4;
+}
+
+message Tag {
+  string tag_id  = 1;
+  double value   = 2;
+  string unit    = 3;
+  string quality = 4;
+}
+
+message Regulator {
+  string tag_id = 1;
+  double pv     = 2;
+  double sp     = 3;
+  double out    = 4;
+  string mode   = 5;  // AUTO | MANUAL
+}
+
+message Alarm {
+  string  alarm_id          = 1;
+  string  tag_id            = 2;
+  Priority priority         = 3;
+  bool    active            = 4;
+  bool    acknowledged      = 5;
+  double  raised_model_time = 6;
+}
+
+message State {
+  string   session_id           = 1;
+  double   model_time           = 2;  // секунды модельного времени
+  int64    seed                 = 3;  // ГПСЧ — для детерминированного restore (FR-SNAP-01)
+  repeated Tag tags             = 4;
+  repeated Regulator regulators = 5;
+  repeated Alarm alarms         = 6;
+  string   components_state_json = 7;  // внутренние состояния узлов (канонический JSON)
+  string   schema_version       = 8;
+}
+
+message InjectFaultRequest {
+  string session_id             = 1;
+  string fault_id               = 2;  // из faults_catalog
+  string component_instance_id  = 3;  // узел графа
+  double severity_pct           = 4;  // тяжесть 0..100 (FR-FLT-03)
+  double ramp_seconds           = 5;  // 0 = мгновенно, N = линейно за N сек
+}
+
+message SetSpeedRequest {
+  string session_id = 1;
+  double factor     = 2;  // 0.1..10
+}
+
+message Telemetry {
+  double   model_time           = 1;
+  repeated Tag tags             = 2;
+  repeated Alarm alarms         = 3;
+  repeated Regulator regulators = 4;
+}
+
+message Ack {
+  bool   ok      = 1;
+  string message = 2;
+}

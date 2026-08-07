@@ -1,0 +1,87 @@
+openapi: 3.1.0
+info:
+  title: KTC Report Service API
+  version: 1.0.0
+  description: |
+    PDF-отчёты о сессии/экзамене. Асинхронная генерация через NATS (не блокирует сессию).
+    SRD §3.13 (FR-ASSESS-07). HMAC-подпись протокола — отложена.
+servers:
+  - url: https://report.ktc-app.svc.cluster.local
+    description: Внутренний (mTLS через Istio)
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+
+  schemas:
+    CreateReportRequest:
+      type: object
+      required: [session_id, type]
+      properties:
+        session_id: { type: string }
+        type:       { type: string, enum: [session, exam] }
+
+    Report:
+      type: object
+      properties:
+        id:           { type: string }
+        session_id:   { type: string }
+        type:         { type: string, enum: [session, exam] }
+        status:       { type: string, enum: [queued, processing, ready, failed] }
+        download_url: { type: string, format: uri }
+        created_at:   { type: string, format: date-time }
+
+    Error:
+      $ref: https://ktc.itcamp/schemas/error.json
+
+paths:
+  /reports:
+    post:
+      summary: Поставить задачу на отчёт (FR-ASSESS-07)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateReportRequest' }
+      responses:
+        '202':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Report' }
+    get:
+      summary: Список отчётов сессии
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: session_id, in: query, schema: { type: string } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Report' }
+
+  /reports/{id}:
+    get:
+      summary: Статус/ссылка
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Report' }
+
+  /reports/{id}/download:
+    get:
+      summary: Скачать PDF (302 на presigned S3)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '302': { description: Redirect to S3 }
+
+  /healthz:
+    get:
+      responses:
+        '200': { description: OK }

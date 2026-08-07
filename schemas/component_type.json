@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ktc.itcamp/schemas/component_type.json",
+  "title": "Component Type",
+  "description": "Тип компонента библиотеки КТС (SRD §3.2, Приложение A)",
+  "type": "object",
+  "required": ["id", "name", "category", "ports", "parameters", "model_code"],
+  "properties": {
+    "id":          { "type": "string", "example": "centrifugal_pump" },
+    "name":        { "type": "string", "example": "Центробежный насос" },
+    "category":    { "type": "string", "enum": ["Общие", "ЭЛОУ", "Атмосфера", "ГДМ"] },
+    "description": { "type": "string" },
+    "ports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "type", "direction"],
+        "properties": {
+          "id":        { "type": "string", "example": "inlet" },
+          "name":      { "type": "string", "example": "Вход" },
+          "type":      { "type": "string", "enum": ["liquid", "gas", "steam", "electric", "signal"] },
+          "direction": { "type": "string", "enum": ["in", "out"] },
+          "required":  { "type": "boolean", "default": true }
+        }
+      }
+    },
+    "parameters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "type"],
+        "properties": {
+          "id":      { "type": "string", "example": "Q_nom" },
+          "name":    { "type": "string", "example": "Номинальная подача" },
+          "unit":    { "type": "string", "example": "м3/ч" },
+          "type":    { "type": "string", "enum": ["float", "int", "bool", "string", "select"] },
+          "default": {},
+          "min":     { "type": "number" },
+          "max":     { "type": "number" },
+          "options": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "model_code":     { "type": "string", "example": "centrifugal_pump" },
+    "icon_s3_key":    { "type": "string", "example": "component-icons/pump.svg" },
+    "documentation":  { "type": "string" }
+  }
+}

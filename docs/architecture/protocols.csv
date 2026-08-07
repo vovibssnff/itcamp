@@ -1,0 +1,17 @@
+От (клиент),К (сервер),Протокол,Обоснование
+FE (браузер),GW,REST,Браузерный стандарт
+FE (браузер),GW (телеметрия),WebSocket,Push 1 Гц
+GW,Auth,REST,"Интеграция с LDAP, низкая нагрузка, OpenAPI"
+GW,Constructor,REST,"CRUD, низкая нагрузка"
+GW,Scenario,REST,"CRUD, низкая нагрузка"
+GW,Assessment,REST,Получение оценок (редко)
+GW,Report,REST,Триггер генерации (асинхронно)
+GW,Snapshot,REST,"Метаданные, список"
+Orchestrator,Constructor,REST,Init state (разовый)
+Orchestrator,Scenario,REST,Сценарий (разовый)
+Orchestrator,Simulation Engine,gRPC,"Hot path (1 Гц, 100+ RPS)"
+Orchestrator,AI Service,gRPC + streaming,"Бинарные данные, стриминг"
+Orchestrator,Snapshot,gRPC,Большие payloads
+Orchestrator,Assessment,NATS (async),Не блокирует тик-цикл
+Orchestrator,Report,NATS (async),Тяжелая генерация PDF
+Orchestrator,FE,WebSocket,Push телеметрии

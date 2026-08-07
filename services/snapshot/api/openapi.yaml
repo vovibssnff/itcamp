@@ -1,0 +1,72 @@
+openapi: 3.1.0
+info:
+  title: KTC Snapshot Service API (REST metadata)
+  version: 1.0.0
+  description: |
+    REST — только метаданные/список (для gw). Save/restore тяжёлых payload — gRPC (proto/snapshot_api.proto).
+    SRD §3.8 (FR-SNAP-*).
+servers:
+  - url: https://snapshot.ktc-app.svc.cluster.local
+    description: Внутренний (mTLS через Istio)
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+
+  schemas:
+    SnapshotMeta:
+      type: object
+      properties:
+        id:             { type: string }
+        session_id:     { type: string }
+        name:           { type: string }
+        model_time:     { type: number }
+        author_id:      { type: string }
+        schema_version: { type: string }
+        sha256:         { type: string }
+        storage_key:    { type: string }
+        is_preset:      { type: boolean }
+        created_at:     { type: string, format: date-time }
+
+    Error:
+      $ref: https://ktc.itcamp/schemas/error.json
+
+paths:
+  /snapshots/{id}:
+    get:
+      summary: Метаданные снапшота
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SnapshotMeta' }
+    delete:
+      summary: Удалить (не для пресетов)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: OK }
+
+  /snapshots:
+    get:
+      summary: Список снапшотов / пресетов
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: session_id, in: query, schema: { type: string } }
+        - { name: is_preset, in: query, schema: { type: boolean } }
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SnapshotMeta' }
+
+  /healthz:
+    get:
+      responses:
+        '200': { description: OK }

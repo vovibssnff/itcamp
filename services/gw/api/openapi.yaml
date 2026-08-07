@@ -1,0 +1,345 @@
+openapi: 3.1.0
+info:
+  title: KTC API Gateway / BFF
+  version: 1.0.0
+  description: |
+    Единая точка входа для клиентов. Istio Ingress Gateway — сетевой вход (TLS).
+    Angie/BFF — прикладной слой: JWT-проверка через auth.introspect, RBAC, rate-limit, агрегация, WS-прокси.
+    Trust boundary (auth.md §6): gw — единственная точка проверки JWT; контекст передаётся downstream
+    заголовками X-User-ID / X-Roles. Внутренние сервисы токен не валидируют.
+    Сам gw не хранит бизнес-данные, не ходит в sim/db/s3 напрямую.
+servers:
+  - url: https://ktc.example.ru
+    description: Внешний вход (Istio Ingress, TLS 1.2+)
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+
+  schemas:
+    Error:
+      $ref: https://ktc.itcamp/schemas/error.json
+
+paths:
+  # === Auth (прокси на auth-сервис) ===
+  /api/v1/auth/login:
+    post:
+      summary: Вход (public, прокси → auth /login)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                login:    { type: string }
+                password: { type: string, format: password }
+                mfa_code: { type: string }
+      responses:
+        '200': { description: JWT tokens или mfa_required }
+
+  /api/v1/auth/refresh:
+    post:
+      summary: Ротация токенов (public, прокси → auth /refresh)
+      responses:
+        '200': { description: Новая пара токенов }
+
+  /api/v1/auth/logout:
+    post:
+      summary: Отзыв (прокси → auth /logout)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+
+  /api/v1/auth/me:
+    get:
+      summary: Профиль (прокси → auth /me)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: User profile }
+
+  # === Users (admin, прокси → auth /users) ===
+  /api/v1/users:
+    get:
+      summary: Список пользователей (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Users list }
+    post:
+      summary: Создать пользователя (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+
+  /api/v1/users/{id}:
+    get:
+      summary: Карточка пользователя (admin)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: User }
+    put:
+      summary: Изменить (admin)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Updated }
+    delete:
+      summary: Деактивировать (admin)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: OK }
+
+  # === Constructor (instructor/admin, прокси → constructor) ===
+  /api/v1/components:
+    get:
+      summary: Каталог компонентов (прокси → constructor /components)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Components list }
+    post:
+      summary: Создать тип (instructor/admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+
+  /api/v1/components/{id}:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Component }
+    put:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Updated }
+    delete:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: OK }
+
+  /api/v1/templates:
+    get:
+      summary: Каталог шаблонов (прокси → constructor /templates)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Templates list }
+    post:
+      summary: Создать шаблон (instructor)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+
+  /api/v1/templates/{id}:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Template }
+    put:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Updated }
+    delete:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: OK }
+
+  /api/v1/templates/{id}/copy:
+    post:
+      summary: Deep clone (instructor)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '201': { description: Cloned }
+
+  /api/v1/templates/{id}/validate:
+    post:
+      summary: Валидация графа (instructor)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: ValidationResult }
+
+  # === Scenarios (instructor/admin, прокси → scenario) ===
+  /api/v1/scenarios:
+    get:
+      summary: Каталог сценариев (прокси → scenario /scenarios)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Scenarios list }
+    post:
+      summary: Создать сценарий (instructor)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+
+  /api/v1/scenarios/{id}:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Scenario }
+    put:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Updated }
+    delete:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: OK }
+
+  /api/v1/scenarios/{id}/clone:
+    post:
+      summary: Клон сценария (instructor)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '201': { description: Cloned }
+
+  /api/v1/faults:
+    get:
+      summary: Каталог неисправностей (прокси → scenario /faults)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Faults catalog }
+
+  # === Sessions (instructor/operator, прокси → orchestrator) ===
+  /api/v1/sessions:
+    get:
+      summary: Список сессий (прокси → orchestrator /sessions)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Sessions list }
+    post:
+      summary: Создать сессию (instructor)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+
+  /api/v1/sessions/{id}:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Session }
+
+  /api/v1/sessions/{id}/{action}:
+    post:
+      summary: start | pause | stop | checkpoint | restore | actuator
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [start, pause, stop, checkpoint, restore, actuator] } }
+      responses:
+        '200': { description: OK }
+
+  /api/v1/sessions/{id}/speed:
+    put:
+      summary: Скорость модельного времени
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Updated }
+
+  # === Assessment (instructor/admin, прокси → assessment) ===
+  /api/v1/assessment/session/{id}/score:
+    get:
+      summary: Текущая оценка (прокси → assessment)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Score }
+
+  /api/v1/assessment/override:
+    post:
+      summary: Переопределить оценку (instructor)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Overridden }
+
+  /api/v1/assessment/session/{id}/replay:
+    get:
+      summary: Данные replay
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Replay data }
+
+  # === Snapshots metadata (instructor/admin, прокси → snapshot) ===
+  /api/v1/snapshots:
+    get:
+      summary: Список снапшотов (прокси → snapshot /snapshots)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Snapshots list }
+
+  /api/v1/snapshots/{id}:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Snapshot meta }
+
+  # === Reports (instructor/operator, прокси → report) ===
+  /api/v1/reports:
+    post:
+      summary: Запрос отчёта (прокси → report /reports)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '202': { description: Queued }
+    get:
+      summary: Список отчётов
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Reports list }
+
+  /api/v1/reports/{id}:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Report }
+
+  /api/v1/reports/{id}/download:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '302': { description: Redirect to S3 }
+
+  # === WebSocket (прокси → orchestrator WS) ===
+  /api/v1/ws/sessions/{id}/operator:
+    get:
+      summary: WS-канал оператора (RW) — телеметрия, команды
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '101': { description: Switching Protocols }
+
+  /api/v1/ws/sessions/{id}/observe:
+    get:
+      summary: WS-канал наблюдения (read-only, instructor)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '101': { description: Switching Protocols }
+
+  # === Static SPA ===
+  /:
+    get:
+      summary: React SPA (статика)
+      responses:
+        '200': { description: HTML }
+
+  /healthz:
+    get:
+      responses:
+        '200': { description: OK }

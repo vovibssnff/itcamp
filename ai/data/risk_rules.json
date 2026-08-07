@@ -1,0 +1,105 @@
+{
+  "source": "Технологический регламент установки ЭЛОУ-АВТ, разд. 3, 7.7",
+  "rules": [
+    {
+      "code": "FURNACE_FLOW_BELOW_MIN",
+      "risk": "CRITICAL",
+      "headline": "Расход по потоку печи будет ниже минимального при работающих форсунках",
+      "regulation_refs": ["разд. 7.7.1.13", "разд. 3, печи П-1, П-2, П-3"],
+      "alternative": "Снизить нагрузку по всем потокам пропорционально либо предварительно уменьшить подачу топлива регуляторами TRC 9 / TRC 11",
+      "action_types": ["SET_SP"],
+      "targets": ["FRCA 411", "FRCA 412", "FRCA 413", "FRCA 414", "FRCA 416", "FRCA 425", "FRCA 428"],
+      "value_below": 60
+    },
+    {
+      "code": "FURNACE_FLOW_SHARP_DROP",
+      "risk": "HIGH",
+      "headline": "Резкое снижение расхода через змеевик печи ведёт к перегреву труб",
+      "regulation_refs": ["разд. 7.7.1.13"],
+      "alternative": "Снижать расход ступенчато, контролируя температуру перевалов TR 40-1…TR 40-3",
+      "action_types": ["SET_SP"],
+      "targets": ["FRCA 411", "FRCA 412", "FRCA 413", "FRCA 414", "FRCA 416", "FRCA 425", "FRCA 428"],
+      "relative_drop": 0.4
+    },
+    {
+      "code": "FURNACE_OUTLET_OVER_LIMIT",
+      "risk": "HIGH",
+      "headline": "Задание температуры на выходе печи выше регламентного предела",
+      "regulation_refs": ["разд. 3: П-1 и П-2 — не более 365 °C, П-3 — не более 340 °C"],
+      "alternative": "Держать уставку в пределах регламента и корректировать нагрев расходом топлива",
+      "action_types": ["SET_SP"],
+      "targets": ["TRC 9", "TRC 11", "TRC 18", "TRC 21"],
+      "value_above": 365
+    },
+    {
+      "code": "FURNACE_P3_OVER_LIMIT",
+      "risk": "HIGH",
+      "headline": "Температура на выходе П-3 задана выше 340 °C",
+      "regulation_refs": ["разд. 3, печь П-3"],
+      "alternative": "Уставка TRC 3 не более 340 °C; коррекция по температуре низа К-1 (TRC 4)",
+      "action_types": ["SET_SP"],
+      "targets": ["TRC 3"],
+      "value_above": 340
+    },
+    {
+      "code": "REFLUX_LOSS_K1",
+      "risk": "HIGH",
+      "headline": "Резкое снижение орошения К-1 приведёт к росту давления до блокировки 4,8 кгс/см2",
+      "regulation_refs": ["разд. 3, колонна К-1"],
+      "alternative": "Снижать расход орошения плавно, контролируя PRSA 204 и температуру верха TRC 2",
+      "action_types": ["SET_SP"],
+      "targets": ["FRC 408"],
+      "relative_drop": 0.5
+    },
+    {
+      "code": "LEVEL_BELOW_20PCT",
+      "risk": "CRITICAL",
+      "headline": "Снижение уровня в аппарате ниже 20 % запрещено регламентом",
+      "regulation_refs": ["разд. 7.7.1.14"],
+      "alternative": "Держать уровень выше 20 %; при необходимости снизить откачку",
+      "action_types": ["SET_SP"],
+      "targets": ["LRCA 602", "LRCA 604", "LRCSA 603", "LRCA 605", "LRCA 4002-1"],
+      "value_below": 20
+    },
+    {
+      "code": "HV_ON_LOW_INTERFACE",
+      "risk": "CRITICAL",
+      "headline": "Подача напряжения на электроды при уровне ниже 3500 мм заблокирована",
+      "regulation_refs": ["разд. 3.3"],
+      "alternative": "Сначала восстановить уровень раздела фаз регулятором LRCA 641 / LRCA 640 / LRCA 639",
+      "action_types": ["START", "OPEN"],
+      "targets": ["ESD-ELOU"],
+      "state_condition": ["LRCA 641", "<", 3500]
+    },
+    {
+      "code": "VSG_BELOW_MIN",
+      "risk": "CRITICAL",
+      "headline": "Расход ВСГ ниже 300 кг/ч нарушает условия демеркаптанизации",
+      "regulation_refs": ["разд. 3, блок ГДМ"],
+      "alternative": "Восстановить подачу ВСГ регулятором FQRC 3001 либо вывести узел ГДМ из работы",
+      "action_types": ["SET_SP"],
+      "targets": ["FQRC 3001"],
+      "value_below": 300
+    },
+    {
+      "code": "CATALYST_OVERHEAT",
+      "risk": "CRITICAL",
+      "headline": "Температура выше 250 °C усиливает побочные реакции и коксообразование на катализаторе",
+      "regulation_refs": ["разд. 3, блок ГДМ"],
+      "alternative": "Держать уставку TRC 1001 в диапазоне 180–220 °C",
+      "action_types": ["SET_SP"],
+      "targets": ["TRC 1001"],
+      "value_above": 250
+    },
+    {
+      "code": "STEAM_TO_K2_CUTOFF",
+      "risk": "MEDIUM",
+      "headline": "Прекращение подачи перегретого пара в К-2 ухудшит отпарку лёгких фракций",
+      "regulation_refs": ["разд. 3, колонна К-2"],
+      "alternative": "Снижать расход пара ступенчато, контролируя качество разделения",
+      "action_types": ["SET_SP"],
+      "targets": ["FRC 421"],
+      "value_below": 1
+    }
+  ]
+}

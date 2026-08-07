@@ -1,0 +1,316 @@
+syntax = "proto3";
+
+package ktk.ai.v1;
+
+option go_package = "github.com/ktk/ai/v1;aiv1";
+
+// Внутренний контракт ИИ-модуля Конструктора КТК.
+// Транспорт: gRPC поверх mTLS (Istio). Соответствует §7.10 SRD.
+service AiService {
+  // FR-AI-02: объяснение причина -> следствие -> рекомендация.
+  rpc Explain (ExplainRequest) returns (ExplainResponse);
+
+  // FR-AI-03: прогноз достижения критической уставки.
+  rpc PredictPhysics (PredictPhysicsRequest) returns (PredictPhysicsResponse);
+
+  // FR-AI-04: оценка риска действия оператора до подтверждения.
+  rpc PredictBehaviour (PredictBehaviourRequest) returns (PredictBehaviourResponse);
+
+  // Анализ действий обучаемого: время реакции, последовательность, аннотации.
+  rpc ReviewSession (ReviewSessionRequest) returns (ReviewSessionResponse);
+
+  // Справочный чат-бот обучаемого (доступ к телеметрии отсутствует).
+  rpc Chat (ChatRequest) returns (ChatResponse);
+
+  // FR-AI-05: генерация адаптивного сценария (черновик на модерацию).
+  rpc GenerateScenario (GenerateScenarioRequest) returns (GenerateScenarioResponse);
+
+  rpc Health (HealthRequest) returns (HealthResponse);
+}
+
+// ---------------------------------------------------------------- общие типы
+
+message TagSample {
+  string tag_id = 1;
+  double value = 2;
+  int64  model_time_s = 3;
+  string unit = 4;
+}
+
+message TagSeries {
+  string tag_id = 1;
+  string unit = 2;
+  repeated double values = 3;
+  int64  t0_s = 4;
+  int32  step_s = 5;
+}
+
+message OperatorActionMsg {
+  int64  model_time_s = 1;
+  // ACK_ALARM | SET_SP | SET_MODE | SET_OUT | START | STOP | OPEN | CLOSE | ESD
+  string type = 2;
+  string target = 3;
+  double value_from = 4;
+  double value_to = 5;
+  bool   has_value_from = 6;
+  bool   has_value_to = 7;
+  string action_id = 8;
+}
+
+message AlarmEventMsg {
+  string tag_id = 1;
+  string priority = 2;   // L | LL | H | HH
+  int64  raised_at_s = 3;
+  int64  ack_at_s = 4;
+  bool   has_ack = 5;
+  double value = 6;
+  double limit = 7;
+}
+
+message ReferenceStepMsg {
+  int32  step = 1;
+  string action = 2;
+  string target = 3;
+  int32  within_s = 4;
+  bool   has_within = 5;
+  double value = 6;
+  bool   has_value = 7;
+  string unit = 8;
+  double tolerance_pct = 9;
+  string note = 10;
+  bool   optional = 11;
+}
+
+message ForbiddenActionMsg {
+  string code = 1;
+  string action = 2;
+  string target = 3;
+  string description = 4;
+  repeated string regulation_refs = 5;
+}
+
+message CriteriaMsg {
+  int32 pass_score = 1;
+  int32 ack_deadline_s = 2;
+  map<string, int32> penalties = 3;
+  repeated ForbiddenActionMsg forbidden_actions = 4;
+}
+
+// ------------------------------------------------------------------- Explain
+
+message ExplainRequest {
+  // ALARM | OPERATOR_ERROR | USER_QUESTION
+  string subject_type = 1;
+  string session_id = 2;
+  int64  model_time_s = 3;
+  string template_version_id = 4;
+  AlarmEventMsg alarm = 5;
+  repeated TagSeries tag_window = 6;
+  repeated OperatorActionMsg recent_actions = 7;
+  string node_id = 8;
+  string node_label = 9;
+  string component_type = 10;
+  repeated string neighbors = 11;
+  repeated string active_faults = 12;
+  string locale = 13;             // ru | en
+  string session_mode = 14;       // TRAINING | SELF_STUDY | EXAM | DEMO
+}
+
+message ExplainResponse {
+  string cause = 1;
+  string effect = 2;
+  string recommendation = 3;
+  repeated string evidence_tags = 4;
+  repeated string regulation_refs = 5;
+  double confidence = 6;
+  bool   degraded = 7;
+  string insight_id = 8;
+  int32  latency_ms = 9;
+}
+
+// ------------------------------------------------------------ PredictPhysics
+
+message LimitDefMsg {
+  string tag_id = 1;
+  double value = 2;
+  string limit_type = 3;   // H | HH | L | LL | INTERLOCK
+}
+
+message PredictPhysicsRequest {
+  string session_id = 1;
+  repeated TagSeries series = 2;
+  repeated LimitDefMsg limits = 3;
+  int32  horizon_s = 4;
+  string session_mode = 5;
+}
+
+message PredictionMsg {
+  string tag_id = 1;
+  double current = 2;
+  double target_limit = 3;
+  string limit_type = 4;
+  int32  eta_s = 5;
+  bool   has_eta = 6;
+  int32  eta_ci_low_s = 7;
+  int32  eta_ci_high_s = 8;
+  double confidence = 9;
+  string trend = 10;       // RISING | FALLING | STABLE | AWAY
+  double rate_per_min = 11;
+  bool   visible_to_operator = 12;
+}
+
+message PredictPhysicsResponse {
+  repeated PredictionMsg predictions = 1;
+  bool degraded = 2;
+}
+
+// ---------------------------------------------------------- PredictBehaviour
+
+message PredictBehaviourRequest {
+  string session_id = 1;
+  OperatorActionMsg pending_action = 2;
+  repeated TagSample current_state = 3;
+  // Только псевдоним: передача ПДн запрещена (FR-AI-07).
+  string operator_pseudo_id = 4;
+  string node_id = 5;
+  string session_mode = 6;
+}
+
+message PredictBehaviourResponse {
+  string risk_level = 1;   // LOW | MEDIUM | HIGH | CRITICAL
+  string headline = 2;
+  string detail = 3;
+  repeated string regulation_refs = 4;
+  string suggested_alternative = 5;
+  bool   visible_to_operator = 6;
+  bool   degraded = 7;
+}
+
+// ------------------------------------------------------------- ReviewSession
+
+message ReviewSessionRequest {
+  string session_id = 1;
+  string scenario_name = 2;
+  repeated OperatorActionMsg actions = 3;
+  repeated AlarmEventMsg alarms = 4;
+  repeated ReferenceStepMsg reference = 5;
+  CriteriaMsg criteria = 6;
+  int64  deadline_base_s = 7;
+  string operator_pseudo_id = 8;
+  bool   with_debrief = 9;
+  map<string, double> state_after = 10;
+}
+
+message StepEvaluationMsg {
+  int32  step = 1;
+  string outcome = 2;      // ON_TIME | LATE | OUT_OF_ORDER | MISSED
+  string action = 3;
+  string target = 4;
+  int32  delay_s = 5;
+  bool   has_delay = 6;
+  int64  matched_at_s = 7;
+  bool   has_match = 8;
+}
+
+message AlarmReactionMsg {
+  string tag_id = 1;
+  string priority = 2;
+  int64  raised_at_s = 3;
+  int32  ack_delay_s = 4;
+  bool   has_ack = 5;
+  int32  first_corrective_delay_s = 6;
+  bool   has_corrective = 7;
+  bool   late = 8;
+}
+
+message PenaltyMsg {
+  string code = 1;
+  int32  points = 2;
+  string detail = 3;
+}
+
+message AiAnnotationMsg {
+  string kind = 1;         // EQUIVALENT_STRATEGY | ERROR_PATTERN | COACHING_NOTE
+  string text = 2;
+  double confidence = 3;
+  repeated int32 related_steps = 4;
+  // Предложение инструктору. Системой не применяется (ARCH-02).
+  int32  suggested_score_delta = 5;
+}
+
+message ReviewSessionResponse {
+  // Авторитетная часть: считается детерминированно, от ИИ не зависит.
+  int32 score = 1;
+  bool  passed = 2;
+  repeated PenaltyMsg penalties = 3;
+  repeated PenaltyMsg critical_errors = 4;
+  repeated AlarmReactionMsg reactions = 5;
+  repeated StepEvaluationMsg steps = 6;
+  double mean_ack_delay_s = 7;
+  bool   has_mean_ack = 8;
+
+  // Совещательная часть: при отказе ИИ приходит пустой.
+  repeated AiAnnotationMsg annotations = 9;
+  string debrief_text = 10;
+  bool   degraded = 11;
+}
+
+// ---------------------------------------------------------------------- Chat
+
+message ChatRequest {
+  string session_id = 1;
+  string question = 2;
+  string session_mode = 3;
+  string template_version_id = 4;
+  string operator_pseudo_id = 5;
+  string locale = 6;
+}
+
+message CitationMsg {
+  string chunk_id = 1;
+  string source = 2;
+  string section = 3;
+  double score = 4;
+}
+
+message ChatResponse {
+  string answer = 1;
+  repeated CitationMsg citations = 2;
+  bool   refused = 3;
+  string refusal_reason = 4;
+  bool   degraded = 5;
+}
+
+// ---------------------------------------------------------- GenerateScenario
+
+message GenerateScenarioRequest {
+  string template_version_id = 1;
+  bytes  graph_json = 2;
+  string operator_pseudo_id = 3;
+  bytes  error_profile_json = 4;
+  string difficulty = 5;       // EASY | MEDIUM | HARD
+  int32  duration_limit_s = 6;
+  int32  count = 7;
+  string scenario_type = 8;    // TRAINING | EXAM
+}
+
+message GenerateScenarioResponse {
+  // Всегда со статусом draft: публикация только после проверки инструктором.
+  repeated bytes scenarios_json = 1;
+  repeated string validation_warnings = 2;
+  bool dry_run_passed = 3;
+  bool degraded = 4;
+}
+
+// -------------------------------------------------------------------- Health
+
+message HealthRequest {}
+
+message HealthResponse {
+  bool   ready = 1;
+  string llm_provider = 2;
+  bool   llm_ready = 3;
+  int32  knowledge_chunks = 4;
+  int32  tags_loaded = 5;
+  string template = 6;
+}

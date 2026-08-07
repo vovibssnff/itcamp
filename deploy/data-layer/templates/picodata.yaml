@@ -1,0 +1,98 @@
+{{- if .Values.picodata.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: picodata-admin
+  namespace: {{ .Values.namespace }}
+type: Opaque
+stringData:
+  password: {{ .Values.picodata.adminPassword | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: picodata
+  namespace: {{ .Values.namespace }}
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: picodata
+  ports:
+    - name: pg
+      port: 4327
+      targetPort: 4327
+    - name: iproto
+      port: 3301
+      targetPort: 3301
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: picodata
+  namespace: {{ .Values.namespace }}
+spec:
+  serviceName: picodata
+  replicas: {{ .Values.picodata.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: picodata
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: picodata
+    spec:
+      # Image USER is 1000; PVC often root-owned on first create
+      securityContext:
+        fsGroup: 1000
+      nodeSelector:
+        ktc.role: db
+      containers:
+        - name: picodata
+          image: {{ .Values.picodata.image }}
+          env:
+            - name: PICODATA_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: picodata-admin
+                  key: password
+            - name: PICODATA_CLUSTER_NAME
+              value: ktc
+            - name: PICODATA_INSTANCE_DIR
+              value: /var/lib/picodata/data
+            - name: PICODATA_INSTANCE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: PICODATA_IPROTO_LISTEN
+              value: 0.0.0.0:3301
+            - name: PICODATA_IPROTO_ADVERTISE
+              value: $(PICODATA_INSTANCE_NAME).picodata:3301
+            - name: PICODATA_PG_LISTEN
+              value: 0.0.0.0:4327
+            - name: PICODATA_PG_ADVERTISE
+              value: $(PICODATA_INSTANCE_NAME).picodata:4327
+          ports:
+            - containerPort: 4327
+              name: pg
+            - containerPort: 3301
+              name: iproto
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/picodata/data
+          readinessProbe:
+            tcpSocket:
+              port: 4327
+            initialDelaySeconds: 15
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.picodata.storageClassName }}
+        storageClassName: {{ .Values.picodata.storageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.picodata.storage }}
+{{- end }}

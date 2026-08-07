@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/26.0.16 Chrome/132.0.6834.196 Electron/34.2.0 Safari/537.36" version="26.0.16">
   <diagram name="Архитектура КТК" id="fEm9N1AOhdQx9boK2GVf">
-    <mxGraphModel dx="1774" dy="1296" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="1656" dy="1209" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -92,7 +92,7 @@
           <mxGeometry x="8" y="50" width="184" height="16" as="geometry" />
         </mxCell>
         <mxCell id="9hro2b6Ub5xbBsskU35M-139" value="Reporting (pod)" style="swimlane;startSize=22;fillColor=#dae8fc;strokeColor=#6c8ebf;whiteSpace=wrap;html=1;fontSize=10;" parent="9hro2b6Ub5xbBsskU35M-117" vertex="1">
-          <mxGeometry x="255" y="296" width="200" height="92" as="geometry" />
+          <mxGeometry x="255" y="296" width="208" height="136" as="geometry" />
         </mxCell>
         <mxCell id="9hro2b6Ub5xbBsskU35M-140" value="PDF, протокол (HMAC)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=8;" parent="9hro2b6Ub5xbBsskU35M-139" vertex="1">
           <mxGeometry x="8" y="26" width="184" height="20" as="geometry" />
@@ -115,9 +115,6 @@
         <mxCell id="9hro2b6Ub5xbBsskU35M-211" value="istio-proxy (Envoy)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f6ff;strokeColor=#5b9bd5;dashed=1;strokeDasharray=4 3;fontSize=8;" parent="9hro2b6Ub5xbBsskU35M-210" vertex="1">
           <mxGeometry x="8" y="28" width="184" height="16" as="geometry" />
         </mxCell>
-        <mxCell id="9hro2b6Ub5xbBsskU35M-301" value="Firewall VKCloud (egress)&#xa;к внешним системам (LDAP/AD)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0e0e3;strokeColor=#6996a0;fontSize=9;fontStyle=1;" parent="9hro2b6Ub5xbBsskU35M-111" vertex="1">
-          <mxGeometry x="54" y="480" width="200" height="50" as="geometry" />
-        </mxCell>
         <mxCell id="9hro2b6Ub5xbBsskU35M-153" value="Namespace: ktc-sim (Node Pool &#39;sim&#39;, taint sim=true)" style="swimlane;startSize=28;fillColor=#d5e8d4;strokeColor=#82b366;whiteSpace=wrap;html=1;fontSize=12;" parent="9hro2b6Ub5xbBsskU35M-111" vertex="1">
           <mxGeometry x="994" y="60" width="540" height="250" as="geometry" />
         </mxCell>
@@ -129,9 +126,6 @@
         </mxCell>
         <mxCell id="9hro2b6Ub5xbBsskU35M-310" value="Istio Egress Gateway (sim)" style="swimlane;startSize=22;fillColor=#d5e8d4;strokeColor=#82b366;whiteSpace=wrap;html=1;fontSize=8;" vertex="1" parent="9hro2b6Ub5xbBsskU35M-153">
           <mxGeometry x="385" y="40" width="140" height="78" as="geometry" />
-        </mxCell>
-        <mxCell id="9hro2b6Ub5xbBsskU35M-311" value="istio-proxy (Envoy)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f6ff;strokeColor=#5b9bd5;dashed=1;strokeDasharray=4 3;fontSize=8;" vertex="1" parent="9hro2b6Ub5xbBsskU35M-310">
-          <mxGeometry x="8" y="30" width="124" height="16" as="geometry" />
         </mxCell>
         <mxCell id="9hro2b6Ub5xbBsskU35M-155" value="sim-worker-1 (сессия 1, 1 Гц)" style="swimlane;startSize=26;fillColor=#d5e8d4;strokeColor=#82b366;whiteSpace=wrap;html=1;fontSize=8;" parent="9hro2b6Ub5xbBsskU35M-153" vertex="1">
           <mxGeometry x="15" y="140" width="160" height="70" as="geometry" />
@@ -165,9 +159,6 @@
         </mxCell>
         <mxCell id="9hro2b6Ub5xbBsskU35M-312" value="Istio Egress Gateway (ai)" style="swimlane;startSize=22;fillColor=#d5e8d4;strokeColor=#82b366;whiteSpace=wrap;html=1;fontSize=8;" vertex="1" parent="9hro2b6Ub5xbBsskU35M-159">
           <mxGeometry x="385" y="40" width="140" height="78" as="geometry" />
-        </mxCell>
-        <mxCell id="9hro2b6Ub5xbBsskU35M-313" value="istio-proxy (Envoy)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f6ff;strokeColor=#5b9bd5;dashed=1;strokeDasharray=4 3;fontSize=8;" vertex="1" parent="9hro2b6Ub5xbBsskU35M-312">
-          <mxGeometry x="8" y="30" width="124" height="16" as="geometry" />
         </mxCell>
         <mxCell id="9hro2b6Ub5xbBsskU35M-161" value="Namespace: ktc-observability + ktc-security (сквозные)" style="swimlane;startSize=28;fillColor=#f5f5f5;strokeColor=#666666;whiteSpace=wrap;html=1;fontSize=12;" parent="9hro2b6Ub5xbBsskU35M-111" vertex="1">
           <mxGeometry x="4" y="540" width="1570" height="160" as="geometry" />
@@ -247,6 +238,18 @@
         <mxCell id="9hro2b6Ub5xbBsskU35M-300" value="Firewall VKCloud — сетевой периметр (segmentation VPC/подсетей, защита Ingress/Egress)" style="swimlane;startSize=24;fillColor=#d0e0e3;strokeColor=#6996a0;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;" parent="1" vertex="1">
           <mxGeometry x="410" y="668" width="1560" height="572" as="geometry" />
         </mxCell>
+        <mxCell id="9hro2b6Ub5xbBsskU35M-313" value="istio-proxy (Envoy)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f6ff;strokeColor=#5b9bd5;dashed=1;strokeDasharray=4 3;fontSize=8;" vertex="1" parent="9hro2b6Ub5xbBsskU35M-300">
+          <mxGeometry x="1387" y="478" width="124" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="9hro2b6Ub5xbBsskU35M-311" value="istio-proxy (Envoy)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f6ff;strokeColor=#5b9bd5;dashed=1;strokeDasharray=4 3;fontSize=8;" vertex="1" parent="9hro2b6Ub5xbBsskU35M-300">
+          <mxGeometry x="1387" y="198" width="124" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="A2RQNK3f9JFLDZq6dQwB-3" value="Istio Egress Gateway" style="swimlane;startSize=22;fillColor=#dae8fc;strokeColor=#6c8ebf;whiteSpace=wrap;html=1;fontSize=10;" vertex="1" parent="9hro2b6Ub5xbBsskU35M-300">
+          <mxGeometry x="60" y="512" width="200" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="A2RQNK3f9JFLDZq6dQwB-4" value="istio-proxy (Envoy)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f6ff;strokeColor=#5b9bd5;dashed=1;strokeDasharray=4 3;fontSize=8;" vertex="1" parent="A2RQNK3f9JFLDZq6dQwB-3">
+          <mxGeometry x="8" y="28" width="184" height="16" as="geometry" />
+        </mxCell>
         <mxCell id="edge-auto-1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#666666;fontSize=9;" parent="1" source="9hro2b6Ub5xbBsskU35M-105" target="9hro2b6Ub5xbBsskU35M-118" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
@@ -283,11 +286,15 @@
         <mxCell id="edge-auto-12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#666666;fontSize=9;" parent="1" source="9hro2b6Ub5xbBsskU35M-130" target="9hro2b6Ub5xbBsskU35M-210" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-auto-13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#666666;fontSize=9;" parent="1" source="9hro2b6Ub5xbBsskU35M-210" target="9hro2b6Ub5xbBsskU35M-301" edge="1">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="edge-auto-13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;strokeColor=#666666;fontSize=9;" parent="1" source="9hro2b6Ub5xbBsskU35M-210" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="564" y="1180" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="edge-firewall-ldap" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#666666;fontSize=9;" parent="1" source="9hro2b6Ub5xbBsskU35M-301" target="9hro2b6Ub5xbBsskU35M-176" edge="1">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="edge-firewall-ldap" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#666666;fontSize=9;" parent="1" target="9hro2b6Ub5xbBsskU35M-176" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="564" y="1240" as="sourcePoint" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="edge-auto-14" value="старт/стоп сессии" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#666666;fontSize=9;" parent="1" source="9hro2b6Ub5xbBsskU35M-124" target="9hro2b6Ub5xbBsskU35M-154" edge="1">
           <mxGeometry relative="1" as="geometry" />

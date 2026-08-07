@@ -1,0 +1,38 @@
+# Локальный запуск: ИИ-сервис + Ollama. Соответствует node pool ktk-ai
+# из §7.9 SRD, но без Kubernetes — для разработки и демонстрации.
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    # Раскомментируйте при наличии GPU:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  ai-service:
+    build: .
+    ports:
+      - "8080:8080"
+      - "50051:50051"
+    environment:
+      KTK_LLM_PROVIDER: ollama
+      KTK_OLLAMA_URL: http://ollama:11434
+      KTK_LLM_MODEL: ${KTK_LLM_MODEL:-qwen2.5:14b-instruct}
+      KTK_DOCS_DIR: /app/data/regulation
+      KTK_DATA_DIR: /app/data
+      # Чат-бот не видит телеметрию, поэтому на экзамене работает как
+      # открытый справочник. Поставьте false для закрытой аттестации.
+      KTK_CHAT_IN_EXAM: "true"
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  ollama-models:

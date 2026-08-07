@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="support.js"></script>
+<script src="./support.js"></script>
 </head>
 <body>
 <x-dc>
@@ -105,7 +105,7 @@
       <div style="display:flex;flex:1;min-height:0;">
         <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
           <div style="flex:1;padding:16px;min-height:0;overflow:auto;">
-            <svg viewBox="0 0 1600 840" width="1600" height="840" style="background:#0d1319;border:1px solid rgba(255,255,255,0.08);border-radius:6px;display:block;">
+            <svg viewBox="0 0 1900 1400" width="1900" height="1400" style="background:#0d1319;border:1px solid rgba(255,255,255,0.08);border-radius:6px;display:block;">
               <defs>
                 <pattern id="hmiGrid" width="26" height="26" patternUnits="userSpaceOnUse">
                   <circle cx="1" cy="1" r="1" fill="#151f28"></circle>
@@ -118,7 +118,7 @@
                   <path d="M0,0 L10,5 L0,10 Z" fill="#5a6971"></path>
                 </marker>
               </defs>
-              <rect x="0" y="0" width="1600" height="840" fill="url(#hmiGrid)"></rect>
+              <rect x="0" y="0" width="1900" height="1400" fill="url(#hmiGrid)"></rect>
 
               <rect x="10" y="20" width="380" height="420" rx="6" fill="#8a97a0" opacity="0.04"></rect>
               <rect x="10" y="20" width="380" height="420" rx="6" fill="none" stroke="#8a97a0" stroke-opacity="0.2"></rect>
@@ -136,8 +136,9 @@
               <text x="93" y="282" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-1(Н-1А,Н-15,Н-1В)</text>
               <text x="20" y="300" fill="#5a6971" font-size="8" font-family="IBM Plex Mono, monospace">Некондиция</text>
               <text x="20" y="312" fill="#5a6971" font-size="8" font-family="IBM Plex Mono, monospace">Дезмульгатор</text>
-              <line x1="83" y1="170" x2="83" y2="120" stroke="#8a97a0" stroke-width="2"></line>
-              <line x1="83" y1="120" x2="210" y2="120" stroke="#8a97a0" stroke-width="2"></line>
+              <line x1="83" y1="170" x2="83" y2="148" stroke="#8a97a0" stroke-width="2"></line>
+              <line x1="83" y1="148" x2="200" y2="148" stroke="#8a97a0" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <text x="142" y="118" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">Сырая нефть</text>
 
               <rect x="210" y="105" width="165" height="215" rx="4" fill="none" stroke="#8a97a0" stroke-width="1.5" stroke-dasharray="5 4"></rect>
               <text x="292" y="98" fill="#9aa7ad" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">Блок обогрева сырой нефти</text>
@@ -148,7 +149,30 @@
               </g>
               <text x="292" y="200" fill="#5a6971" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">Х-2/3-5</text>
               <text x="292" y="280" fill="#5a6971" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">АВЗ-4,5</text>
-              <line x1="375" y1="160" x2="415" y2="160" stroke="#8a97a0" stroke-width="3" marker-end="url(#flowArrow)"></line>
+              <!-- сырая нефть → ЭЛОУ -->
+              <line x1="375" y1="160" x2="410" y2="160" stroke="#8a97a0" stroke-width="3" marker-end="url(#flowArrow)"></line>
+              <!-- циркуляция: блок обогрева → 35 тар. К-2 (верхним обходом над зонами) -->
+              <line x1="375" y1="120" x2="375" y2="28" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="375" y1="28" x2="1020" y2="28" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="1020" y1="28" x2="1020" y2="112" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="1020" y1="112" x2="1035" y2="112" stroke="#4a5a63" stroke-width="2.5" marker-end="url(#flowArrow)"></line>
+              <text x="700" y="22" fill="#9aa7ad" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">блок обогрева сырой нефти → 35 тар. К-2</text>
+              <!-- возврат: 32 тар. → Н-12 → задвижка → блок подогрева (нижним обходом) -->
+              <line x1="1020" y1="144" x2="1005" y2="144" stroke="#4a5a63" stroke-width="2.5"></line>
+              <circle cx="994" cy="160" r="10" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="989,155 989,165 1000,160" fill="#4d5a63"></polygon>
+              <text x="994" y="180" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-12(Н-12А)</text>
+              <line x1="1020" y1="144" x2="994" y2="144" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="994" y1="144" x2="994" y2="150" stroke="#4a5a63" stroke-width="2.5"></line>
+              <polygon points="978,168 988,176 978,184" fill="#8a97a0" stroke="#000"></polygon>
+              <polygon points="998,168 988,176 998,184" fill="#8a97a0" stroke="#000"></polygon>
+              <text x="988" y="198" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">ЗД</text>
+              <line x1="994" y1="170" x2="994" y2="176" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="994" y1="184" x2="994" y2="430" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="994" y1="430" x2="390" y2="430" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="390" y1="430" x2="390" y2="250" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="390" y1="250" x2="375" y2="250" stroke="#4a5a63" stroke-width="2.5" marker-end="url(#flowArrow)"></line>
+              <text x="700" y="424" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">с 32 тар. → Н-12 → ЗД → блок подогрева сырой нефти</text>
 
               <g transform="translate(400,0)">
 
@@ -158,23 +182,23 @@
               <text x="26" y="42" fill="#00e5c7" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">ЭЛОУ · ЭЛЕКТРООБЕССОЛИВАНИЕ</text>
               <line x1="18" y1="48" x2="372" y2="48" stroke="#00e5c7" stroke-opacity="0.3" stroke-width="1"></line>
 
-              <rect x="400" y="20" width="380" height="420" rx="6" fill="#ffb020" opacity="0.05"></rect>
-              <rect x="400" y="20" width="380" height="420" rx="6" fill="none" stroke="#ffb020" stroke-opacity="0.25"></rect>
+              <rect x="400" y="20" width="650" height="420" rx="6" fill="#ffb020" opacity="0.05"></rect>
+              <rect x="400" y="20" width="650" height="420" rx="6" fill="none" stroke="#ffb020" stroke-opacity="0.25"></rect>
               <rect x="406" y="33" width="6" height="6" fill="#ffb020"></rect>
               <text x="416" y="42" fill="#ffb020" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">АТМОСФЕРНЫЙ БЛОК</text>
-              <line x1="408" y1="48" x2="772" y2="48" stroke="#ffb020" stroke-opacity="0.3" stroke-width="1"></line>
+              <line x1="408" y1="48" x2="1042" y2="48" stroke="#ffb020" stroke-opacity="0.3" stroke-width="1"></line>
 
-              <rect x="800" y="20" width="390" height="420" rx="6" fill="#5b8cff" opacity="0.06"></rect>
-              <rect x="800" y="20" width="390" height="420" rx="6" fill="none" stroke="#5b8cff" stroke-opacity="0.25"></rect>
-              <rect x="806" y="33" width="6" height="6" fill="#5b8cff"></rect>
-              <text x="816" y="42" fill="#5b8cff" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">БЛОК ГДМ</text>
-              <line x1="808" y1="48" x2="1182" y2="48" stroke="#5b8cff" stroke-opacity="0.3" stroke-width="1"></line>
+              <rect x="1070" y="20" width="390" height="420" rx="6" fill="#5b8cff" opacity="0.06"></rect>
+              <rect x="1070" y="20" width="390" height="420" rx="6" fill="none" stroke="#5b8cff" stroke-opacity="0.25"></rect>
+              <rect x="1076" y="33" width="6" height="6" fill="#5b8cff"></rect>
+              <text x="1086" y="42" fill="#5b8cff" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">БЛОК ГДМ</text>
+              <line x1="1078" y1="48" x2="1452" y2="48" stroke="#5b8cff" stroke-opacity="0.3" stroke-width="1"></line>
 
               <line x1="15" y1="160" x2="74" y2="160" stroke="#4a5a63" stroke-width="3" marker-end="url(#flowArrow)"></line>
               <line x1="90" y1="176" x2="90" y2="234" stroke="#4a5a63" stroke-width="3"></line>
               <line x1="90" y1="260" x2="90" y2="300" stroke="#4a5a63" stroke-width="3"></line>
               <line x1="90" y1="300" x2="180" y2="300" stroke="#4a5a63" stroke-width="3"></line>
-              <line x1="310" y1="110" x2="430" y2="110" stroke="#4a5a63" stroke-width="3" marker-end="url(#flowArrow)"></line>
+
               <line x1="245" y1="390" x2="245" y2="425" stroke="#4a5a63" stroke-width="2" stroke-dasharray="4 3"></line>
               <text x="204" y="443" fill="#5a6971" font-size="10" font-family="IBM Plex Mono, monospace">дренаж воды</text>
 
@@ -193,26 +217,46 @@
               <text x="245" y="60" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">ЭД-1 (электродегидратор)</text>
               <line x1="182" y1="250" x2="308" y2="250" stroke="#5b8cff" stroke-width="1.5" stroke-dasharray="3 3"></line>
 
-              <rect x="330" y="35" width="34" height="60" rx="6" fill="url(#vesselGrad)" stroke="#5a6971"></rect>
-              <text x="347" y="26" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">Е-2</text>
-              <circle cx="347" cy="106" r="8" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
-              <text x="347" y="122" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-7(Н-7А)</text>
+              <!-- Е-15 / Н-20: ЭЛОУ → сепаратор → подогрев обессоленной нефти -->
+              <g onClick="{{ openSepE15 }}" style="cursor:pointer;">
+                <rect x="325" y="150" width="50" height="80" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"></rect>
+                <text x="350" y="144" fill="#c9d3d8" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">Е-15</text>
+              </g>
+              <line x1="310" y1="190" x2="325" y2="190" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="350" y1="230" x2="350" y2="268" stroke="#4a5a63" stroke-width="2.5"></line>
+              <circle cx="350" cy="280" r="12" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="344,274 344,286 358,280" fill="#4d5a63"></polygon>
+              <text x="350" y="302" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-20</text>
+              <line x1="362" y1="280" x2="400" y2="280" stroke="#4a5a63" stroke-width="2.5"></line>
 
               <rect x="200" y="316" width="90" height="22" rx="4" fill="#05080b" stroke="rgba(255,255,255,0.08)"></rect>
               <text x="245" y="332" fill="{{ waterColor }}" font-size="16" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600">{{ waterValue }}</text>
               <text x="245" y="348" fill="#5a6971" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">вода в нефти</text>
 
-              <rect x="52" y="287" width="76" height="18" rx="3" fill="#05080b" stroke="rgba(255,255,255,0.08)"></rect>
-              <text x="90" y="300" fill="{{ suctionColor }}" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">{{ suctionValue }}</text>
-
               <g onClick="{{ toggleV1 }}" style="cursor:pointer;">
-                <polygon points="355,102 365,110 355,118" fill="{{ v1Fill }}" stroke="#000"></polygon>
-                <polygon points="375,102 365,110 375,118" fill="{{ v1Fill }}" stroke="#000"></polygon>
+                <polygon points="400,272 410,280 400,288" fill="{{ v1Fill }}" stroke="#000"></polygon>
+                <polygon points="420,272 410,280 420,288" fill="{{ v1Fill }}" stroke="#000"></polygon>
               </g>
-              <text x="345" y="98" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">V1</text>
+              <text x="392" y="266" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">V1</text>
 
-              <line x1="430" y1="110" x2="430" y2="300" stroke="#4a5a63" stroke-width="3"></line>
-              <line x1="430" y1="300" x2="460" y2="300" stroke="#4a5a63" stroke-width="3"></line>
+              <!-- блок подогрева обессоленной нефти -->
+              <rect x="430" y="95" width="120" height="155" rx="4" fill="none" stroke="#8a97a0" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+              <text x="490" y="88" fill="#9aa7ad" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">Блок подогрева обес. нефти</text>
+              <g onClick="{{ openHeatblock2 }}" style="cursor:pointer;">
+                <rect x="430" y="95" width="120" height="155" fill="transparent"></rect>
+                <polygon points="490,125 508,143 490,161 472,143" fill="url(#vesselGrad)" stroke="#8a97a0"></polygon>
+                <polygon points="490,185 508,203 490,221 472,203" fill="url(#vesselGrad)" stroke="#8a97a0"></polygon>
+              </g>
+              <text x="490" y="175" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">Т-3</text>
+              <text x="490" y="238" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">Т-4</text>
+              <line x1="410" y1="280" x2="410" y2="170" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="410" y1="170" x2="430" y2="170" stroke="#4a5a63" stroke-width="2.5" marker-end="url(#flowArrow)"></line>
+              <text x="418" y="162" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">в подогрев</text>
+              <line x1="550" y1="200" x2="580" y2="200" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="580" y1="200" x2="580" y2="300" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="580" y1="300" x2="570" y2="300" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="570" y1="300" x2="460" y2="300" stroke="#4a5a63" stroke-width="3" marker-end="url(#flowArrow)"></line>
+              <text x="585" y="250" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">→ П-2</text>
               <line x1="460" y1="340" x2="445" y2="340" stroke="#4a5a63" stroke-width="2"></line>
               <g onClick="{{ toggleV2 }}" style="cursor:pointer;">
                 <polygon points="435,332 445,340 435,348" fill="{{ v2Fill }}" stroke="#000"></polygon>
@@ -227,6 +271,14 @@
 
               <line x1="570" y1="330" x2="655" y2="330" stroke="#4a5a63" stroke-width="3"></line>
               <line x1="655" y1="330" x2="655" y2="380" stroke="#4a5a63" stroke-width="3"></line>
+
+              <!-- Е-2 в атмосферном блоке (между подогревом обес. нефти и К-2) -->
+              <rect x="560" y="55" width="40" height="70" rx="6" fill="url(#vesselGrad)" stroke="#5a6971" stroke-width="1.5"></rect>
+              <text x="580" y="48" fill="#c9d3d8" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">Е-2</text>
+              <circle cx="580" cy="140" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="575,135 575,145 586,140" fill="#4d5a63"></polygon>
+              <text x="580" y="160" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-7(Н-7А)</text>
+              <line x1="600" y1="80" x2="620" y2="80" stroke="#4a5a63" stroke-width="2"></line>
 
               <rect x="620" y="50" width="100" height="350" rx="12" fill="url(#vesselGrad)" style="{{ nodeStyle.k1 }}" onClick="{{ openK1 }}"></rect>
               <text x="670" y="40" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-2 (атм. колонна)</text>
@@ -247,8 +299,7 @@
               <line x1="630" y1="304" x2="710" y2="304" stroke="#33424b" stroke-width="1"></line>
               <text x="626" y="307" fill="#4d5a63" font-size="7" text-anchor="end" font-family="IBM Plex Mono, monospace">6 тар.</text>
               <line x1="630" y1="336" x2="710" y2="336" stroke="#33424b" stroke-width="1"></line>
-              <circle cx="600" cy="90" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
-              <text x="615" y="106" fill="#5a6971" font-size="7" text-anchor="end" font-family="IBM Plex Mono, monospace">Н-12(Н-12А)</text>
+
               <circle cx="600" cy="190" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
               <text x="615" y="206" fill="#5a6971" font-size="7" text-anchor="end" font-family="IBM Plex Mono, monospace">Н-13(Н-11)</text>
               <circle cx="600" cy="260" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
@@ -261,9 +312,7 @@
               <line x1="720" y1="100" x2="770" y2="100" stroke="#4a5a63" stroke-width="2"></line>
               <text x="774" y="104" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">бензин</text>
               <line x1="720" y1="130" x2="770" y2="130" stroke="#4a5a63" stroke-width="2"></line>
-              <text x="774" y="134" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">керосин</text>
               <line x1="720" y1="160" x2="770" y2="160" stroke="#4a5a63" stroke-width="2"></line>
-              <text x="774" y="164" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">ДТ</text>
 
               <line x1="700" y1="250" x2="740" y2="250" stroke="#4a5a63" stroke-width="2"></line>
               <line x1="740" y1="250" x2="740" y2="410" stroke="#4a5a63" stroke-width="2"></line>
@@ -279,108 +328,325 @@
               <line x1="655" y1="400" x2="655" y2="435" stroke="#4a5a63" stroke-width="2" stroke-dasharray="4 3"></line>
               <text x="625" y="450" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">мазут</text>
 
-              <line x1="720" y1="130" x2="800" y2="130" stroke="#4a5a63" stroke-width="3" marker-end="url(#flowArrow)"></line>
-              <line x1="800" y1="130" x2="830" y2="130" stroke="#4a5a63" stroke-width="3"></line>
-              <text x="726" y="122" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">фракция 140–240°C</text>
+              <line x1="720" y1="130" x2="800" y2="130" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="720" y1="160" x2="855" y2="160" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="720" y1="240" x2="910" y2="240" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="910" y1="240" x2="910" y2="205" stroke="#4a5a63" stroke-width="3"></line>
 
-              <rect x="830" y="90" width="100" height="300" rx="14" fill="url(#vesselGrad)" style="{{ nodeStyle.k124 }}" onClick="{{ openK124 }}"></rect>
-              <text x="880" y="80" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">Р К-12/4</text>
-              <rect x="840" y="401" width="80" height="19" rx="4" fill="#05080b" stroke="rgba(255,255,255,0.08)"></rect>
-              <text x="880" y="415" fill="{{ gdmColor }}" font-size="14" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600">{{ gdmValue }}</text>
+              <rect x="800" y="108" width="42" height="95" rx="6" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+              <rect x="855" y="108" width="42" height="95" rx="6" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+              <rect x="910" y="108" width="42" height="95" rx="6" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+              <g onClick="{{ openK3group }}" style="cursor:pointer;">
+                <rect x="800" y="108" width="42" height="95" fill="transparent"></rect>
+                <rect x="855" y="108" width="42" height="95" fill="transparent"></rect>
+                <rect x="910" y="108" width="42" height="95" fill="transparent"></rect>
+              </g>
+              <text x="821" y="102" fill="#c9d3d8" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-3/1</text>
+              <text x="876" y="102" fill="#c9d3d8" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-3/2</text>
+              <text x="931" y="102" fill="#c9d3d8" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-3/3</text>
 
-              <line x1="860" y1="40" x2="860" y2="90" stroke="#4a5a63" stroke-width="2"></line>
-              <text x="866" y="52" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">ВСГ ≥300 кг/ч</text>
+              <line x1="821" y1="203" x2="821" y2="230" stroke="#5b8cff" stroke-width="1.5" stroke-dasharray="3 3"></line>
+              <line x1="876" y1="203" x2="876" y2="230" stroke="#5b8cff" stroke-width="1.5" stroke-dasharray="3 3"></line>
+              <line x1="821" y1="230" x2="876" y2="230" stroke="#5b8cff" stroke-width="1.5" stroke-dasharray="3 3"></line>
+              <line x1="720" y1="230" x2="821" y2="230" stroke="#5b8cff" stroke-width="1.5" stroke-dasharray="3 3"></line>
+              <text x="758" y="243" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">пар отпарки</text>
+
+              <circle cx="821" cy="222" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="817,218 817,226 826,222" fill="#4d5a63"></polygon>
+              <text x="821" y="236" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-14</text>
+              <circle cx="876" cy="222" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="872,218 872,226 881,222" fill="#4d5a63"></polygon>
+              <text x="876" y="236" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-15</text>
+              <circle cx="931" cy="222" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="927,218 927,226 936,222" fill="#4d5a63"></polygon>
+              <text x="931" y="236" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-16</text>
+
+              <line x1="821" y1="231" x2="821" y2="255" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="821" y1="255" x2="1042" y2="255" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <text x="900" y="250" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">Фр.140-240°C</text>
+              <line x1="876" y1="231" x2="876" y2="266" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="876" y1="266" x2="1042" y2="266" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <text x="945" y="262" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">Фр.240-300°C</text>
+              <line x1="931" y1="231" x2="931" y2="277" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="931" y1="277" x2="1042" y2="277" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <text x="990" y="273" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">Фр.300-350°C</text>
+
+              <line x1="680" y1="50" x2="680" y2="30" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="680" y1="30" x2="835" y2="30" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <line x1="835" y1="30" x2="835" y2="280" stroke="#4a5a63" stroke-width="2"></line>
+              <rect x="790" y="280" width="90" height="30" rx="6" fill="url(#vesselGrad)" stroke="#5a6971"></rect>
+              <text x="835" y="298" fill="#9aa7ad" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">А-1,А-2/1</text>
+              <text x="770" y="18" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">ВСГ/Азот</text>
+              <line x1="800" y1="20" x2="800" y2="280" stroke="#4a5a63" stroke-width="1" stroke-dasharray="3 2"></line>
+              <text x="835" y="322" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">NaOH промывка</text>
+              <line x1="835" y1="310" x2="835" y2="355" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="835" y1="355" x2="1042" y2="355" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <text x="900" y="350" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">Фр.85-180°C с уст.</text>
+
+              <text x="940" y="298" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Т-27/4 Т-27/3 Т-27/2</text>
+              <polygon points="888,320 900,310 912,320 900,330" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+              <polygon points="928,320 940,310 952,320 940,330" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+              <polygon points="968,320 980,310 992,320 980,330" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+              <line x1="900" y1="320" x2="928" y2="320" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="940" y1="320" x2="968" y2="320" stroke="#4a5a63" stroke-width="2"></line>
+              <text x="940" y="345" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">Вода ПТК</text>
+
+              <line x1="655" y1="435" x2="655" y2="425" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="655" y1="425" x2="800" y2="425" stroke="#4a5a63" stroke-width="2"></line>
+              <circle cx="815" cy="425" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="811,421 811,429 820,425" fill="#4d5a63"></polygon>
+              <text x="815" y="439" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-32</text>
+              <polygon points="888,425 910,413 932,425 910,437" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+              <text x="910" y="443" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Х-38</text>
+              <line x1="824" y1="425" x2="888" y2="425" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="932" y1="425" x2="1042" y2="425" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <text x="960" y="420" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">1 поток мазута</text>
+              <circle cx="855" cy="408" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="851,404 851,412 860,408" fill="#4d5a63"></polygon>
+              <text x="855" y="399" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-4</text>
+              <line x1="824" y1="425" x2="824" y2="408" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="824" y1="408" x2="846" y2="408" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="864" y1="408" x2="1042" y2="408" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <text x="930" y="403" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">2 поток мазута</text>
+
+              <rect x="1100" y="90" width="100" height="300" rx="14" fill="url(#vesselGrad)" style="{{ nodeStyle.k124 }}" onClick="{{ openK124 }}"></rect>
+              <text x="1150" y="80" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">Р К-12/4</text>
+              <rect x="1110" y="401" width="80" height="19" rx="4" fill="#05080b" stroke="rgba(255,255,255,0.08)"></rect>
+              <text x="1150" y="415" fill="{{ gdmColor }}" font-size="14" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600">{{ gdmValue }}</text>
+
+              <line x1="1130" y1="40" x2="1130" y2="90" stroke="#4a5a63" stroke-width="2"></line>
+              <text x="1136" y="52" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">ВСГ ≥300 кг/ч</text>
               <g onClick="{{ toggleV3 }}" style="cursor:pointer;">
-                <polygon points="852,57 860,65 852,73" fill="{{ v3Fill }}" stroke="#000"></polygon>
-                <polygon points="868,57 860,65 868,73" fill="{{ v3Fill }}" stroke="#000"></polygon>
+                <polygon points="1122,57 1130,65 1122,73" fill="{{ v3Fill }}" stroke="#000"></polygon>
+                <polygon points="1138,57 1130,65 1138,73" fill="{{ v3Fill }}" stroke="#000"></polygon>
               </g>
-              <line x1="920" y1="35" x2="920" y2="90" stroke="#4a5a63" stroke-width="1.5" stroke-dasharray="3 2"></line>
-              <text x="926" y="42" fill="#5a6971" font-size="8" font-family="IBM Plex Mono, monospace">Азот (сушка катализатора)</text>
+              <line x1="1190" y1="35" x2="1190" y2="90" stroke="#4a5a63" stroke-width="1.5" stroke-dasharray="3 2"></line>
+              <text x="1196" y="42" fill="#5a6971" font-size="8" font-family="IBM Plex Mono, monospace">Азот (сушка катализатора)</text>
 
-              <rect x="740" y="55" width="70" height="26" rx="4" fill="url(#vesselGrad)" stroke="#5a6971"></rect>
-              <text x="775" y="71" fill="#9aa7ad" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">А-1,А-2/1</text>
-              <text x="775" y="94" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">NaOH промывка</text>
+              <line x1="1200" y1="220" x2="1230" y2="220" stroke="#4a5a63" stroke-width="2"></line>
+              <rect x="1230" y="60" width="90" height="330" rx="10" fill="url(#vesselGrad)" style="{{ nodeStyle.k122 }}" onClick="{{ openK122 }}"></rect>
+              <text x="1275" y="50" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-12/2</text>
 
-              <text x="945" y="128" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Т-27/2-4</text>
-              <polygon points="933,148 945,138 957,148 945,158" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
-              <polygon points="933,168 945,158 957,168 945,178" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
-              <polygon points="933,188 945,178 957,188 945,198" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
-              <text x="945" y="214" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Вода ПТК</text>
+              <line x1="1320" y1="220" x2="1350" y2="220" stroke="#4a5a63" stroke-width="2"></line>
+              <rect x="1350" y="60" width="90" height="330" rx="10" fill="url(#vesselGrad)" style="{{ nodeStyle.k123 }}" onClick="{{ openK123 }}"></rect>
+              <text x="1395" y="50" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-12/3</text>
+              <rect x="1355" y="401" width="80" height="19" rx="4" fill="#05080b" stroke="rgba(255,255,255,0.08)"></rect>
+              <text x="1395" y="415" fill="{{ stripperColor }}" font-size="14" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600">{{ stripperValue }}</text>
 
-              <line x1="930" y1="220" x2="960" y2="220" stroke="#4a5a63" stroke-width="2"></line>
-              <rect x="960" y="60" width="90" height="330" rx="10" fill="url(#vesselGrad)" style="{{ nodeStyle.k122 }}" onClick="{{ openK122 }}"></rect>
-              <text x="1005" y="50" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-12/2</text>
-
-              <line x1="1050" y1="220" x2="1080" y2="220" stroke="#4a5a63" stroke-width="2"></line>
-              <rect x="1080" y="60" width="90" height="330" rx="10" fill="url(#vesselGrad)" style="{{ nodeStyle.k123 }}" onClick="{{ openK123 }}"></rect>
-              <text x="1125" y="50" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-12/3</text>
-              <rect x="1085" y="401" width="80" height="19" rx="4" fill="#05080b" stroke="rgba(255,255,255,0.08)"></rect>
-              <text x="1125" y="415" fill="{{ stripperColor }}" font-size="14" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600">{{ stripperValue }}</text>
-
-              <line x1="1170" y1="60" x2="1170" y2="25" stroke="#4a5a63" stroke-width="2"></line>
-              <line x1="1170" y1="25" x2="1190" y2="25" stroke="#4a5a63" stroke-width="2"></line>
-              <text x="1128" y="20" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">на факел</text>
+              <line x1="1440" y1="60" x2="1440" y2="25" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="1440" y1="25" x2="1460" y2="25" stroke="#4a5a63" stroke-width="2"></line>
+              <text x="1398" y="20" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">на факел</text>
               <g onClick="{{ toggleV4 }}" style="cursor:pointer;">
-                <polygon points="1162,37 1170,45 1162,53" fill="{{ v4Fill }}" stroke="#000"></polygon>
-                <polygon points="1178,37 1170,45 1178,53" fill="{{ v4Fill }}" stroke="#000"></polygon>
+                <polygon points="1432,37 1440,45 1432,53" fill="{{ v4Fill }}" stroke="#000"></polygon>
+                <polygon points="1448,37 1440,45 1448,53" fill="{{ v4Fill }}" stroke="#000"></polygon>
               </g>
               </g>
 
-              <line x1="1020" y1="400" x2="1020" y2="465" stroke="#4a5a63" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#flowArrow)"></line>
-              <text x="1030" y="460" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">боковые погоны К-2 → доразделение (лист 2)</text>
-              <text x="1590" y="454" fill="#3a4750" font-size="9" text-anchor="end" font-family="IBM Plex Mono, monospace" letter-spacing="1">ЛИСТ 1</text>
+              <text x="1890" y="454" fill="#3a4750" font-size="9" text-anchor="end" font-family="IBM Plex Mono, monospace" letter-spacing="1">ЛИСТ 1</text>
 
               <g transform="translate(0,480)">
-                <rect x="10" y="10" width="1580" height="330" rx="6" fill="#8a97a0" opacity="0.03"></rect>
-                <rect x="10" y="10" width="1580" height="330" rx="6" fill="none" stroke="#8a97a0" stroke-opacity="0.2"></rect>
+                <rect x="10" y="10" width="550" height="320" rx="6" fill="#a78bfa" opacity="0.05"></rect>
+<rect x="10" y="10" width="550" height="320" rx="6" fill="none" stroke="#a78bfa" stroke-opacity="0.25"></rect>
+<rect x="16" y="23" width="6" height="6" fill="#a78bfa"></rect>
+<text x="26" y="32" fill="#a78bfa" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">БЛОК К-1 / ГАЗОСЕПАРАЦИЯ</text>
+<line x1="18" y1="38" x2="556" y2="38" stroke="#a78bfa" stroke-opacity="0.3" stroke-width="1"></line>
+<line x1="10" y1="170" x2="70" y2="170" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<text x="14" y="160" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">обессол. нефть от ЭЛОУ</text>
+<g onClick="{{ openStabK1 }}" style="cursor:pointer;">
+<rect x="70" y="60" width="60" height="220" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+<text x="100" y="52" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-1</text>
+<line x1="78" y1="98.57142857142857" x2="122" y2="98.57142857142857" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="78" y1="127.14285714285714" x2="122" y2="127.14285714285714" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="78" y1="155.71428571428572" x2="122" y2="155.71428571428572" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="78" y1="184.28571428571428" x2="122" y2="184.28571428571428" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="78" y1="212.85714285714286" x2="122" y2="212.85714285714286" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="78" y1="241.42857142857144" x2="122" y2="241.42857142857144" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+</g>
+<line x1="100" y1="60" x2="100" y2="44" stroke="#4a5a63" stroke-width="2"></line>
+<line x1="100" y1="44" x2="250" y2="44" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<text x="150" y="37" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">пары</text>
+<g onClick="{{ openSepE1 }}" style="cursor:pointer;">
+<rect x="250" y="70" width="55" height="90" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"></rect>
+<text x="277.5" y="64" fill="#c9d3d8" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">Е-1</text>
+</g>
+<line x1="305" y1="95" x2="460" y2="95" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<circle cx="475" cy="95" r="14" fill="url(#vesselGrad)" stroke="#8a97a0"></circle><text x="475" y="99" fill="#c9d3d8" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">Г</text>
+<line x1="489" y1="95" x2="558" y2="95" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<text x="495" y="88" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">газ → стаб.</text>
+<line x1="100" y1="280" x2="100" y2="300" stroke="#4a5a63" stroke-width="2"></line>
+<circle cx="100" cy="308" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+<polygon points="96,304 96,312 105,308" fill="#4d5a63"></polygon>
+<text x="100" y="329" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-6</text>
+<line x1="91" y1="308" x2="40" y2="308" stroke="#4a5a63" stroke-width="2" stroke-dasharray="3 3"></line>
+<line x1="40" y1="308" x2="40" y2="45" stroke="#4a5a63" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#flowArrow)"></line>
+<text x="18" y="40" fill="#5a6971" font-size="6" font-family="IBM Plex Mono, monospace">в К-2 (Лист 1)</text>
+<rect x="580" y="10" width="430" height="320" rx="6" fill="#ff6fb0" opacity="0.05"></rect>
+<rect x="580" y="10" width="430" height="320" rx="6" fill="none" stroke="#ff6fb0" stroke-opacity="0.25"></rect>
+<rect x="586" y="23" width="6" height="6" fill="#ff6fb0"></rect>
+<text x="596" y="32" fill="#ff6fb0" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">БЛОК СТАБИЛИЗАЦИИ</text>
+<line x1="588" y1="38" x2="1006" y2="38" stroke="#ff6fb0" stroke-opacity="0.3" stroke-width="1"></line>
+<line x1="558" y1="95" x2="600" y2="95" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<g onClick="{{ openStabE44k }}" style="cursor:pointer;">
+<rect x="600" y="80" width="50" height="80" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"></rect>
+<text x="625" y="74" fill="#c9d3d8" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">Е-44К</text>
+</g>
+<line x1="650" y1="140" x2="700" y2="140" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<g onClick="{{ openStabC1k }}" style="cursor:pointer;">
+<rect x="700" y="60" width="60" height="230" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+<text x="730" y="52" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">С-1К</text>
+<line x1="708" y1="96.25" x2="752" y2="96.25" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="708" y1="122.5" x2="752" y2="122.5" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="708" y1="148.75" x2="752" y2="148.75" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="708" y1="175" x2="752" y2="175" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="708" y1="201.25" x2="752" y2="201.25" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="708" y1="227.5" x2="752" y2="227.5" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="708" y1="253.75" x2="752" y2="253.75" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+</g>
+<line x1="730" y1="60" x2="730" y2="45" stroke="#4a5a63" stroke-width="2"></line>
+<line x1="730" y1="45" x2="860" y2="45" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<g onClick="{{ openStabE1k }}" style="cursor:pointer;">
+<rect x="860" y="50" width="55" height="60" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"></rect>
+<text x="887.5" y="44" fill="#c9d3d8" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">Е-1К</text>
+</g>
+<line x1="915" y1="60" x2="955" y2="60" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<text x="918" y="55" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">бутан</text>
+<line x1="887" y1="50" x2="887" y2="16" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<text x="862" y="12" fill="#5a6971" font-size="6" font-family="IBM Plex Mono, monospace">газ на ГФУ</text>
+<line x1="887" y1="110" x2="887" y2="125" stroke="#4a5a63" stroke-width="2"></line>
+<circle cx="887" cy="133" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+<polygon points="883,129 883,137 892,133" fill="#4d5a63"></polygon>
+<text x="887" y="154" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-27</text>
+<line x1="887" y1="142" x2="887" y2="150" stroke="#4a5a63" stroke-width="2" stroke-dasharray="3 3"></line>
+<line x1="887" y1="150" x2="770" y2="150" stroke="#4a5a63" stroke-width="2" stroke-dasharray="3 3"></line>
+<line x1="770" y1="150" x2="760" y2="150" stroke="#4a5a63" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#flowArrow)"></line>
+<text x="800" y="144" fill="#5a6971" font-size="6" font-family="IBM Plex Mono, monospace">орошение</text>
+<line x1="730" y1="290" x2="730" y2="300" stroke="#4a5a63" stroke-width="2"></line>
+<circle cx="730" cy="308" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+<polygon points="726,304 726,312 735,308" fill="#4d5a63"></polygon>
+<text x="730" y="329" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-13</text>
+<line x1="739" y1="308" x2="1028" y2="308" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<text x="850" y="301" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">стабильная фр. НК-180°C → доразд.</text>
+<rect x="1030" y="10" width="860" height="320" rx="6" fill="#4ade80" opacity="0.05"></rect>
+<rect x="1030" y="10" width="860" height="320" rx="6" fill="none" stroke="#4ade80" stroke-opacity="0.25"></rect>
+<rect x="1036" y="23" width="6" height="6" fill="#4ade80"></rect>
+<text x="1046" y="32" fill="#4ade80" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">ДОРАЗДЕЛЕНИЕ БЕНЗИНА</text>
+<line x1="1038" y1="38" x2="1886" y2="38" stroke="#4ade80" stroke-opacity="0.3" stroke-width="1"></line>
+<line x1="1100" y1="75" x2="1100" y2="50" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<polygon points="1088,50 1100,40 1112,50 1100,60" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+<text x="1116" y="53" fill="#9aa7ad" font-size="7" text-anchor="start" font-family="IBM Plex Mono, monospace">Фр. НК-62°C</text>
+<g onClick="{{ openFracK4 }}" style="cursor:pointer;">
+<rect x="1070" y="75" width="60" height="215" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+<text x="1100" y="67" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-4</text>
+<line x1="1078" y1="112.85714285714286" x2="1122" y2="112.85714285714286" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1078" y1="140.71428571428572" x2="1122" y2="140.71428571428572" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1078" y1="168.57142857142856" x2="1122" y2="168.57142857142856" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1078" y1="196.42857142857144" x2="1122" y2="196.42857142857144" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1078" y1="224.28571428571428" x2="1122" y2="224.28571428571428" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1078" y1="252.14285714285714" x2="1122" y2="252.14285714285714" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+</g>
+<line x1="1300" y1="75" x2="1300" y2="50" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<polygon points="1288,50 1300,40 1312,50 1300,60" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+<text x="1316" y="53" fill="#9aa7ad" font-size="7" text-anchor="start" font-family="IBM Plex Mono, monospace">Фр. 62-105°C</text>
+<g onClick="{{ openFracK7 }}" style="cursor:pointer;">
+<rect x="1270" y="75" width="60" height="215" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+<text x="1300" y="67" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-7</text>
+<line x1="1278" y1="112.85714285714286" x2="1322" y2="112.85714285714286" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1278" y1="140.71428571428572" x2="1322" y2="140.71428571428572" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1278" y1="168.57142857142856" x2="1322" y2="168.57142857142856" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1278" y1="196.42857142857144" x2="1322" y2="196.42857142857144" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1278" y1="224.28571428571428" x2="1322" y2="224.28571428571428" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1278" y1="252.14285714285714" x2="1322" y2="252.14285714285714" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+</g>
+<line x1="1500" y1="75" x2="1500" y2="50" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<polygon points="1488,50 1500,40 1512,50 1500,60" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+<text x="1516" y="53" fill="#9aa7ad" font-size="7" text-anchor="start" font-family="IBM Plex Mono, monospace">Фр. 105-180°C</text>
+<g onClick="{{ openFracK9 }}" style="cursor:pointer;">
+<rect x="1470" y="75" width="60" height="215" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+<text x="1500" y="67" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-9</text>
+<line x1="1478" y1="112.85714285714286" x2="1522" y2="112.85714285714286" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1478" y1="140.71428571428572" x2="1522" y2="140.71428571428572" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1478" y1="168.57142857142856" x2="1522" y2="168.57142857142856" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1478" y1="196.42857142857144" x2="1522" y2="196.42857142857144" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1478" y1="224.28571428571428" x2="1522" y2="224.28571428571428" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1478" y1="252.14285714285714" x2="1522" y2="252.14285714285714" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+</g>
+<line x1="1700" y1="75" x2="1700" y2="50" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<polygon points="1688,50 1700,40 1712,50 1700,60" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+<text x="1716" y="53" fill="#9aa7ad" font-size="7" text-anchor="start" font-family="IBM Plex Mono, monospace">Фр. 105-180°C (доп.)</text>
+<g onClick="{{ openFracK10 }}" style="cursor:pointer;">
+<rect x="1670" y="75" width="60" height="215" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+<text x="1700" y="67" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-10</text>
+<line x1="1678" y1="112.85714285714286" x2="1722" y2="112.85714285714286" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1678" y1="140.71428571428572" x2="1722" y2="140.71428571428572" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1678" y1="168.57142857142856" x2="1722" y2="168.57142857142856" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1678" y1="196.42857142857144" x2="1722" y2="196.42857142857144" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1678" y1="224.28571428571428" x2="1722" y2="224.28571428571428" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1678" y1="252.14285714285714" x2="1722" y2="252.14285714285714" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+</g>
+<line x1="1028" y1="308" x2="1730" y2="308" stroke="#4a5a63" stroke-width="2"></line>
+<line x1="1100" y1="290" x2="1100" y2="308" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<line x1="1300" y1="290" x2="1300" y2="308" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<line x1="1500" y1="290" x2="1500" y2="308" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<line x1="1700" y1="290" x2="1700" y2="308" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<line x1="1730" y1="308" x2="1780" y2="308" stroke="#4a5a63" stroke-width="2"></line>
+<line x1="1780" y1="308" x2="1780" y2="340" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<text x="1660" y="336" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">тяжёлый ост. → в товарный парк</text>
+<rect x="10" y="340" width="1880" height="180" rx="6" fill="#8a97a0" opacity="0.05"></rect>
+<rect x="10" y="340" width="1880" height="180" rx="6" fill="none" stroke="#8a97a0" stroke-opacity="0.25"></rect>
+<rect x="16" y="353" width="6" height="6" fill="#8a97a0"></rect>
+<text x="26" y="362" fill="#8a97a0" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">ПЕЧИ ОБОГРЕВА КОЛОНН</text>
+<line x1="18" y1="368" x2="1886" y2="368" stroke="#8a97a0" stroke-opacity="0.3" stroke-width="1"></line>
+<line x1="730" y1="320" x2="730" y2="380" stroke="#4a5a63" stroke-width="2" stroke-dasharray="4 3"></line>
+<text x="734" y="352" fill="#5a6971" font-size="6" font-family="IBM Plex Mono, monospace">тепло</text>
+<g onClick="{{ openFurnP1 }}" style="cursor:pointer;">
+<rect x="680" y="380" width="100" height="80" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.15)"></rect>
+<text x="730" y="372" fill="#c9d3d8" font-size="11" text-anchor="middle" font-family="IBM Plex Mono, monospace">П-1</text>
+</g>
+<line x1="1300" y1="310" x2="1300" y2="380" stroke="#4a5a63" stroke-width="2" stroke-dasharray="4 3"></line>
+<text x="1304" y="352" fill="#5a6971" font-size="6" font-family="IBM Plex Mono, monospace">тепло</text>
+<g onClick="{{ openFurnP3 }}" style="cursor:pointer;">
+<rect x="1250" y="380" width="100" height="80" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.15)"></rect>
+<text x="1300" y="372" fill="#c9d3d8" font-size="11" text-anchor="middle" font-family="IBM Plex Mono, monospace">П-3</text>
+</g>
+<line x1="1500" y1="310" x2="1500" y2="380" stroke="#4a5a63" stroke-width="2" stroke-dasharray="4 3"></line>
+<text x="1504" y="352" fill="#5a6971" font-size="6" font-family="IBM Plex Mono, monospace">тепло</text>
+<g onClick="{{ openFurnP4 }}" style="cursor:pointer;">
+<rect x="1450" y="380" width="100" height="80" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.15)"></rect>
+<text x="1500" y="372" fill="#c9d3d8" font-size="11" text-anchor="middle" font-family="IBM Plex Mono, monospace">П-4</text>
+</g>
+<line x1="1700" y1="310" x2="1700" y2="380" stroke="#4a5a63" stroke-width="2" stroke-dasharray="4 3"></line>
+<text x="1704" y="352" fill="#5a6971" font-size="6" font-family="IBM Plex Mono, monospace">тепло</text>
+<g onClick="{{ openFurnP5 }}" style="cursor:pointer;">
+<rect x="1650" y="380" width="100" height="80" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.15)"></rect>
+<text x="1700" y="372" fill="#c9d3d8" font-size="11" text-anchor="middle" font-family="IBM Plex Mono, monospace">П-5</text>
+</g>
+<g transform="translate(0,530)">
+<rect x="10" y="10" width="1880" height="330" rx="6" fill="#8a97a0" opacity="0.03"></rect>
+                <rect x="10" y="10" width="1880" height="330" rx="6" fill="none" stroke="#8a97a0" stroke-opacity="0.2"></rect>
                 <rect x="16" y="23" width="6" height="6" fill="#8a97a0"></rect>
-                <text x="26" y="32" fill="#8a97a0" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">ДОРАЗДЕЛЕНИЕ БЕНЗИНА И ТОВАРНЫЕ ПОТОКИ</text>
-                <line x1="18" y1="38" x2="1584" y2="38" stroke="#8a97a0" stroke-opacity="0.3" stroke-width="1"></line>
+                <text x="26" y="32" fill="#8a97a0" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">ТОВАРНЫЕ ПОТОКИ УСТАНОВКИ</text>
+                <line x1="18" y1="38" x2="1884" y2="38" stroke="#8a97a0" stroke-opacity="0.3" stroke-width="1"></line>
 
-                <rect x="30" y="70" width="170" height="215" rx="4" fill="none" stroke="#8a97a0" stroke-width="1.5" stroke-dasharray="5 4"></rect>
-                <text x="115" y="63" fill="#9aa7ad" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">Блок обогрева обес. нефти</text>
-                <g onClick="{{ openHeatblock2 }}" style="cursor:pointer;">
-                  <rect x="30" y="70" width="170" height="215" fill="transparent"></rect>
-                  <polygon points="115,105 137,127 115,149 93,127" fill="url(#vesselGrad)" stroke="#8a97a0"></polygon>
-                  <polygon points="115,185 137,207 115,229 93,207" fill="url(#vesselGrad)" stroke="#8a97a0"></polygon>
-                </g>
-                <text x="115" y="170" fill="#5a6971" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">Т-3</text>
-                <text x="115" y="250" fill="#5a6971" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">Т-4</text>
-                <line x1="200" y1="150" x2="240" y2="150" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
-
-                <g onClick="{{ openK3group }}" style="cursor:pointer;">
-                  <rect x="240" y="75" width="110" height="150" rx="10" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
-                  <rect x="375" y="75" width="110" height="150" rx="10" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
-                  <rect x="510" y="75" width="110" height="150" rx="10" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
-                </g>
-                <text x="295" y="70" fill="#c9d3d8" font-size="11" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-3/1</text>
-                <text x="295" y="243" fill="#5a6971" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-14 · керосин</text>
-                <text x="430" y="70" fill="#c9d3d8" font-size="11" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-3/2</text>
-                <text x="430" y="243" fill="#5a6971" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-15 · ДТ</text>
-                <text x="565" y="70" fill="#c9d3d8" font-size="11" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-3/3</text>
-                <text x="565" y="243" fill="#5a6971" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-16 · тяж. фр.</text>
-
-                <line x1="660" y1="55" x2="660" y2="280" stroke="#33424b" stroke-width="1"></line>
-
-                <text x="690" y="70" fill="#8a97a0" font-size="12" font-family="IBM Plex Mono, monospace" letter-spacing="1">ТОВАРНЫЕ ПОТОКИ</text>
-                <circle cx="694" cy="90" r="3" fill="#5b8cff"></circle>
-                <text x="704" y="94" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Стабильная фр. НК-180°C</text>
-                <circle cx="694" cy="108" r="3" fill="#5b8cff"></circle>
-                <text x="704" y="112" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. НК-62°C</text>
-                <circle cx="694" cy="126" r="3" fill="#5b8cff"></circle>
-                <text x="704" y="130" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 62-105°C</text>
-                <circle cx="694" cy="144" r="3" fill="#5b8cff"></circle>
-                <text x="704" y="148" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 105-180°C</text>
-                <circle cx="694" cy="162" r="3" fill="#5b8cff"></circle>
-                <text x="704" y="166" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 140-240°C</text>
-                <circle cx="694" cy="180" r="3" fill="#ffb020"></circle>
-                <text x="704" y="184" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 240-300°C</text>
-                <circle cx="694" cy="198" r="3" fill="#ff8080"></circle>
-                <text x="704" y="202" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 300-350°C</text>
+                <text x="30" y="70" fill="#8a97a0" font-size="12" font-family="IBM Plex Mono, monospace" letter-spacing="1">ТОВАРНЫЕ ПОТОКИ</text>
+                <circle cx="40" cy="90" r="3" fill="#5b8cff"></circle>
+                <text x="50" y="94" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Стабильная фр. НК-180°C</text>
+                <circle cx="40" cy="108" r="3" fill="#5b8cff"></circle>
+                <text x="50" y="112" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. НК-62°C</text>
+                <circle cx="40" cy="126" r="3" fill="#5b8cff"></circle>
+                <text x="50" y="130" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 62-105°C</text>
+                <circle cx="40" cy="144" r="3" fill="#5b8cff"></circle>
+                <text x="50" y="148" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 105-180°C</text>
+                <circle cx="40" cy="162" r="3" fill="#5b8cff"></circle>
+                <text x="50" y="166" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 140-240°C</text>
+                <circle cx="40" cy="180" r="3" fill="#ffb020"></circle>
+                <text x="50" y="184" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 240-300°C</text>
+                <circle cx="40" cy="198" r="3" fill="#ff8080"></circle>
+                <text x="50" y="202" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 300-350°C</text>
 
 
-                <text x="1570" y="324" fill="#3a4750" font-size="9" text-anchor="end" font-family="IBM Plex Mono, monospace" letter-spacing="1">КТК ЭЛОУ-АВТ · МНЕМОСХЕМА · ЛИСТ 2</text>
+                <text x="1870" y="324" fill="#3a4750" font-size="9" text-anchor="end" font-family="IBM Plex Mono, monospace" letter-spacing="1">КТК ЭЛОУ-АВТ · МНЕМОСХЕМА · ЛИСТ 2</text>
               </g>
+</g>
             </svg>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:1px solid rgba(255,255,255,0.08);flex-shrink:0;">
@@ -583,40 +849,568 @@
       </div>
 
       <sc-if value="{{ libTabIsOverview }}" hint-placeholder-val="{{ true }}">
-        <div style="font-size:13px;color:#7c8a94;margin-bottom:16px;">Общая модель установки ЭЛОУ-АВТ. Статус зоны отражает активные тревоги у наблюдаемых обучаемых.</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+        <div style="font-size:13px;color:#7c8a94;margin-bottom:16px;">Мнемосхема установки ЭЛОУ-АВТ, идентичная той, что видит обучаемый. Просмотр без права управления.</div>
+        <div style="display:flex;gap:10px;margin-bottom:14px;">
           <sc-for list="{{ overviewZones }}" as="z" hint-placeholder-count="3">
-            <div style="background:#11181f;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:18px;">
+            <div style="flex:1;background:#11181f;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:10px 14px;">
               <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:{{ z.color }};text-transform:uppercase;letter-spacing:1px;">{{ z.name }}</div>
-              <svg viewBox="0 0 200 90" width="100%" height="90" style="margin-top:10px;background:#0d1319;border-radius:4px;">
-                <sc-if value="{{ z.isElou }}" hint-placeholder-val="{{ false }}">
-                  <rect x="70" y="12" width="46" height="66" rx="16" fill="none" stroke="{{ z.color }}" stroke-opacity="0.5" stroke-width="2"></rect>
-                  <text x="93" y="10" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">ЭД-1</text>
-                  <circle cx="30" cy="45" r="14" fill="none" stroke="{{ z.color }}" stroke-opacity="0.5" stroke-width="2"></circle>
-                  <text x="30" y="68" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-1</text>
-                  <line x1="44" y1="45" x2="70" y2="45" stroke="{{ z.color }}" stroke-opacity="0.4"></line>
-                </sc-if>
-                <sc-if value="{{ z.isAtm }}" hint-placeholder-val="{{ false }}">
-                  <rect x="30" y="35" width="44" height="40" fill="none" stroke="{{ z.color }}" stroke-opacity="0.5" stroke-width="2"></rect>
-                  <text x="52" y="28" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">П-2</text>
-                  <rect x="110" y="10" width="40" height="68" rx="10" fill="none" stroke="{{ z.color }}" stroke-opacity="0.5" stroke-width="2"></rect>
-                  <text x="130" y="8" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-2</text>
-                  <line x1="74" y1="55" x2="110" y2="55" stroke="{{ z.color }}" stroke-opacity="0.4"></line>
-                </sc-if>
-                <sc-if value="{{ z.isGdm }}" hint-placeholder-val="{{ false }}">
-                  <rect x="20" y="14" width="34" height="62" rx="8" fill="none" stroke="{{ z.color }}" stroke-opacity="0.5" stroke-width="2"></rect>
-                  <text x="37" y="10" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">Р К-12/4</text>
-                  <rect x="90" y="18" width="30" height="54" rx="8" fill="none" stroke="{{ z.color }}" stroke-opacity="0.5" stroke-width="2"></rect>
-                  <text x="105" y="14" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-12/2</text>
-                  <rect x="155" y="18" width="30" height="54" rx="8" fill="none" stroke="{{ z.color }}" stroke-opacity="0.5" stroke-width="2"></rect>
-                  <text x="170" y="14" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-12/3</text>
-                  <line x1="54" y1="45" x2="90" y2="45" stroke="{{ z.color }}" stroke-opacity="0.4"></line>
-                  <line x1="120" y1="45" x2="155" y2="45" stroke="{{ z.color }}" stroke-opacity="0.4"></line>
-                </sc-if>
-              </svg>
-              <div style="margin-top:10px;font-size:11px;padding:5px 10px;border-radius:3px;display:inline-block;background:{{ z.statusBg }};color:{{ z.statusColor }};">{{ z.statusText }}</div>
+              <div style="margin-top:6px;font-size:11px;padding:4px 9px;border-radius:3px;display:inline-block;background:{{ z.statusBg }};color:{{ z.statusColor }};">{{ z.statusText }}</div>
             </div>
           </sc-for>
+        </div>
+        <div style="display:flex;gap:12px;">
+        <div style="flex:1;min-width:0;overflow:auto;border-radius:6px;">
+<svg viewBox="0 0 1900 1400" width="1900" height="1400" style="background:#0d1319;border:1px solid rgba(255,255,255,0.08);border-radius:6px;display:block;">
+              <defs>
+                <pattern id="hmiGrid" width="26" height="26" patternUnits="userSpaceOnUse">
+                  <circle cx="1" cy="1" r="1" fill="#151f28"></circle>
+                </pattern>
+                <linearGradient id="vesselGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#161f28"></stop>
+                  <stop offset="1" stop-color="#0a1015"></stop>
+                </linearGradient>
+                <marker id="flowArrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 Z" fill="#5a6971"></path>
+                </marker>
+              </defs>
+              <rect x="0" y="0" width="1900" height="1400" fill="url(#hmiGrid)"></rect>
+
+              <rect x="10" y="20" width="380" height="420" rx="6" fill="#8a97a0" opacity="0.04"></rect>
+              <rect x="10" y="20" width="380" height="420" rx="6" fill="none" stroke="#8a97a0" stroke-opacity="0.2"></rect>
+              <rect x="16" y="33" width="6" height="6" fill="#8a97a0"></rect>
+              <text x="26" y="42" fill="#8a97a0" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">ПАРК И ПОДГОТОВКА СЫРЬЯ</text>
+              <line x1="18" y1="48" x2="386" y2="48" stroke="#8a97a0" stroke-opacity="0.3" stroke-width="1"></line>
+
+              <g>
+                <ellipse cx="62" cy="170" rx="22" ry="7" fill="url(#vesselGrad)" stroke="#8a97a0"></ellipse>
+                <rect x="40" y="170" width="45" height="80" fill="url(#vesselGrad)" stroke="#8a97a0"></rect>
+                <ellipse cx="122" cy="170" rx="22" ry="7" fill="url(#vesselGrad)" stroke="#8a97a0"></ellipse>
+                <rect x="100" y="170" width="45" height="80" fill="url(#vesselGrad)" stroke="#8a97a0"></rect>
+              </g>
+              <text x="93" y="268" fill="#9aa7ad" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">Парки ТИМ 55/5</text>
+              <text x="93" y="282" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-1(Н-1А,Н-15,Н-1В)</text>
+              <text x="20" y="300" fill="#5a6971" font-size="8" font-family="IBM Plex Mono, monospace">Некондиция</text>
+              <text x="20" y="312" fill="#5a6971" font-size="8" font-family="IBM Plex Mono, monospace">Дезмульгатор</text>
+              <line x1="83" y1="170" x2="83" y2="148" stroke="#8a97a0" stroke-width="2"></line>
+              <line x1="83" y1="148" x2="200" y2="148" stroke="#8a97a0" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <text x="142" y="118" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">Сырая нефть</text>
+
+              <rect x="210" y="105" width="165" height="215" rx="4" fill="none" stroke="#8a97a0" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+              <text x="292" y="98" fill="#9aa7ad" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">Блок обогрева сырой нефти</text>
+              <g>
+                <rect x="210" y="105" width="165" height="215" fill="transparent"></rect>
+                <polygon points="292,140 314,162 292,184 270,162" fill="url(#vesselGrad)" stroke="#8a97a0"></polygon>
+                <polygon points="292,220 314,242 292,264 270,242" fill="url(#vesselGrad)" stroke="#8a97a0"></polygon>
+              </g>
+              <text x="292" y="200" fill="#5a6971" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">Х-2/3-5</text>
+              <text x="292" y="280" fill="#5a6971" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">АВЗ-4,5</text>
+              <!-- сырая нефть → ЭЛОУ -->
+              <line x1="375" y1="160" x2="410" y2="160" stroke="#8a97a0" stroke-width="3" marker-end="url(#flowArrow)"></line>
+              <!-- циркуляция: блок обогрева → 35 тар. К-2 (верхним обходом над зонами) -->
+              <line x1="375" y1="120" x2="375" y2="28" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="375" y1="28" x2="1020" y2="28" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="1020" y1="28" x2="1020" y2="112" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="1020" y1="112" x2="1035" y2="112" stroke="#4a5a63" stroke-width="2.5" marker-end="url(#flowArrow)"></line>
+              <text x="700" y="22" fill="#9aa7ad" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">блок обогрева сырой нефти → 35 тар. К-2</text>
+              <!-- возврат: 32 тар. → Н-12 → задвижка → блок подогрева (нижним обходом) -->
+              <line x1="1020" y1="144" x2="1005" y2="144" stroke="#4a5a63" stroke-width="2.5"></line>
+              <circle cx="994" cy="160" r="10" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="989,155 989,165 1000,160" fill="#4d5a63"></polygon>
+              <text x="994" y="180" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-12(Н-12А)</text>
+              <line x1="1020" y1="144" x2="994" y2="144" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="994" y1="144" x2="994" y2="150" stroke="#4a5a63" stroke-width="2.5"></line>
+              <polygon points="978,168 988,176 978,184" fill="#8a97a0" stroke="#000"></polygon>
+              <polygon points="998,168 988,176 998,184" fill="#8a97a0" stroke="#000"></polygon>
+              <text x="988" y="198" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">ЗД</text>
+              <line x1="994" y1="170" x2="994" y2="176" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="994" y1="184" x2="994" y2="430" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="994" y1="430" x2="390" y2="430" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="390" y1="430" x2="390" y2="250" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="390" y1="250" x2="375" y2="250" stroke="#4a5a63" stroke-width="2.5" marker-end="url(#flowArrow)"></line>
+              <text x="700" y="424" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">с 32 тар. → Н-12 → ЗД → блок подогрева сырой нефти</text>
+
+              <g transform="translate(400,0)">
+
+              <rect x="10" y="20" width="370" height="420" rx="6" fill="#00e5c7" opacity="0.05"></rect>
+              <rect x="10" y="20" width="370" height="420" rx="6" fill="none" stroke="#00e5c7" stroke-opacity="0.25"></rect>
+              <rect x="16" y="33" width="6" height="6" fill="#00e5c7"></rect>
+              <text x="26" y="42" fill="#00e5c7" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">ЭЛОУ · ЭЛЕКТРООБЕССОЛИВАНИЕ</text>
+              <line x1="18" y1="48" x2="372" y2="48" stroke="#00e5c7" stroke-opacity="0.3" stroke-width="1"></line>
+
+              <rect x="400" y="20" width="650" height="420" rx="6" fill="#ffb020" opacity="0.05"></rect>
+              <rect x="400" y="20" width="650" height="420" rx="6" fill="none" stroke="#ffb020" stroke-opacity="0.25"></rect>
+              <rect x="406" y="33" width="6" height="6" fill="#ffb020"></rect>
+              <text x="416" y="42" fill="#ffb020" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">АТМОСФЕРНЫЙ БЛОК</text>
+              <line x1="408" y1="48" x2="1042" y2="48" stroke="#ffb020" stroke-opacity="0.3" stroke-width="1"></line>
+
+              <rect x="1070" y="20" width="390" height="420" rx="6" fill="#5b8cff" opacity="0.06"></rect>
+              <rect x="1070" y="20" width="390" height="420" rx="6" fill="none" stroke="#5b8cff" stroke-opacity="0.25"></rect>
+              <rect x="1076" y="33" width="6" height="6" fill="#5b8cff"></rect>
+              <text x="1086" y="42" fill="#5b8cff" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">БЛОК ГДМ</text>
+              <line x1="1078" y1="48" x2="1452" y2="48" stroke="#5b8cff" stroke-opacity="0.3" stroke-width="1"></line>
+
+              <line x1="15" y1="160" x2="74" y2="160" stroke="#4a5a63" stroke-width="3" marker-end="url(#flowArrow)"></line>
+              <line x1="90" y1="176" x2="90" y2="234" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="90" y1="260" x2="90" y2="300" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="90" y1="300" x2="180" y2="300" stroke="#4a5a63" stroke-width="3"></line>
+
+              <line x1="245" y1="390" x2="245" y2="425" stroke="#4a5a63" stroke-width="2" stroke-dasharray="4 3"></line>
+              <text x="204" y="443" fill="#5a6971" font-size="10" font-family="IBM Plex Mono, monospace">дренаж воды</text>
+
+              <circle cx="90" cy="160" r="15" fill="url(#vesselGrad)" stroke="#4d5a63" stroke-width="2"></circle>
+              <line x1="82" y1="160" x2="98" y2="160" stroke="#4d5a63" stroke-width="1"></line>
+              <line x1="90" y1="152" x2="90" y2="168" stroke="#4d5a63" stroke-width="1"></line>
+              <text x="90" y="182" fill="#9aa7ad" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">СМ</text>
+
+              <g>
+                <circle cx="90" cy="260" r="26" fill="url(#vesselGrad)" style="{{ nodeStyle.pump1 }}"></circle>
+                <polygon points="80,250 80,270 102,260" fill="#4d5a63"></polygon>
+              </g>
+              <text x="90" y="264" fill="#9aa7ad" font-size="11" text-anchor="middle" font-family="IBM Plex Mono, monospace" style="pointer-events:none;">Н-1</text>
+
+              <rect x="180" y="70" width="130" height="320" rx="24" fill="url(#vesselGrad)" style="{{ nodeStyle.ed1 }}"></rect>
+              <text x="245" y="60" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">ЭД-1 (электродегидратор)</text>
+              <line x1="182" y1="250" x2="308" y2="250" stroke="#5b8cff" stroke-width="1.5" stroke-dasharray="3 3"></line>
+
+              <!-- Е-15 / Н-20: ЭЛОУ → сепаратор → подогрев обессоленной нефти -->
+              <g>
+                <rect x="325" y="150" width="50" height="80" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"></rect>
+                <text x="350" y="144" fill="#c9d3d8" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">Е-15</text>
+              </g>
+              <line x1="310" y1="190" x2="325" y2="190" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="350" y1="230" x2="350" y2="268" stroke="#4a5a63" stroke-width="2.5"></line>
+              <circle cx="350" cy="280" r="12" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="344,274 344,286 358,280" fill="#4d5a63"></polygon>
+              <text x="350" y="302" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-20</text>
+              <line x1="362" y1="280" x2="400" y2="280" stroke="#4a5a63" stroke-width="2.5"></line>
+
+              <rect x="200" y="316" width="90" height="22" rx="4" fill="#05080b" stroke="rgba(255,255,255,0.08)"></rect>
+              <text x="245" y="332" fill="{{ waterColor }}" font-size="16" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600">{{ waterValue }}</text>
+              <text x="245" y="348" fill="#5a6971" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">вода в нефти</text>
+
+              <g>
+                <polygon points="400,272 410,280 400,288" fill="{{ v1Fill }}" stroke="#000"></polygon>
+                <polygon points="420,272 410,280 420,288" fill="{{ v1Fill }}" stroke="#000"></polygon>
+              </g>
+              <text x="392" y="266" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">V1</text>
+
+              <!-- блок подогрева обессоленной нефти -->
+              <rect x="430" y="95" width="120" height="155" rx="4" fill="none" stroke="#8a97a0" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+              <text x="490" y="88" fill="#9aa7ad" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">Блок подогрева обес. нефти</text>
+              <g>
+                <rect x="430" y="95" width="120" height="155" fill="transparent"></rect>
+                <polygon points="490,125 508,143 490,161 472,143" fill="url(#vesselGrad)" stroke="#8a97a0"></polygon>
+                <polygon points="490,185 508,203 490,221 472,203" fill="url(#vesselGrad)" stroke="#8a97a0"></polygon>
+              </g>
+              <text x="490" y="175" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">Т-3</text>
+              <text x="490" y="238" fill="#5a6971" font-size="8" text-anchor="middle" font-family="IBM Plex Mono, monospace">Т-4</text>
+              <line x1="410" y1="280" x2="410" y2="170" stroke="#4a5a63" stroke-width="2.5"></line>
+              <line x1="410" y1="170" x2="430" y2="170" stroke="#4a5a63" stroke-width="2.5" marker-end="url(#flowArrow)"></line>
+              <text x="418" y="162" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">в подогрев</text>
+              <line x1="550" y1="200" x2="580" y2="200" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="580" y1="200" x2="580" y2="300" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="580" y1="300" x2="570" y2="300" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="570" y1="300" x2="460" y2="300" stroke="#4a5a63" stroke-width="3" marker-end="url(#flowArrow)"></line>
+              <text x="585" y="250" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">→ П-2</text>
+              <line x1="460" y1="340" x2="445" y2="340" stroke="#4a5a63" stroke-width="2"></line>
+              <g>
+                <polygon points="435,332 445,340 435,348" fill="{{ v2Fill }}" stroke="#000"></polygon>
+                <polygon points="455,332 445,340 455,348" fill="{{ v2Fill }}" stroke="#000"></polygon>
+              </g>
+              <text x="410" y="358" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">V2 топливо</text>
+
+              <rect x="460" y="300" width="110" height="100" fill="url(#vesselGrad)" style="{{ nodeStyle.p1 }}"></rect>
+              <text x="515" y="292" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">П-2 (печь)</text>
+              <rect x="473" y="341" width="84" height="20" rx="4" fill="#05080b" stroke="rgba(255,255,255,0.08)"></rect>
+              <text x="515" y="356" fill="{{ furnaceColor }}" font-size="15" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600">{{ furnaceValue }}</text>
+
+              <line x1="570" y1="330" x2="655" y2="330" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="655" y1="330" x2="655" y2="380" stroke="#4a5a63" stroke-width="3"></line>
+
+              <!-- Е-2 в атмосферном блоке (между подогревом обес. нефти и К-2) -->
+              <rect x="560" y="55" width="40" height="70" rx="6" fill="url(#vesselGrad)" stroke="#5a6971" stroke-width="1.5"></rect>
+              <text x="580" y="48" fill="#c9d3d8" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">Е-2</text>
+              <circle cx="580" cy="140" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="575,135 575,145 586,140" fill="#4d5a63"></polygon>
+              <text x="580" y="160" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-7(Н-7А)</text>
+              <line x1="600" y1="80" x2="620" y2="80" stroke="#4a5a63" stroke-width="2"></line>
+
+              <rect x="620" y="50" width="100" height="350" rx="12" fill="url(#vesselGrad)" style="{{ nodeStyle.k1 }}"></rect>
+              <text x="670" y="40" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-2 (атм. колонна)</text>
+              <line x1="630" y1="80" x2="710" y2="80" stroke="#33424b" stroke-width="1"></line>
+              <text x="626" y="83" fill="#4d5a63" font-size="7" text-anchor="end" font-family="IBM Plex Mono, monospace">43 тар.</text>
+              <line x1="630" y1="112" x2="710" y2="112" stroke="#33424b" stroke-width="1"></line>
+              <text x="626" y="115" fill="#4d5a63" font-size="7" text-anchor="end" font-family="IBM Plex Mono, monospace">35 тар.</text>
+              <line x1="630" y1="144" x2="710" y2="144" stroke="#33424b" stroke-width="1"></line>
+              <text x="626" y="147" fill="#4d5a63" font-size="7" text-anchor="end" font-family="IBM Plex Mono, monospace">32 тар.</text>
+              <line x1="630" y1="176" x2="710" y2="176" stroke="#33424b" stroke-width="1"></line>
+              <text x="626" y="179" fill="#4d5a63" font-size="7" text-anchor="end" font-family="IBM Plex Mono, monospace">25 тар.</text>
+              <line x1="630" y1="208" x2="710" y2="208" stroke="#33424b" stroke-width="1"></line>
+              <text x="626" y="211" fill="#4d5a63" font-size="7" text-anchor="end" font-family="IBM Plex Mono, monospace">22 тар.</text>
+              <line x1="630" y1="240" x2="710" y2="240" stroke="#33424b" stroke-width="1"></line>
+              <text x="626" y="243" fill="#4d5a63" font-size="7" text-anchor="end" font-family="IBM Plex Mono, monospace">15 тар.</text>
+              <line x1="630" y1="272" x2="710" y2="272" stroke="#33424b" stroke-width="1"></line>
+              <text x="626" y="275" fill="#4d5a63" font-size="7" text-anchor="end" font-family="IBM Plex Mono, monospace">12 тар.</text>
+              <line x1="630" y1="304" x2="710" y2="304" stroke="#33424b" stroke-width="1"></line>
+              <text x="626" y="307" fill="#4d5a63" font-size="7" text-anchor="end" font-family="IBM Plex Mono, monospace">6 тар.</text>
+              <line x1="630" y1="336" x2="710" y2="336" stroke="#33424b" stroke-width="1"></line>
+
+              <circle cx="600" cy="190" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <text x="615" y="206" fill="#5a6971" font-size="7" text-anchor="end" font-family="IBM Plex Mono, monospace">Н-13(Н-11)</text>
+              <circle cx="600" cy="260" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <text x="615" y="276" fill="#5a6971" font-size="7" text-anchor="end" font-family="IBM Plex Mono, monospace">Н-17(Н-11,Н-19)</text>
+              <rect x="630" y="401" width="80" height="19" rx="4" fill="#05080b" stroke="rgba(255,255,255,0.08)"></rect>
+              <text x="670" y="415" fill="{{ columnColor }}" font-size="14" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600">{{ columnValue }}</text>
+
+              <line x1="720" y1="70" x2="770" y2="70" stroke="#4a5a63" stroke-width="2"></line>
+              <text x="774" y="74" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">газ</text>
+              <line x1="720" y1="100" x2="770" y2="100" stroke="#4a5a63" stroke-width="2"></line>
+              <text x="774" y="104" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">бензин</text>
+              <line x1="720" y1="130" x2="770" y2="130" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="720" y1="160" x2="770" y2="160" stroke="#4a5a63" stroke-width="2"></line>
+
+              <line x1="700" y1="250" x2="740" y2="250" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="740" y1="250" x2="740" y2="410" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="700" y1="410" x2="740" y2="410" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="700" y1="392" x2="700" y2="310" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="700" y1="310" x2="720" y2="310" stroke="#4a5a63" stroke-width="2"></line>
+              <g>
+                <circle cx="700" cy="410" r="16" fill="url(#vesselGrad)" style="{{ nodeStyle.pump2 }}"></circle>
+                <polygon points="694,404 694,416 706,410" fill="#4d5a63"></polygon>
+              </g>
+              <text x="700" y="413" fill="#9aa7ad" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace" style="pointer-events:none;">Н-2</text>
+
+              <line x1="655" y1="400" x2="655" y2="435" stroke="#4a5a63" stroke-width="2" stroke-dasharray="4 3"></line>
+              <text x="625" y="450" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">мазут</text>
+
+              <line x1="720" y1="130" x2="800" y2="130" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="720" y1="160" x2="855" y2="160" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="720" y1="240" x2="910" y2="240" stroke="#4a5a63" stroke-width="3"></line>
+              <line x1="910" y1="240" x2="910" y2="205" stroke="#4a5a63" stroke-width="3"></line>
+
+              <rect x="800" y="108" width="42" height="95" rx="6" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+              <rect x="855" y="108" width="42" height="95" rx="6" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+              <rect x="910" y="108" width="42" height="95" rx="6" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+              <g>
+                <rect x="800" y="108" width="42" height="95" fill="transparent"></rect>
+                <rect x="855" y="108" width="42" height="95" fill="transparent"></rect>
+                <rect x="910" y="108" width="42" height="95" fill="transparent"></rect>
+              </g>
+              <text x="821" y="102" fill="#c9d3d8" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-3/1</text>
+              <text x="876" y="102" fill="#c9d3d8" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-3/2</text>
+              <text x="931" y="102" fill="#c9d3d8" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-3/3</text>
+
+              <line x1="821" y1="203" x2="821" y2="230" stroke="#5b8cff" stroke-width="1.5" stroke-dasharray="3 3"></line>
+              <line x1="876" y1="203" x2="876" y2="230" stroke="#5b8cff" stroke-width="1.5" stroke-dasharray="3 3"></line>
+              <line x1="821" y1="230" x2="876" y2="230" stroke="#5b8cff" stroke-width="1.5" stroke-dasharray="3 3"></line>
+              <line x1="720" y1="230" x2="821" y2="230" stroke="#5b8cff" stroke-width="1.5" stroke-dasharray="3 3"></line>
+              <text x="758" y="243" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">пар отпарки</text>
+
+              <circle cx="821" cy="222" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="817,218 817,226 826,222" fill="#4d5a63"></polygon>
+              <text x="821" y="236" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-14</text>
+              <circle cx="876" cy="222" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="872,218 872,226 881,222" fill="#4d5a63"></polygon>
+              <text x="876" y="236" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-15</text>
+              <circle cx="931" cy="222" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="927,218 927,226 936,222" fill="#4d5a63"></polygon>
+              <text x="931" y="236" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-16</text>
+
+              <line x1="821" y1="231" x2="821" y2="255" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="821" y1="255" x2="1042" y2="255" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <text x="900" y="250" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">Фр.140-240°C</text>
+              <line x1="876" y1="231" x2="876" y2="266" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="876" y1="266" x2="1042" y2="266" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <text x="945" y="262" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">Фр.240-300°C</text>
+              <line x1="931" y1="231" x2="931" y2="277" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="931" y1="277" x2="1042" y2="277" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <text x="990" y="273" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">Фр.300-350°C</text>
+
+              <line x1="680" y1="50" x2="680" y2="30" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="680" y1="30" x2="835" y2="30" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <line x1="835" y1="30" x2="835" y2="280" stroke="#4a5a63" stroke-width="2"></line>
+              <rect x="790" y="280" width="90" height="30" rx="6" fill="url(#vesselGrad)" stroke="#5a6971"></rect>
+              <text x="835" y="298" fill="#9aa7ad" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">А-1,А-2/1</text>
+              <text x="770" y="18" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">ВСГ/Азот</text>
+              <line x1="800" y1="20" x2="800" y2="280" stroke="#4a5a63" stroke-width="1" stroke-dasharray="3 2"></line>
+              <text x="835" y="322" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">NaOH промывка</text>
+              <line x1="835" y1="310" x2="835" y2="355" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="835" y1="355" x2="1042" y2="355" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <text x="900" y="350" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">Фр.85-180°C с уст.</text>
+
+              <text x="940" y="298" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Т-27/4 Т-27/3 Т-27/2</text>
+              <polygon points="888,320 900,310 912,320 900,330" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+              <polygon points="928,320 940,310 952,320 940,330" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+              <polygon points="968,320 980,310 992,320 980,330" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+              <line x1="900" y1="320" x2="928" y2="320" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="940" y1="320" x2="968" y2="320" stroke="#4a5a63" stroke-width="2"></line>
+              <text x="940" y="345" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">Вода ПТК</text>
+
+              <line x1="655" y1="435" x2="655" y2="425" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="655" y1="425" x2="800" y2="425" stroke="#4a5a63" stroke-width="2"></line>
+              <circle cx="815" cy="425" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="811,421 811,429 820,425" fill="#4d5a63"></polygon>
+              <text x="815" y="439" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-32</text>
+              <polygon points="888,425 910,413 932,425 910,437" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+              <text x="910" y="443" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Х-38</text>
+              <line x1="824" y1="425" x2="888" y2="425" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="932" y1="425" x2="1042" y2="425" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <text x="960" y="420" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">1 поток мазута</text>
+              <circle cx="855" cy="408" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+              <polygon points="851,404 851,412 860,408" fill="#4d5a63"></polygon>
+              <text x="855" y="399" fill="#5a6971" font-size="6" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-4</text>
+              <line x1="824" y1="425" x2="824" y2="408" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="824" y1="408" x2="846" y2="408" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="864" y1="408" x2="1042" y2="408" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+              <text x="930" y="403" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">2 поток мазута</text>
+
+              <rect x="1100" y="90" width="100" height="300" rx="14" fill="url(#vesselGrad)" style="{{ nodeStyle.k124 }}"></rect>
+              <text x="1150" y="80" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">Р К-12/4</text>
+              <rect x="1110" y="401" width="80" height="19" rx="4" fill="#05080b" stroke="rgba(255,255,255,0.08)"></rect>
+              <text x="1150" y="415" fill="{{ gdmColor }}" font-size="14" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600">{{ gdmValue }}</text>
+
+              <line x1="1130" y1="40" x2="1130" y2="90" stroke="#4a5a63" stroke-width="2"></line>
+              <text x="1136" y="52" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">ВСГ ≥300 кг/ч</text>
+              <g>
+                <polygon points="1122,57 1130,65 1122,73" fill="{{ v3Fill }}" stroke="#000"></polygon>
+                <polygon points="1138,57 1130,65 1138,73" fill="{{ v3Fill }}" stroke="#000"></polygon>
+              </g>
+              <line x1="1190" y1="35" x2="1190" y2="90" stroke="#4a5a63" stroke-width="1.5" stroke-dasharray="3 2"></line>
+              <text x="1196" y="42" fill="#5a6971" font-size="8" font-family="IBM Plex Mono, monospace">Азот (сушка катализатора)</text>
+
+              <line x1="1200" y1="220" x2="1230" y2="220" stroke="#4a5a63" stroke-width="2"></line>
+              <rect x="1230" y="60" width="90" height="330" rx="10" fill="url(#vesselGrad)" style="{{ nodeStyle.k122 }}"></rect>
+              <text x="1275" y="50" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-12/2</text>
+
+              <line x1="1320" y1="220" x2="1350" y2="220" stroke="#4a5a63" stroke-width="2"></line>
+              <rect x="1350" y="60" width="90" height="330" rx="10" fill="url(#vesselGrad)" style="{{ nodeStyle.k123 }}"></rect>
+              <text x="1395" y="50" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-12/3</text>
+              <rect x="1355" y="401" width="80" height="19" rx="4" fill="#05080b" stroke="rgba(255,255,255,0.08)"></rect>
+              <text x="1395" y="415" fill="{{ stripperColor }}" font-size="14" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600">{{ stripperValue }}</text>
+
+              <line x1="1440" y1="60" x2="1440" y2="25" stroke="#4a5a63" stroke-width="2"></line>
+              <line x1="1440" y1="25" x2="1460" y2="25" stroke="#4a5a63" stroke-width="2"></line>
+              <text x="1398" y="20" fill="#5a6971" font-size="9" font-family="IBM Plex Mono, monospace">на факел</text>
+              <g>
+                <polygon points="1432,37 1440,45 1432,53" fill="{{ v4Fill }}" stroke="#000"></polygon>
+                <polygon points="1448,37 1440,45 1448,53" fill="{{ v4Fill }}" stroke="#000"></polygon>
+              </g>
+              </g>
+
+              <text x="1890" y="454" fill="#3a4750" font-size="9" text-anchor="end" font-family="IBM Plex Mono, monospace" letter-spacing="1">ЛИСТ 1</text>
+
+              <g transform="translate(0,480)">
+                <rect x="10" y="10" width="550" height="320" rx="6" fill="#a78bfa" opacity="0.05"></rect>
+<rect x="10" y="10" width="550" height="320" rx="6" fill="none" stroke="#a78bfa" stroke-opacity="0.25"></rect>
+<rect x="16" y="23" width="6" height="6" fill="#a78bfa"></rect>
+<text x="26" y="32" fill="#a78bfa" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">БЛОК К-1 / ГАЗОСЕПАРАЦИЯ</text>
+<line x1="18" y1="38" x2="556" y2="38" stroke="#a78bfa" stroke-opacity="0.3" stroke-width="1"></line>
+<line x1="10" y1="170" x2="70" y2="170" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<text x="14" y="160" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">обессол. нефть от ЭЛОУ</text>
+<rect x="70" y="60" width="60" height="220" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+<text x="100" y="52" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-1</text>
+<line x1="78" y1="98.57142857142857" x2="122" y2="98.57142857142857" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="78" y1="127.14285714285714" x2="122" y2="127.14285714285714" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="78" y1="155.71428571428572" x2="122" y2="155.71428571428572" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="78" y1="184.28571428571428" x2="122" y2="184.28571428571428" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="78" y1="212.85714285714286" x2="122" y2="212.85714285714286" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="78" y1="241.42857142857144" x2="122" y2="241.42857142857144" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="100" y1="60" x2="100" y2="44" stroke="#4a5a63" stroke-width="2"></line>
+<line x1="100" y1="44" x2="250" y2="44" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<text x="150" y="37" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">пары</text>
+<rect x="250" y="70" width="55" height="90" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"></rect>
+<text x="277.5" y="64" fill="#c9d3d8" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">Е-1</text>
+<line x1="305" y1="95" x2="460" y2="95" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<circle cx="475" cy="95" r="14" fill="url(#vesselGrad)" stroke="#8a97a0"></circle><text x="475" y="99" fill="#c9d3d8" font-size="9" text-anchor="middle" font-family="IBM Plex Mono, monospace">Г</text>
+<line x1="489" y1="95" x2="558" y2="95" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<text x="495" y="88" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">газ → стаб.</text>
+<line x1="100" y1="280" x2="100" y2="300" stroke="#4a5a63" stroke-width="2"></line>
+<circle cx="100" cy="308" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+<polygon points="96,304 96,312 105,308" fill="#4d5a63"></polygon>
+<text x="100" y="329" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-6</text>
+<line x1="91" y1="308" x2="40" y2="308" stroke="#4a5a63" stroke-width="2" stroke-dasharray="3 3"></line>
+<line x1="40" y1="308" x2="40" y2="45" stroke="#4a5a63" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#flowArrow)"></line>
+<text x="18" y="40" fill="#5a6971" font-size="6" font-family="IBM Plex Mono, monospace">в К-2 (Лист 1)</text>
+<rect x="580" y="10" width="430" height="320" rx="6" fill="#ff6fb0" opacity="0.05"></rect>
+<rect x="580" y="10" width="430" height="320" rx="6" fill="none" stroke="#ff6fb0" stroke-opacity="0.25"></rect>
+<rect x="586" y="23" width="6" height="6" fill="#ff6fb0"></rect>
+<text x="596" y="32" fill="#ff6fb0" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">БЛОК СТАБИЛИЗАЦИИ</text>
+<line x1="588" y1="38" x2="1006" y2="38" stroke="#ff6fb0" stroke-opacity="0.3" stroke-width="1"></line>
+<line x1="558" y1="95" x2="600" y2="95" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<rect x="600" y="80" width="50" height="80" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"></rect>
+<text x="625" y="74" fill="#c9d3d8" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">Е-44К</text>
+<line x1="650" y1="140" x2="700" y2="140" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<rect x="700" y="60" width="60" height="230" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+<text x="730" y="52" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">С-1К</text>
+<line x1="708" y1="96.25" x2="752" y2="96.25" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="708" y1="122.5" x2="752" y2="122.5" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="708" y1="148.75" x2="752" y2="148.75" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="708" y1="175" x2="752" y2="175" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="708" y1="201.25" x2="752" y2="201.25" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="708" y1="227.5" x2="752" y2="227.5" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="708" y1="253.75" x2="752" y2="253.75" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="730" y1="60" x2="730" y2="45" stroke="#4a5a63" stroke-width="2"></line>
+<line x1="730" y1="45" x2="860" y2="45" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<rect x="860" y="50" width="55" height="60" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"></rect>
+<text x="887.5" y="44" fill="#c9d3d8" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">Е-1К</text>
+<line x1="915" y1="60" x2="955" y2="60" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<text x="918" y="55" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">бутан</text>
+<line x1="887" y1="50" x2="887" y2="16" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<text x="862" y="12" fill="#5a6971" font-size="6" font-family="IBM Plex Mono, monospace">газ на ГФУ</text>
+<line x1="887" y1="110" x2="887" y2="125" stroke="#4a5a63" stroke-width="2"></line>
+<circle cx="887" cy="133" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+<polygon points="883,129 883,137 892,133" fill="#4d5a63"></polygon>
+<text x="887" y="154" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-27</text>
+<line x1="887" y1="142" x2="887" y2="150" stroke="#4a5a63" stroke-width="2" stroke-dasharray="3 3"></line>
+<line x1="887" y1="150" x2="770" y2="150" stroke="#4a5a63" stroke-width="2" stroke-dasharray="3 3"></line>
+<line x1="770" y1="150" x2="760" y2="150" stroke="#4a5a63" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#flowArrow)"></line>
+<text x="800" y="144" fill="#5a6971" font-size="6" font-family="IBM Plex Mono, monospace">орошение</text>
+<line x1="730" y1="290" x2="730" y2="300" stroke="#4a5a63" stroke-width="2"></line>
+<circle cx="730" cy="308" r="9" fill="url(#vesselGrad)" stroke="#5a6971"></circle>
+<polygon points="726,304 726,312 735,308" fill="#4d5a63"></polygon>
+<text x="730" y="329" fill="#5a6971" font-size="7" text-anchor="middle" font-family="IBM Plex Mono, monospace">Н-13</text>
+<line x1="739" y1="308" x2="1028" y2="308" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<text x="850" y="301" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">стабильная фр. НК-180°C → доразд.</text>
+<rect x="1030" y="10" width="860" height="320" rx="6" fill="#4ade80" opacity="0.05"></rect>
+<rect x="1030" y="10" width="860" height="320" rx="6" fill="none" stroke="#4ade80" stroke-opacity="0.25"></rect>
+<rect x="1036" y="23" width="6" height="6" fill="#4ade80"></rect>
+<text x="1046" y="32" fill="#4ade80" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">ДОРАЗДЕЛЕНИЕ БЕНЗИНА</text>
+<line x1="1038" y1="38" x2="1886" y2="38" stroke="#4ade80" stroke-opacity="0.3" stroke-width="1"></line>
+<line x1="1100" y1="75" x2="1100" y2="50" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<polygon points="1088,50 1100,40 1112,50 1100,60" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+<text x="1116" y="53" fill="#9aa7ad" font-size="7" text-anchor="start" font-family="IBM Plex Mono, monospace">Фр. НК-62°C</text>
+<rect x="1070" y="75" width="60" height="215" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+<text x="1100" y="67" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-4</text>
+<line x1="1078" y1="112.85714285714286" x2="1122" y2="112.85714285714286" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1078" y1="140.71428571428572" x2="1122" y2="140.71428571428572" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1078" y1="168.57142857142856" x2="1122" y2="168.57142857142856" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1078" y1="196.42857142857144" x2="1122" y2="196.42857142857144" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1078" y1="224.28571428571428" x2="1122" y2="224.28571428571428" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1078" y1="252.14285714285714" x2="1122" y2="252.14285714285714" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1300" y1="75" x2="1300" y2="50" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<polygon points="1288,50 1300,40 1312,50 1300,60" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+<text x="1316" y="53" fill="#9aa7ad" font-size="7" text-anchor="start" font-family="IBM Plex Mono, monospace">Фр. 62-105°C</text>
+<rect x="1270" y="75" width="60" height="215" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+<text x="1300" y="67" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-7</text>
+<line x1="1278" y1="112.85714285714286" x2="1322" y2="112.85714285714286" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1278" y1="140.71428571428572" x2="1322" y2="140.71428571428572" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1278" y1="168.57142857142856" x2="1322" y2="168.57142857142856" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1278" y1="196.42857142857144" x2="1322" y2="196.42857142857144" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1278" y1="224.28571428571428" x2="1322" y2="224.28571428571428" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1278" y1="252.14285714285714" x2="1322" y2="252.14285714285714" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1500" y1="75" x2="1500" y2="50" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<polygon points="1488,50 1500,40 1512,50 1500,60" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+<text x="1516" y="53" fill="#9aa7ad" font-size="7" text-anchor="start" font-family="IBM Plex Mono, monospace">Фр. 105-180°C</text>
+<rect x="1470" y="75" width="60" height="215" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+<text x="1500" y="67" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-9</text>
+<line x1="1478" y1="112.85714285714286" x2="1522" y2="112.85714285714286" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1478" y1="140.71428571428572" x2="1522" y2="140.71428571428572" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1478" y1="168.57142857142856" x2="1522" y2="168.57142857142856" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1478" y1="196.42857142857144" x2="1522" y2="196.42857142857144" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1478" y1="224.28571428571428" x2="1522" y2="224.28571428571428" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1478" y1="252.14285714285714" x2="1522" y2="252.14285714285714" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1700" y1="75" x2="1700" y2="50" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<polygon points="1688,50 1700,40 1712,50 1700,60" fill="url(#vesselGrad)" stroke="#5a6971"></polygon>
+<text x="1716" y="53" fill="#9aa7ad" font-size="7" text-anchor="start" font-family="IBM Plex Mono, monospace">Фр. 105-180°C (доп.)</text>
+<rect x="1670" y="75" width="60" height="215" rx="8" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="2"></rect>
+<text x="1700" y="67" fill="#c9d3d8" font-size="12" text-anchor="middle" font-family="IBM Plex Mono, monospace">К-10</text>
+<line x1="1678" y1="112.85714285714286" x2="1722" y2="112.85714285714286" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1678" y1="140.71428571428572" x2="1722" y2="140.71428571428572" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1678" y1="168.57142857142856" x2="1722" y2="168.57142857142856" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1678" y1="196.42857142857144" x2="1722" y2="196.42857142857144" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1678" y1="224.28571428571428" x2="1722" y2="224.28571428571428" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1678" y1="252.14285714285714" x2="1722" y2="252.14285714285714" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+<line x1="1028" y1="308" x2="1730" y2="308" stroke="#4a5a63" stroke-width="2"></line>
+<line x1="1100" y1="290" x2="1100" y2="308" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<line x1="1300" y1="290" x2="1300" y2="308" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<line x1="1500" y1="290" x2="1500" y2="308" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<line x1="1700" y1="290" x2="1700" y2="308" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<line x1="1730" y1="308" x2="1780" y2="308" stroke="#4a5a63" stroke-width="2"></line>
+<line x1="1780" y1="308" x2="1780" y2="340" stroke="#4a5a63" stroke-width="2" marker-end="url(#flowArrow)"></line>
+<text x="1660" y="336" fill="#5a6971" font-size="7" font-family="IBM Plex Mono, monospace">тяжёлый ост. → в товарный парк</text>
+<rect x="10" y="340" width="1880" height="180" rx="6" fill="#8a97a0" opacity="0.05"></rect>
+<rect x="10" y="340" width="1880" height="180" rx="6" fill="none" stroke="#8a97a0" stroke-opacity="0.25"></rect>
+<rect x="16" y="353" width="6" height="6" fill="#8a97a0"></rect>
+<text x="26" y="362" fill="#8a97a0" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">ПЕЧИ ОБОГРЕВА КОЛОНН</text>
+<line x1="18" y1="368" x2="1886" y2="368" stroke="#8a97a0" stroke-opacity="0.3" stroke-width="1"></line>
+<line x1="730" y1="320" x2="730" y2="380" stroke="#4a5a63" stroke-width="2" stroke-dasharray="4 3"></line>
+<text x="734" y="352" fill="#5a6971" font-size="6" font-family="IBM Plex Mono, monospace">тепло</text>
+<rect x="680" y="380" width="100" height="80" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.15)"></rect>
+<text x="730" y="372" fill="#c9d3d8" font-size="11" text-anchor="middle" font-family="IBM Plex Mono, monospace">П-1</text>
+<line x1="1300" y1="310" x2="1300" y2="380" stroke="#4a5a63" stroke-width="2" stroke-dasharray="4 3"></line>
+<text x="1304" y="352" fill="#5a6971" font-size="6" font-family="IBM Plex Mono, monospace">тепло</text>
+<rect x="1250" y="380" width="100" height="80" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.15)"></rect>
+<text x="1300" y="372" fill="#c9d3d8" font-size="11" text-anchor="middle" font-family="IBM Plex Mono, monospace">П-3</text>
+<line x1="1500" y1="310" x2="1500" y2="380" stroke="#4a5a63" stroke-width="2" stroke-dasharray="4 3"></line>
+<text x="1504" y="352" fill="#5a6971" font-size="6" font-family="IBM Plex Mono, monospace">тепло</text>
+<rect x="1450" y="380" width="100" height="80" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.15)"></rect>
+<text x="1500" y="372" fill="#c9d3d8" font-size="11" text-anchor="middle" font-family="IBM Plex Mono, monospace">П-4</text>
+<line x1="1700" y1="310" x2="1700" y2="380" stroke="#4a5a63" stroke-width="2" stroke-dasharray="4 3"></line>
+<text x="1704" y="352" fill="#5a6971" font-size="6" font-family="IBM Plex Mono, monospace">тепло</text>
+<rect x="1650" y="380" width="100" height="80" fill="url(#vesselGrad)" stroke="rgba(255,255,255,0.15)"></rect>
+<text x="1700" y="372" fill="#c9d3d8" font-size="11" text-anchor="middle" font-family="IBM Plex Mono, monospace">П-5</text>
+<g transform="translate(0,530)">
+<rect x="10" y="10" width="1880" height="330" rx="6" fill="#8a97a0" opacity="0.03"></rect>
+                <rect x="10" y="10" width="1880" height="330" rx="6" fill="none" stroke="#8a97a0" stroke-opacity="0.2"></rect>
+                <rect x="16" y="23" width="6" height="6" fill="#8a97a0"></rect>
+                <text x="26" y="32" fill="#8a97a0" font-size="13" font-family="IBM Plex Mono, monospace" letter-spacing="1">ТОВАРНЫЕ ПОТОКИ УСТАНОВКИ</text>
+                <line x1="18" y1="38" x2="1884" y2="38" stroke="#8a97a0" stroke-opacity="0.3" stroke-width="1"></line>
+
+                <text x="30" y="70" fill="#8a97a0" font-size="12" font-family="IBM Plex Mono, monospace" letter-spacing="1">ТОВАРНЫЕ ПОТОКИ</text>
+                <circle cx="40" cy="90" r="3" fill="#5b8cff"></circle>
+                <text x="50" y="94" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Стабильная фр. НК-180°C</text>
+                <circle cx="40" cy="108" r="3" fill="#5b8cff"></circle>
+                <text x="50" y="112" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. НК-62°C</text>
+                <circle cx="40" cy="126" r="3" fill="#5b8cff"></circle>
+                <text x="50" y="130" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 62-105°C</text>
+                <circle cx="40" cy="144" r="3" fill="#5b8cff"></circle>
+                <text x="50" y="148" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 105-180°C</text>
+                <circle cx="40" cy="162" r="3" fill="#5b8cff"></circle>
+                <text x="50" y="166" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 140-240°C</text>
+                <circle cx="40" cy="180" r="3" fill="#ffb020"></circle>
+                <text x="50" y="184" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 240-300°C</text>
+                <circle cx="40" cy="198" r="3" fill="#ff8080"></circle>
+                <text x="50" y="202" fill="#9aa7ad" font-size="11" font-family="IBM Plex Mono, monospace">Фр. 300-350°C</text>
+
+                <text x="620" y="65" fill="#8a97a0" font-size="12" font-family="IBM Plex Mono, monospace" letter-spacing="1">ЗОНА РАСШИРЕНИЯ · ПЕРЕТАЩИТЕ УЗЕЛ СЮДА</text>
+                <rect x="620" y="75" width="1240" height="220" rx="6" fill="#00e5c7" fill-opacity="0.02" stroke="#00e5c7" stroke-opacity="0.3" stroke-dasharray="6 4" style="pointer-events:all;" onDragOver="{{ allowDrop }}" onDrop="{{ handleDrop }}"></rect>
+                <sc-for list="{{ diagramExtraList }}" as="ex" hint-placeholder-count="0">
+                  <g onClick="{{ ex.onClick }}" draggable="true" onDragStart="{{ ex.onDragStart }}" style="cursor:grab;">
+                    <rect x="{{ ex.x }}" y="{{ ex.y }}" width="150" height="46" rx="6" fill="url(#vesselGrad)" stroke="#00e5c7" stroke-opacity="0.5"></rect>
+                    <text x="{{ ex.cx }}" y="{{ ex.ty }}" fill="#c9d3d8" font-size="10" text-anchor="middle" font-family="IBM Plex Mono, monospace">{{ ex.shortLabel }}</text>
+                  </g>
+                </sc-for>
+
+
+                <text x="1870" y="324" fill="#3a4750" font-size="9" text-anchor="end" font-family="IBM Plex Mono, monospace" letter-spacing="1">КТК ЭЛОУ-АВТ · МНЕМОСХЕМА · ЛИСТ 2</text>
+              </g>
+</g>
+            </svg>
+        </div>
+        <sc-if value="{{ showLibraryPanel }}" hint-placeholder-val="{{ true }}">
+          <div style="width:280px;flex-shrink:0;background:#11181f;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:14px;">
+            <div onClick="{{ toggleLibraryPanelClick }}" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <span style="font-size:11px;color:#7c8a94;text-transform:uppercase;letter-spacing:1px;">Библиотека оборудования</span>
+              <span style="font-size:11px;color:#7c8a94;">▾</span>
+            </div>
+            <div style="font-size:11px;color:#5a6971;line-height:1.5;margin-bottom:12px;">Перетащите узел в «зону расширения» на листе 2, чтобы достроить установку за пределами ЭЛОУ-АВТ.</div>
+            <div style="max-height:56vh;overflow-y:auto;">
+              <sc-for list="{{ paletteGroups }}" as="grp" hint-placeholder-count="6">
+                <div style="margin-bottom:14px;">
+                  <div style="font-size:10px;color:#8a97a0;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">{{ grp.group }}</div>
+                  <sc-for list="{{ grp.items }}" as="it" hint-placeholder-count="2">
+                    <div draggable="true" onDragStart="{{ it.onDragStart }}" style="cursor:grab;font-size:11px;color:#c9d3d8;background:#0d1319;border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:7px 10px;margin-bottom:6px;line-height:1.4;">{{ it.label }}</div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ libraryPanelCollapsed }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ toggleLibraryPanelClick }}" style="width:26px;flex-shrink:0;border:1px solid rgba(255,255,255,0.08);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+            <span style="writing-mode:vertical-rl;font-size:11px;color:#7c8a94;letter-spacing:1px;">▸ Библиотека</span>
+          </div>
+        </sc-if>
         </div>
       </sc-if>
 
@@ -737,6 +1531,19 @@
       </div>
     </sc-if>
 
+    <sc-if value="{{ extraModalVisible }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeExtraModalClick }}" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:25;">
+        <div onClick="{{ stopPropagationNoop }}" style="width:420px;background:#11181f;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:22px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:15px;font-weight:600;">{{ extraModalTitle }}</div>
+            <div onClick="{{ closeExtraModalClick }}" style="cursor:pointer;color:#7c8a94;font-size:18px;">×</div>
+          </div>
+          <div style="font-size:13px;color:#9aa7ad;line-height:1.5;margin-top:12px;">{{ extraModalDesc }}</div>
+          <div onClick="{{ removeExtraClick }}" style="cursor:pointer;margin-top:16px;text-align:center;font-size:12px;color:#c9d3d8;border:1px solid rgba(255,255,255,0.15);padding:9px;border-radius:4px;">Убрать со схемы</div>
+        </div>
+      </div>
+    </sc-if>
+
     <sc-if value="{{ drillInVisible }}" hint-placeholder-val="{{ false }}">
       <div onClick="{{ closeDrillInClick }}" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:25;">
         <div onClick="{{ stopPropagationNoop }}" style="width:420px;background:#11181f;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:22px;">
@@ -798,6 +1605,13 @@ const MODE_INFO = {
   exam: 'Квалификационный экзамен'
 };
 
+const EXTRA_EQUIPMENT = [
+  { id: 'avt4', shortLabel: 'АВТ-4', label: 'АВТ-4 — вакуумный блок', group: 'Крупные блоки установки', desc: 'Вакуумная перегонка мазута в отдельной колонне — самостоятельный технологический блок, пока не входит в модель.' },
+  { id: 'tankfarm', shortLabel: 'Парк 55/5', label: 'Товарно-сырьевой парк ЭТМ 55/5', group: 'Крупные блоки установки', desc: 'Резервуарный парк приёма нефти и откачки товарных продуктов установки.' },
+  { id: 'gfu', shortLabel: 'ГФУ', label: 'ГФУ — газофракционирующая установка', group: 'Крупные блоки установки', desc: 'Разделение углеводородных газов стабилизации на индивидуальные фракции (пропан, бутан и др.).' },
+  { id: 'flare', shortLabel: 'Факел', label: 'Факельное хозяйство', group: 'Крупные блоки установки', desc: 'Приём и сжигание сбросов с предохранительных клапанов и продувок установки.' }
+];
+
 const NODE_INFO = {
   ed1: { title: 'Электродегидратор ЭД-1', paramKeys: ['water'] },
   pump1: { title: 'Насос Н-1 (сырьевой)', paramKeys: ['suctionPressure'] },
@@ -809,8 +1623,22 @@ const NODE_INFO = {
   pump2: { title: 'Насос циркуляционного орошения Н-2', paramKeys: [] },
   tankfarm: { title: 'Резервуарный парк «Парки ТИМ 55/5»', paramKeys: [] },
   heatblock1: { title: 'Блок теплообмена сырой нефти (Х-2/3-5, АВЗ-4,5)', paramKeys: [] },
-  heatblock2: { title: 'Блок теплообмена обессоленной нефти (рекуперация тепла на входе в ЭЛОУ)', paramKeys: [] },
-  k3group: { title: 'Боковые колонны К-3/1, К-3/2, К-3/3 (отпарка керосина, ДТ и тяжёлых фракций насосами Н-14, Н-15, Н-16)', paramKeys: [] }
+  heatblock2: { title: 'Блок подогрева обессоленной нефти (Т-3, Т-4)', paramKeys: [] },
+  k3group: { title: 'Боковые колонны К-3/1, К-3/2, К-3/3 (отпарка керосина, ДТ и тяжёлых фракций насосами Н-14, Н-15, Н-16)', paramKeys: [] },
+  stabK1: { title: 'Колонна К-1 (отбензинивания, тарелки 16–28)', paramKeys: [] },
+  sepE15: { title: 'Сепаратор Е-15', paramKeys: [] },
+  sepE1: { title: 'Ёмкость Е-1', paramKeys: [] },
+  stabE44k: { title: 'Ёмкость Е-44К', paramKeys: [] },
+  stabC1k: { title: 'Стабилизационная колонна С-1К (отделение бутана и газа)', paramKeys: [] },
+  stabE1k: { title: 'Рефлюксная ёмкость Е-1К (сжиженный бутан)', paramKeys: [] },
+  fracK4: { title: 'Колонна К-4 — выделение фр. НК-62°C', paramKeys: [] },
+  fracK7: { title: 'Колонна К-7 — выделение фр. 62-105°C', paramKeys: [] },
+  fracK9: { title: 'Колонна К-9 — выделение фр. 105-180°C', paramKeys: [] },
+  fracK10: { title: 'Колонна К-10 — доп. выделение фр. 105-180°C', paramKeys: [] },
+  furnP1: { title: 'Печь П-1 — обогрев низа С-1К', paramKeys: [] },
+  furnP3: { title: 'Печь П-3 — обогрев низа К-7', paramKeys: [] },
+  furnP4: { title: 'Печь П-4 — обогрев низа К-9', paramKeys: [] },
+  furnP5: { title: 'Печь П-5 — обогрев низа К-10', paramKeys: [] }
 };
 
 const MOCK_MONITORING = [
@@ -877,6 +1705,9 @@ class Component extends DCLogic {
     nextAlarmAt: 0,
     resolvedAlarms: [],
     log: [],
+    placedExtra: [],
+    extraModalId: null,
+    showLibraryPanel: true,
     valves: { v1: true, v2: true, v3: true, v4: false },
     modalNode: null,
     modalManual: true,
@@ -1000,6 +1831,32 @@ class Component extends DCLogic {
   }
 
   toggleSidebar() { this.setState(s => ({ showSidebar: !s.showSidebar })); }
+  toggleLibraryPanel() { this.setState(s => ({ showLibraryPanel: !s.showLibraryPanel })); }
+
+  handleDrop(e) {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/plain');
+    if (!id) return;
+    const item = EXTRA_EQUIPMENT.find(x => x.id === id);
+    if (!item) return;
+    const svg = e.currentTarget.ownerSVGElement || e.currentTarget.closest('svg');
+    const rect = svg.getBoundingClientRect();
+    let x = e.clientX - rect.left - 75;
+    let y = e.clientY - rect.top - 1010 - 23;
+    x = Math.min(1710, Math.max(625, x));
+    y = Math.min(249, Math.max(80, y));
+    this.setState(s => {
+      const exists = s.placedExtra.some(p => p.id === id);
+      if (exists) return { placedExtra: s.placedExtra.map(p => p.id === id ? { ...p, x, y } : p) };
+      return {
+        placedExtra: [...s.placedExtra, { id, x, y }],
+        log: [...s.log, { t: s.elapsed, text: 'В модель установки добавлено оборудование: ' + item.label }]
+      };
+    });
+  }
+  openExtraNode(id) { this.setState({ extraModalId: id }); }
+  closeExtraModal() { this.setState({ extraModalId: null }); }
+  removeExtra(id) { this.setState(s => ({ placedExtra: s.placedExtra.filter(x => x.id !== id), extraModalId: null })); }
 
   openNode(id) {
     const active = this.state.currentAlarm;
@@ -1156,6 +2013,20 @@ class Component extends DCLogic {
     const openHeatblock1 = () => this.openNode('heatblock1');
     const openHeatblock2 = () => this.openNode('heatblock2');
     const openK3group = () => this.openNode('k3group');
+    const openStabK1 = () => this.openNode('stabK1');
+    const openSepE15 = () => this.openNode('sepE15');
+    const openSepE1 = () => this.openNode('sepE1');
+    const openStabE44k = () => this.openNode('stabE44k');
+    const openStabC1k = () => this.openNode('stabC1k');
+    const openStabE1k = () => this.openNode('stabE1k');
+    const openFracK4 = () => this.openNode('fracK4');
+    const openFracK7 = () => this.openNode('fracK7');
+    const openFracK9 = () => this.openNode('fracK9');
+    const openFracK10 = () => this.openNode('fracK10');
+    const openFurnP1 = () => this.openNode('furnP1');
+    const openFurnP3 = () => this.openNode('furnP3');
+    const openFurnP4 = () => this.openNode('furnP4');
+    const openFurnP5 = () => this.openNode('furnP5');
     const stopPropagationNoop = (e) => e.stopPropagation();
 
     const toggleV1 = () => this.toggleValve('v1');
@@ -1397,6 +2268,36 @@ class Component extends DCLogic {
     }
     const closeDrillInClick = () => this.closeDrillIn();
 
+    const placedSet = new Set(st.placedExtra.map(p => p.id));
+    const groupOrder = [];
+    const groupMap = {};
+    EXTRA_EQUIPMENT.forEach(item => {
+      if (placedSet.has(item.id)) return;
+      if (!groupMap[item.group]) { groupMap[item.group] = []; groupOrder.push(item.group); }
+      groupMap[item.group].push({ ...item, onDragStart: (e) => e.dataTransfer.setData('text/plain', item.id) });
+    });
+    const paletteGroups = groupOrder.map(g => ({ group: g, items: groupMap[g] }));
+    const allowDrop = (e) => e.preventDefault();
+    const handleDrop = (e) => this.handleDrop(e);
+    const diagramExtraList = st.placedExtra.map((p) => {
+      const item = EXTRA_EQUIPMENT.find(x => x.id === p.id);
+      return {
+        id: p.id, shortLabel: item.shortLabel, x: p.x, y: p.y, cx: p.x + 75, ty: p.y + 28,
+        onDragStart: (e) => e.dataTransfer.setData('text/plain', p.id),
+        onClick: () => this.openExtraNode(p.id)
+      };
+    });
+    const extraModalVisible = !!st.extraModalId;
+    let extraModalTitle = '', extraModalDesc = '';
+    if (st.extraModalId) {
+      const exItem = EXTRA_EQUIPMENT.find(x => x.id === st.extraModalId);
+      extraModalTitle = exItem.label; extraModalDesc = exItem.desc;
+    }
+    const closeExtraModalClick = () => this.closeExtraModal();
+    const removeExtraClick = () => this.removeExtra(st.extraModalId);
+    const toggleLibraryPanelClick = () => this.toggleLibraryPanel();
+    const libraryPanelCollapsed = !st.showLibraryPanel;
+
     return {
       isLogin: st.screen === 'login', isModeSelect: st.screen === 'modeSelect',
       isTraining: st.screen === 'training', isReport: st.screen === 'report',
@@ -1409,6 +2310,8 @@ class Component extends DCLogic {
       waterValue, waterColor, suctionValue, suctionColor, furnaceValue, furnaceColor, columnValue, columnColor, gdmValue, gdmColor, stripperValue, stripperColor,
       nodeStyle, openEd1, openPump1, openP1, openK1, openK124, openK122, openK123, openPump2,
       openTankfarm, openHeatblock1, openHeatblock2, openK3group, stopPropagationNoop,
+      openStabK1, openSepE15, openSepE1, openStabE44k, openStabC1k, openStabE1k,
+      openFracK4, openFracK7, openFracK9, openFracK10, openFurnP1, openFurnP3, openFurnP4, openFurnP5,
       toggleV1, toggleV2, toggleV3, toggleV4, v1Fill, v2Fill, v3Fill, v4Fill,
       showTrends: st.showTrends, showLog: st.showLog, toggleTrendsClick, toggleLogClick, trendList, trendsChevron,
       showSidebar: st.showSidebar, toggleSidebarClick, sidebarCollapsed,
@@ -1428,7 +2331,9 @@ class Component extends DCLogic {
       thresholdUnit, thresholdDirectionLabel, previewAction,
       zoneOptions, paramOptions,
       drillInVisible, drillInName, drillInScenario, drillInElapsed, drillInPoints, drillInColor, drillInLog, closeDrillInClick,
-      scenarioDetailVisible, detailTitle, detailBlock, detailZoneColor, detailParamLabel, detailThreshold, detailAction, detailDamage, detailIsCustom, detailLaunchLabel, detailLaunchClick, closeScenarioDetailClick
+      scenarioDetailVisible, detailTitle, detailBlock, detailZoneColor, detailParamLabel, detailThreshold, detailAction, detailDamage, detailIsCustom, detailLaunchLabel, detailLaunchClick, closeScenarioDetailClick,
+      paletteGroups, allowDrop, handleDrop, diagramExtraList, extraModalVisible, extraModalTitle, extraModalDesc, closeExtraModalClick, removeExtraClick,
+      showLibraryPanel: st.showLibraryPanel, toggleLibraryPanelClick, libraryPanelCollapsed
     };
   }
 }

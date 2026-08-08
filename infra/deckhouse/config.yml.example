@@ -1,0 +1,187 @@
+# Deckhouse EE bootstrap config for VK Cloud (OpenStack).
+# Copy to config.yml (gitignored) and fill secrets from openrc + terraform output.
+#
+# Bootstrap:
+#   docker login registry.deckhouse.io -u license-token -p <LICENSE_KEY>
+#   ./scripts/bootstrap.sh
+#
+# Docs: https://deckhouse.ru/products/kubernetes-platform/gs/openstack_vk/
+
+apiVersion: deckhouse.io/v1
+kind: ClusterConfiguration
+clusterType: Cloud
+cloud:
+  provider: OpenStack
+  prefix: ktc
+podSubnetCIDR: 10.111.0.0/16
+serviceSubnetCIDR: 10.222.0.0/16
+kubernetesVersion: "Automatic"
+clusterDomain: cluster.local
+---
+apiVersion: deckhouse.io/v1
+kind: InitConfiguration
+deckhouse:
+  # EE only for VK Cloud
+  imagesRepo: registry.deckhouse.io/deckhouse/ee
+  registryDockerCfg: <BASE64_DOCKER_CFG>   # echo -n '{"auths":{"registry.deckhouse.io":{"auth":"'$(echo -n "license-token:<KEY>"|base64 -w0)'"}}}' | base64 -w0
+  releaseChannel: Stable
+---
+apiVersion: deckhouse.io/v1
+kind: ModuleConfig
+metadata:
+  name: deckhouse
+spec:
+  version: 1
+  enabled: true
+  settings:
+    bundle: Default
+    releaseChannel: Stable
+    logLevel: Info
+---
+apiVersion: deckhouse.io/v1
+kind: ModuleConfig
+metadata:
+  name: global
+spec:
+  version: 2
+  settings:
+    modules:
+      publicDomainTemplate: "%s.ktc.example.ru"   # REPLACE domain
+      https:
+        mode: CertManager
+        certManager:
+          clusterIssuerName: letsencrypt
+---
+apiVersion: deckhouse.io/v1
+kind: ModuleConfig
+metadata:
+  name: user-authn
+spec:
+  version: 2
+  enabled: true
+  settings:
+    controlPlaneConfigurator:
+      dexCAMode: DoNotNeed
+    publishAPI:
+      enabled: true
+      https:
+        mode: Global
+        global:
+          kubeconfigGeneratorMasterCA: ""
+---
+apiVersion: deckhouse.io/v1
+kind: OpenStackClusterConfiguration
+layout: Standard
+sshPublicKey: "<SSH_PUBLIC_KEY>"
+# From VK Cloud openrc v3
+provider:
+  authURL: https://infra.mail.ru:35357/v3/
+  domainName: "users"
+  username: "<OS_USERNAME>"
+  password: "<OS_PASSWORD>"
+  region: "RegionOne"
+  tenantID: "<OS_PROJECT_ID>"
+masterNodeGroup:
+  replicas: 1
+  instanceClass:
+    flavorName: STD3-8-16          # adjust to available flavors
+    imageName: ubuntu-22-04-cloudamd64
+    rootDiskSize: 60
+    volumeType: "high-iops"
+    # floatingIP for master (Standard layout assigns FIP to master)
+    additionalSecurityGroups: []
+nodeGroups:
+  - name: app
+    replicas: 2
+    instanceClass:
+      flavorName: STD3-4-8
+      imageName: ubuntu-22-04-cloudamd64
+      rootDiskSize: 50
+      volumeType: "high-iops"
+    nodeTemplate:
+      labels:
+        ktc.role: app
+  - name: sim
+    replicas: 1
+    instanceClass:
+      flavorName: STD3-8-16
+      imageName: ubuntu-22-04-cloudamd64
+      rootDiskSize: 50
+      volumeType: "high-iops"
+    nodeTemplate:
+      labels:
+        ktc.role: sim
+      taints:
+        - key: sim
+          value: "true"
+          effect: NoSchedule
+  - name: db
+    replicas: 2
+    instanceClass:
+      flavorName: STD3-4-16
+      imageName: ubuntu-22-04-cloudamd64
+      rootDiskSize: 100
+      volumeType: "high-iops"
+    nodeTemplate:
+      labels:
+        ktc.role: db
+  # GPU node — enable when GPU flavor/quota available
+  # - name: ai
+  #   replicas: 1
+  #   instanceClass:
+  #     flavorName: <GPU_FLAVOR>
+  #     imageName: ubuntu-22-04-cloudamd64
+  #     rootDiskSize: 100
+  #   nodeTemplate:
+  #     labels:
+  #       ktc.role: ai
+  #     taints:
+  #       - key: ai
+  #         value: "true"
+  #         effect: NoSchedule
+# Network: either let DKP create (Standard) or attach pre-created Terraform network.
+# For Terraform-prepped network, set standard.internalNetwork* / externalNetworkName
+# to match terraform output deckhouse_hints.
+standard:
+  # Prefer SimpleWithInternalNetwork if SG isolation of kube-apiserver is required.
+  # layout above is Standard — floating IP on master by default.
+  # Fill from terraform output after apply, OR leave DKP to create its own network.
+  # internalNetworkCIDR: "10.20.0.0/24"
+  # internalNetworkName: "ktc-teststand-net"
+  externalNetworkName: "internet"
+  externalNetworkDHCP: false
+  masterWithExternalFloatingIP: true
+---
+apiVersion: deckhouse.io/v1alpha1
+kind: ModuleConfig
+metadata:
+  name: cni-cilium
+spec:
+  version: 1
+  enabled: true
+---
+apiVersion: deckhouse.io/v1alpha1
+kind: ModuleConfig
+metadata:
+  name: cert-manager
+spec:
+  version: 1
+  enabled: true
+---
+apiVersion: deckhouse.io/v1alpha1
+kind: ModuleConfig
+metadata:
+  name: ingress-nginx
+spec:
+  version: 1
+  enabled: true
+---
+apiVersion: deckhouse.io/v1alpha1
+kind: ModuleConfig
+metadata:
+  name: prometheus
+spec:
+  version: 2
+  enabled: true
+  settings:
+    longtermRetentionDays: 7

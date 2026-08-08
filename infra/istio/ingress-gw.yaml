@@ -1,0 +1,40 @@
+# Edge Ingress + TLS (cert-manager letsencrypt) → Angie gw Service
+# Apply after IngressNginxController is Ready and DNS A-record points to floating IP.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ktc-gw
+  namespace: ktc-app
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/websocket-services: "gw"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - ktc.example.ru
+        - api.ktc.example.ru
+      secretName: ktc-tls
+  rules:
+    - host: ktc.example.ru
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gw
+                port:
+                  number: 80
+    - host: api.ktc.example.ru
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gw
+                port:
+                  number: 80

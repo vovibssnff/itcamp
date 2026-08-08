@@ -280,7 +280,7 @@ flowchart TB
 - `FR-AUTH-04` Разграничение доступа к API и экранам по ролям — **Must**.
 - `FR-AUTH-05` Парольная политика (≥8, сложность), блокировка после 5 неудачных — **Must**.
 - `FR-AUTH-06` Access TTL 15 мин, refresh TTL 24 ч, ротация refresh — **Must**.
-- `FR-ROLE-01` Реализованы 3 роли — **Must**; `FR-ROLE-02` Админ назначает/отзывает роли, создаёт учётки — **Must**.
+- `FR-ROLE-01` Реализованы 3 роли — **Must**; `FR-ROLE-02` Админ назначает/отзывает роли, создаёт/блокирует учётки — **Must**; `FR-ROLE-05` Админ управляет тренажёрным комплексом (контент, политика оценки, учебный аудит), **не** инфраструктурой — **Must**.
 - Частично `NFR-SEC-01` (HTTPS TLS 1.2+, JWT, RBAC на каждом запросе).
 - **2FA (TOTP)** для привилегированных ролей (admin, instructor) — auth.md §2.
 
@@ -305,7 +305,7 @@ flowchart TB
 | `/api/v1/reports/*` | `report` | REST | instructor/operator (свои) |
 | `/api/v1/snapshots/*` (метаданные/список) | `snapshot` | REST | instructor/admin (presets) |
 | `/api/v1/ws/sessions/{id}/operator` | `orchestrator` | WS upgrade | operator (назначенный) |
-| `/api/v1/ws/sessions/{id}/observe` | `orchestrator` | WS upgrade | instructor/admin |
+| `/api/v1/ws/sessions/{id}/observe` | `orchestrator` | WS upgrade | instructor |
 | `/` (статика SPA), `/docs-portal` | `fe` / портал | HTTP | any |
 
 **Middleware-цепочка:** `TLS(Ingress)` → `JWT verify (auth /introspect)` → `инъекция X-User-ID/X-Roles` → `RBAC на маршрут` → `rate-limit (задел)` → `route/aggregate` → `upstream (mTLS)`. Сохранение/восстановление снапшота наружу не публикуется: UI управляет ими через `orchestrator` (`/sessions/{id}/checkpoint|restore`), который ходит в `snapshot` по gRPC; `gw` лишь отдаёт метаданные/список `/api/v1/snapshots/*` (REST в `snapshot`).
@@ -355,7 +355,7 @@ flowchart TB
 | `GET /templates?author_id=&status=&q=&limit=&offset=` | instructor/admin | каталог (только метаданные) |
 | `GET /templates/{id}` | instructor/admin; operator — только назначенные | шаблон целиком (граф+layout) |
 | `POST /templates` | instructor | создать (пустой или из данных) |
-| `PUT /templates/{id}` | instructor (автор)/admin | изменить граф/параметры/метаданные |
+| `PUT /templates/{id}` | instructor (автор) | изменить граф/параметры/метаданные |
 | `DELETE /templates/{id}` | instructor(soft→archived)/admin(`?force=true` hard) | удалить |
 | `POST /templates/{id}/copy` | instructor | deep clone `{ "new_name" }` → 201 |
 | `POST /templates/{id}/validate` | instructor | валидация графа |
@@ -490,7 +490,7 @@ message Ack { bool ok = 1; string message = 2; }
 | `GET /sessions/{id}` | instructor/admin; operator (свои) | статус/метаданные |
 | `GET /sessions?status=&operator_id=` | instructor/admin (все); operator (свои) | список сессий |
 | `POST /sessions/{id}/checkpoint` | instructor | ручной снапшот (вызывает snapshot.Save по gRPC) |
-| `POST /sessions/{id}/restore` | instructor/admin (в экзамене оператору запрещено) | восстановить из снапшота |
+| `POST /sessions/{id}/restore` | instructor (в экзамене оператору запрещено) | восстановить из снапшота |
 | `POST /sessions/{id}/actuator` | operator | команда на исполнительный механизм (альтернатива WS) |
 | `POST /sessions/{id}/alarms/{alarm_id}/ack` | operator | квитирование аларма |
 
@@ -559,8 +559,8 @@ message Ack { bool ok = 1; string message = 2; }
 | `GET /scenarios?template_id=&type=&q=&limit=&offset=` | instructor/admin | каталог |
 | `GET /scenarios/{id}` | instructor/admin | сценарий целиком |
 | `POST /scenarios` | instructor | создать |
-| `PUT /scenarios/{id}` | instructor (автор)/admin | изменить |
-| `DELETE /scenarios/{id}` | instructor (автор)/admin | удалить |
+| `PUT /scenarios/{id}` | instructor (автор) | изменить |
+| `DELETE /scenarios/{id}` | instructor (автор)/admin (hard) | удалить |
 | `POST /scenarios/{id}/clone` | instructor | клон (опц. на другой `template_id`) |
 | `GET /scenarios/{id}/full` | internal (orchestrator) | полный (триггеры+эталон+критерии) |
 | `GET /scenarios/exam?template_id=` | internal (orchestrator) | случайный экзаменационный |
@@ -812,7 +812,7 @@ K8s: StatefulSet `nats` (N≥3), Service ClusterIP, PV для JetStream file sto
 - **Экран экзамена** (оператор) — таймер, режим без подсказок ИИ (`FR-SESS-08`).
 - **Разбор / Replay + ИИ** — результаты, критические ошибки, проигрывание (`FR-ASSESS-06`).
 - **Консоль инструктора** (`UI-10..15`): список активных сессий с индикаторами (`UI-10`); подключение к сессии — read-only live-вид мнемосхемы + телеметрия (`UI-11/12`); управление временем пуск/пауза/стоп/скорость (`UI-13`); снапшоты сохранить/восстановить/пресет (`UI-14`); переопределение оценки с обязательным комментарием (`UI-15`).
-- **Администрирование** (админ) — пользователи (CRUD), метрики/логи.
+- **Администрирование** (админ) — пользователи и роли (CRUD, блокировка), политика оценки и экзаменационные правила, жёсткое удаление шаблонов/сценариев/типов компонентов, учебный аудит и контроль качества обучения. Инфраструктура/наблюдаемость (метрики, логи кластера) — вне роли Админа.
 - **Кросс-требования:** локализация ru/en (`FR-HMI-07`); Zustand (кэш отображения); авто-reconnect WS (обрыв ≤3 мин, `NFR-REL-02`); Chromium/Яндекс.Браузер (`NFR-COMP-01`).
 
 ### 18.2 K8s

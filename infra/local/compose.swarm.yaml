@@ -1,0 +1,41 @@
+# Optional Swarm overrides (same images). Deploy:
+#   docker swarm init   # if needed
+#   docker stack deploy -c compose.yaml -c compose.swarm.yaml ktc
+#
+# Note: Picodata CE stays single-replica here; HA Raft is a later K8s concern.
+
+services:
+  picodata:
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 1G
+
+  radix:
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 256M
+
+  minio:
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  nats:
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+networks:
+  ktc-data:
+    driver: overlay
+    attachable: true

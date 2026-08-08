@@ -1,0 +1,6 @@
+apiVersion: v2
+name: data-layer
+description: Picodata + Redis(Radix stand-in) + NATS JetStream (+ optional MinIO)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

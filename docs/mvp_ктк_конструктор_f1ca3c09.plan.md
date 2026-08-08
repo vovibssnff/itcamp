@@ -9,7 +9,7 @@ todos:
     content: "Фаза 1: миграции Picodata, gRPC-контракты (model_api, snapshot_api, ai_api), JSON-схемы графа/сценария/состояния, общие API-конвенции"
     status: pending
   - id: phase2
-    content: "Фаза 2: auth (JWT RS256, RBAC 3 роли, users CRUD, blacklist) + gw (Angie/BFF, WS-proxy) + Istio Ingress/VirtualService"
+    content: "Фаза 2: auth (JWT RS256, RBAC 3 роли, read-only users, blacklist) + gw (Angie/BFF, WS-proxy) + Istio Ingress/VirtualService"
     status: pending
   - id: phase3
     content: "Фаза 3: constructor backend (CRUD компонентов/шаблонов, валидация графа, export init-state) + seed библиотеки КТС + frontend-конструктор (Konva)"
@@ -251,11 +251,8 @@ flowchart TB
 | `POST /logout` | any | отзыв refresh |
 | `GET /me` | any | профиль текущего пользователя |
 | `POST /introspect` | internal (mesh) | валидация JWT для gw (trust boundary) |
-| `GET /users` | admin | список пользователей (пагинация) |
-| `POST /users` | admin | создать учётку |
-| `GET /users/{id}` | admin | карточка |
-| `PUT /users/{id}` | admin | изменить fio/roles/status |
-| `DELETE /users/{id}` | admin | удалить |
+| `GET /users` | admin | список пользователей (read-only; учётки ведутся в LDAP/AD) |
+| `GET /users/{id}` | admin | карточка пользователя (read-only) |
 | `POST /users/{id}/mfa/setup` | any auth | генерация TOTP-секрета |
 | `POST /users/{id}/mfa/enable` | any auth | включение MFA (проверка кода) |
 | `GET /users/{id}/mfa` | any auth | статус MFA |
@@ -280,7 +277,7 @@ flowchart TB
 - `FR-AUTH-04` Разграничение доступа к API и экранам по ролям — **Must**.
 - `FR-AUTH-05` Парольная политика (≥8, сложность), блокировка после 5 неудачных — **Must**.
 - `FR-AUTH-06` Access TTL 15 мин, refresh TTL 24 ч, ротация refresh — **Must**.
-- `FR-ROLE-01` Реализованы 3 роли — **Must**; `FR-ROLE-02` Админ назначает/отзывает роли, создаёт/блокирует учётки — **Must**; `FR-ROLE-05` Админ управляет тренажёрным комплексом (контент, политика оценки, учебный аудит), **не** инфраструктурой — **Must**.
+- `FR-ROLE-01` Реализованы 3 роли — **Must**; `FR-ROLE-02` Админ просматривает пользователей read-only, учётки/роли ведутся во внешнем LDAP/AD (CRUD вне платформы) — **Must**; `FR-ROLE-05` Админ управляет тренажёрным комплексом (контент, политика оценки, учебный аудит), **не** инфраструктурой — **Must**.
 - Частично `NFR-SEC-01` (HTTPS TLS 1.2+, JWT, RBAC на каждом запросе).
 - **2FA (TOTP)** для привилегированных ролей (admin, instructor) — auth.md §2.
 

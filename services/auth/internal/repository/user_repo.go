@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -111,17 +110,6 @@ func (r *UserRepo) UpdateStatus(ctx context.Context, id string, status domain.Us
 	return nil
 }
 
-func (r *UserRepo) Delete(ctx context.Context, id string) error {
-	tag, err := r.db.Pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, id)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return domain.ErrUserNotFound
-	}
-	return nil
-}
-
 func (r *UserRepo) GetRoles(ctx context.Context, userID string) ([]domain.Role, error) {
 	rows, err := r.db.Pool.Query(ctx, `SELECT r.name FROM roles r JOIN user_roles ur ON ur.role_id = r.id WHERE ur.user_id = $1`, userID)
 	if err != nil {
@@ -137,38 +125,6 @@ func (r *UserRepo) GetRoles(ctx context.Context, userID string) ([]domain.Role, 
 		roles = append(roles, domain.Role(name))
 	}
 	return roles, rows.Err()
-}
-
-func (r *UserRepo) SetRoles(ctx context.Context, userID string, roles []domain.Role) error {
-	tx, err := r.db.Pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	if _, err := tx.Exec(ctx, `DELETE FROM user_roles WHERE user_id = $1`, userID); err != nil {
-		return err
-	}
-	for _, role := range roles {
-		if _, err := tx.Exec(ctx, `INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, userID, string(role)); err != nil {
-			return err
-		}
-	}
-	return tx.Commit(ctx)
-}
-
-func (r *UserRepo) EnsureRolesExist(ctx context.Context, roles []domain.Role) error {
-	for _, role := range roles {
-		var exists bool
-		err := r.db.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM roles WHERE name = $1)`, string(role)).Scan(&exists)
-		if err != nil {
-			return err
-		}
-		if !exists {
-			return fmt.Errorf("%w: %s", domain.ErrRoleNotFound, role)
-		}
-	}
-	return nil
 }
 
 func isUniqueViolation(err error) bool {

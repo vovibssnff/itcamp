@@ -64,10 +64,7 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /introspect", introH.Introspect)
 
 	mux.HandleFunc("GET /users", userH.List)
-	mux.HandleFunc("POST /users", userH.Create)
 	mux.HandleFunc("GET /users/{id}", userH.Get)
-	mux.HandleFunc("PUT /users/{id}", userH.Update)
-	mux.HandleFunc("DELETE /users/{id}", userH.Delete)
 
 	mux.HandleFunc("POST /users/{userID}/mfa/setup", mfaH.Setup)
 	mux.HandleFunc("POST /users/{userID}/mfa/enable", mfaH.Enable)

@@ -1,0 +1,19 @@
+# Apply after cluster is up: kubectl apply -f modules/ingress-controller.yaml
+# Replace FLOATING_IP with terraform output ingress_floating_ip
+apiVersion: deckhouse.io/v1
+kind: IngressNginxController
+metadata:
+  name: main
+spec:
+  ingressClass: nginx
+  inlet: LoadBalancer
+  loadBalancer:
+    annotations:
+      # VK Cloud / OpenStack Octavia — pin white IP
+      loadbalancer.openstack.org/floating-ip: "FLOATING_IP"
+  # Accept HTTP for ACME + redirect to HTTPS at Angie/Ingress TLS
+  config:
+    use-proxy-protocol: "false"
+  # Wait for nodes labeled for ingress if needed
+  # nodeSelector:
+  #   ktc.role: app

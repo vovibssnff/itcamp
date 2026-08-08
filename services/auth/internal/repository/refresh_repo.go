@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -20,25 +21,27 @@ func NewRefreshRepo(pg *Postgres) *RefreshRepo {
 
 func (r *RefreshRepo) Create(ctx context.Context, t domain.RefreshToken) error {
 	_, err := r.db.Pool.Exec(ctx, `
-		INSERT INTO refresh_tokens (id, user_id, token_hash, issued_at, expires_at, revoked, replaced_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		t.ID, t.UserID, t.TokenHash, t.IssuedAt, t.ExpiresAt, t.Revoked, nullIfEmpty(t.ReplacedBy))
+		INSERT INTO refresh_tokens (id, user_id, login, roles, token_hash, issued_at, expires_at, revoked, replaced_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		t.ID, t.UserID, t.Login, rolesToJSON(t.Roles), t.TokenHash, t.IssuedAt, t.ExpiresAt, t.Revoked, nullIfEmpty(t.ReplacedBy))
 	return err
 }
 
 func (r *RefreshRepo) GetByHash(ctx context.Context, hash string) (domain.RefreshToken, error) {
 	var t domain.RefreshToken
+	var rolesJSON []byte
 	var replacedBy *string
 	err := r.db.Pool.QueryRow(ctx, `
-		SELECT id, user_id, token_hash, issued_at, expires_at, revoked, replaced_by
+		SELECT id, user_id, login, roles, token_hash, issued_at, expires_at, revoked, replaced_by
 		FROM refresh_tokens WHERE token_hash = $1`, hash).
-		Scan(&t.ID, &t.UserID, &t.TokenHash, &t.IssuedAt, &t.ExpiresAt, &t.Revoked, &replacedBy)
+		Scan(&t.ID, &t.UserID, &t.Login, &rolesJSON, &t.TokenHash, &t.IssuedAt, &t.ExpiresAt, &t.Revoked, &replacedBy)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.RefreshToken{}, domain.ErrTokenRevoked
 	}
 	if replacedBy != nil {
 		t.ReplacedBy = *replacedBy
 	}
+	json.Unmarshal(rolesJSON, &t.Roles)
 	return t, err
 }
 
@@ -84,4 +87,12 @@ func nullIfEmpty(s string) any {
 		return nil
 	}
 	return s
+}
+
+func rolesToJSON(roles []domain.Role) []byte {
+	if len(roles) == 0 {
+		return []byte("[]")
+	}
+	b, _ := json.Marshal(roles)
+	return b
 }

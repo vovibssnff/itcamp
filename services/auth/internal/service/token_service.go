@@ -13,15 +13,22 @@ import (
 
 	"github.com/itcamp/ktc/services/auth/internal/config"
 	"github.com/itcamp/ktc/services/auth/internal/domain"
-	"github.com/itcamp/ktc/services/auth/internal/repository"
 )
 
-type TokenService struct {
-	cfg      config.JWTConfig
-	refresh  *repository.RefreshRepo
+type RefreshStore interface {
+	Create(ctx context.Context, t domain.RefreshToken) error
+	GetByHash(ctx context.Context, hash string) (domain.RefreshToken, error)
+	Revoke(ctx context.Context, id string) error
+	RevokeAndReplace(ctx context.Context, oldID, newID string) error
+	RevokeAllForUser(ctx context.Context, userID string) error
 }
 
-func NewTokenService(cfg config.JWTConfig, refresh *repository.RefreshRepo) *TokenService {
+type TokenService struct {
+	cfg     config.JWTConfig
+	refresh RefreshStore
+}
+
+func NewTokenService(cfg config.JWTConfig, refresh RefreshStore) *TokenService {
 	return &TokenService{cfg: cfg, refresh: refresh}
 }
 
@@ -40,6 +47,8 @@ func (s *TokenService) Issue(ctx context.Context, user domain.User) (domain.Toke
 	rt := domain.RefreshToken{
 		ID:        accessID,
 		UserID:    user.ID,
+		Login:     user.Login,
+		Roles:     user.Roles,
 		TokenHash: hashToken(refreshPlain),
 		IssuedAt:  now,
 		ExpiresAt: now.Add(s.cfg.RefreshTTL.Std()),
@@ -74,12 +83,7 @@ func (s *TokenService) Refresh(ctx context.Context, refreshPlain string) (domain
 		return domain.TokenPair{}, domain.ErrTokenExpired
 	}
 
-	claims, err := s.parseAccess(stored.ID)
-	if err != nil {
-		return domain.TokenPair{}, domain.ErrTokenInvalid
-	}
-
-	user := domain.User{ID: claims.UserID, Login: claims.Login, Roles: claims.Roles}
+	user := domain.User{ID: stored.UserID, Login: stored.Login, Roles: stored.Roles}
 	newPair, err := s.Issue(ctx, user)
 	if err != nil {
 		return domain.TokenPair{}, err
@@ -93,7 +97,11 @@ func (s *TokenService) Refresh(ctx context.Context, refreshPlain string) (domain
 
 func (s *TokenService) Revoke(ctx context.Context, refreshPlain string) error {
 	hash := hashToken(refreshPlain)
-	return s.refresh.Revoke(ctx, hash)
+	stored, err := s.refresh.GetByHash(ctx, hash)
+	if err != nil {
+		return domain.ErrTokenInvalid
+	}
+	return s.refresh.Revoke(ctx, stored.ID)
 }
 
 func (s *TokenService) RevokeAllForUser(ctx context.Context, userID string) error {

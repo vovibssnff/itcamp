@@ -1,0 +1,23 @@
+[http]
+addr              = ":8080"
+read_timeout      = "10s"
+write_timeout     = "10s"
+shutdown_timeout  = "15s"
+
+[db]
+dsn               = "postgres://picodata:picodata@localhost:5432/ktc?sslmode=disable"
+max_conns         = 10
+min_conns         = 2
+conn_timeout      = "5s"
+query_timeout     = "5s"
+
+[s3]
+endpoint          = "minio.ktc-data.svc.cluster.local:9000"
+bucket            = "component-icons"
+access_key        = ""
+secret_key        = ""
+use_ssl           = false
+
+[seed]
+enabled           = true
+seed_file         = ""

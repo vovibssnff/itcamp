@@ -17,12 +17,14 @@ type Claims struct {
 }
 
 type RefreshToken struct {
-	ID        string
-	UserID    string
-	TokenHash string
-	IssuedAt  time.Time
-	ExpiresAt time.Time
-	Revoked   bool
+	ID         string
+	UserID     string
+	Login      string
+	Roles      []Role
+	TokenHash  string
+	IssuedAt   time.Time
+	ExpiresAt  time.Time
+	Revoked    bool
 	ReplacedBy string
 }
 

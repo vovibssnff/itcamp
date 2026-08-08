@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Table, Button, Tag, Space, Modal, Form, Input, Select, message, Typography } from 'antd'
+import { Table, Button, Tag, Space, Modal, Form, Input, Select, message } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { UserProfile, UserRole } from '@/store/auth'
 import { tokens } from '@/theme/tokens'
-
-const { Title } = Typography
 
 const ROLE_COLORS: Record<UserRole, string> = {
   admin: 'red',
@@ -114,21 +112,25 @@ export default function UsersScreen() {
   ]
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className="wrap">
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'space-between',
-          marginBottom: 20,
+          marginBottom: 24,
         }}
+        className="rise"
       >
-        <Title level={4} style={{ color: tokens.text.primary, margin: 0 }}>
-          Пользователи
-        </Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => openEdit(null)}>
-          Новый пользователь
-        </Button>
+        <div>
+          <div className="kick" style={{ marginBottom: 6 }}>
+            Администрирование
+          </div>
+          <h1 className="h1">Пользователи</h1>
+        </div>
+        <button className="btn btn-acc" onClick={() => openEdit(null)}>
+          <PlusOutlined /> Новый пользователь
+        </button>
       </div>
 
       <Table

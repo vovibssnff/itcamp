@@ -80,6 +80,30 @@
     "download": "Download PDF",
     "replay": "Replay"
   },
+  "scenario": {
+    "title": "Scenarios",
+    "new": "New scenario",
+    "aiDraft": "AI draft",
+    "save": "Save",
+    "publish": "Publish",
+    "unpublish": "Unpublish",
+    "archive": "Archive",
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "type": {
+      "training": "Training",
+      "exam": "Exam"
+    },
+    "tabs": {
+      "meta": "Parameters",
+      "faults": "Faults",
+      "actions": "Reference actions",
+      "criteria": "Scoring criteria"
+    }
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",

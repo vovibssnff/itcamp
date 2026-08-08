@@ -1,274 +1,380 @@
-export interface ScenarioFault {
-  id: string
-  tag: string
-  type: 'sensor_fail' | 'valve_stuck' | 'pump_trip' | 'leak' | 'fouling' | 'controller_fail'
-  description: string
-  severity: 'low' | 'medium' | 'high' | 'critical'
-  triggerDelay?: number
-  triggerCondition?: string
+// ─── Canonical Scenario Model (aligned with services/scenario/api/openapi.yaml) ─
+// Frontend adds `status` for moderation lifecycle (draft → published → archived)
+
+export interface FaultTrigger {
+  type: 'time' | 'condition'
+  at_model_time?: number // seconds from sim start (type=time)
+  condition?: {
+    tag: string
+    op: '>' | '<' | '>=' | '<=' | '==' | '!='
+    value: number
+    for_seconds: number
+  }
 }
 
-export interface ReferenceAction {
-  time: number
-  description: string
-  tag?: string
-  value?: number
-  isCritical?: boolean
+export interface ScenarioFaultEntry {
+  id: string
+  fault_id: string
+  component_instance_id: string
+  params: {
+    severity_pct: number // 0-100
+    ramp_seconds: number // 0 = instant
+  }
+  trigger: FaultTrigger
+  hidden: boolean
 }
+
+export interface ReferenceActionExpected {
+  target: string // tag or node id
+  action: string // e.g. "set", "open", "close", "start", "stop"
+  value?: number
+}
+
+export interface ReferenceActionEntry {
+  step: number
+  description: string
+  expected: ReferenceActionExpected
+  deadline_seconds: number
+  mandatory: boolean
+}
+
+export interface ScenarioCriteria {
+  max_score: number
+  penalty_late: number // points per second late
+  penalty_miss: number // points per missed action
+  penalty_forbidden: number // points per forbidden action
+  critical_actions: string[] // step numbers that are mandatory and cause fail
+  pass_threshold: number // 0-100 %
+}
+
+export type ScenarioStatus = 'draft' | 'published' | 'archived'
+export type ScenarioType = 'training' | 'exam'
 
 export interface Scenario {
   id: string
   name: string
   description: string
-  difficulty: 1 | 2 | 3 | 4 | 5
-  duration: number
-  faults: ScenarioFault[]
-  referenceActions: ReferenceAction[]
-  passingScore: number
+  template_id: string
+  type: ScenarioType
+  start_preset_id?: string
+  author_id: string
+  status: ScenarioStatus
+  faults: ScenarioFaultEntry[]
+  reference_actions: ReferenceActionEntry[]
+  criteria: ScenarioCriteria
+  created_at: string
+  updated_at: string
+}
+
+// ─── Fault catalog item ───────────────────────────────────────────────────────
+
+export interface FaultCatalogItem {
+  fault_id: string
+  name: string
+  applicable_component_types: string[]
+  affected_tags: string[]
+  description: string
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  damage_per_sec: number
+}
+
+// ─── Fault catalog fixtures ──────────────────────────────────────────────────
+
+export const FAULT_CATALOG: FaultCatalogItem[] = [
+  {
+    fault_id: 'flt-pump-trip',
+    name: 'Аварийный останов насоса',
+    applicable_component_types: ['pump', 'compressor'],
+    affected_tags: ['FI-101', 'PI-101'],
+    description: 'Внезапный электрический или механический отказ насоса',
+    severity: 'high',
+    damage_per_sec: 0.5,
+  },
+  {
+    fault_id: 'flt-valve-stuck',
+    name: 'Заклинивание регулирующего клапана',
+    applicable_component_types: ['valve'],
+    affected_tags: ['FV-101', 'FV-201', 'FV-301'],
+    description: 'Клапан застрял в текущем положении',
+    severity: 'medium',
+    damage_per_sec: 0.2,
+  },
+  {
+    fault_id: 'flt-sensor-fail',
+    name: 'Отказ датчика',
+    applicable_component_types: ['sensor'],
+    affected_tags: ['TI-201', 'PI-101', 'LI-301'],
+    description: 'Датчик перестаёт передавать достоверные показания',
+    severity: 'medium',
+    damage_per_sec: 0.1,
+  },
+  {
+    fault_id: 'flt-temp-runaway',
+    name: 'Перегрев теплообменника',
+    applicable_component_types: ['heatexchanger'],
+    affected_tags: ['TI-201', 'TI-202'],
+    description: 'Прогрессирующий рост температуры выше допустимого',
+    severity: 'critical',
+    damage_per_sec: 1.5,
+  },
+  {
+    fault_id: 'flt-level-high',
+    name: 'Переполнение ёмкости',
+    applicable_component_types: ['vessel', 'separator'],
+    affected_tags: ['LI-301', 'LI-302'],
+    description: 'Уровень в ёмкости превышает критическую отметку',
+    severity: 'high',
+    damage_per_sec: 0.8,
+  },
+  {
+    fault_id: 'flt-controller-fail',
+    name: 'Отказ регулятора',
+    applicable_component_types: ['controller'],
+    affected_tags: ['TRC-201', 'LRC-301', 'FRC-301'],
+    description: 'Регулятор перестаёт выдавать управляющее воздействие',
+    severity: 'medium',
+    damage_per_sec: 0.3,
+  },
+  {
+    fault_id: 'flt-fouling',
+    name: 'Загрязнение трубного пространства',
+    applicable_component_types: ['heatexchanger', 'column'],
+    affected_tags: ['TI-201', 'PI-201'],
+    description: 'Постепенное ухудшение теплообмена из-за отложений',
+    severity: 'low',
+    damage_per_sec: 0.05,
+  },
+  {
+    fault_id: 'flt-column-flood',
+    name: 'Захлёбывание ректификационной колонны',
+    applicable_component_types: ['column'],
+    affected_tags: ['FI-301', 'TI-302', 'PI-301'],
+    description: 'Превышение предельно допустимой нагрузки по жидкости',
+    severity: 'critical',
+    damage_per_sec: 2.0,
+  },
+]
+
+// ─── Scenario fixtures ────────────────────────────────────────────────────────
+
+const CRITERIA_DEFAULT: ScenarioCriteria = {
+  max_score: 100,
+  penalty_late: 0.5,
+  penalty_miss: 10,
+  penalty_forbidden: 5,
+  critical_actions: [],
+  pass_threshold: 60,
 }
 
 export const SCENARIOS: Scenario[] = [
   {
     id: 'sc-normal-startup',
-    name: 'Нормальный пуск установки',
+    name: 'Нормальный пуск установки ЭЛОУ-АВТ',
     description:
       'Плановый пуск ЭЛОУ-АВТ с нуля. Проверка соблюдения регламента разогрева и вывода на режим.',
-    difficulty: 2,
-    duration: 3600,
+    template_id: 'tmpl-elou-avt',
+    type: 'training',
+    author_id: 'user-instructor',
+    status: 'published',
+    start_preset_id: 'preset-cold',
     faults: [],
-    referenceActions: [
-      { time: 0, description: 'Открыть подачу сырой нефти FV-101', tag: 'FV-101', value: 30 },
-      { time: 300, description: 'Включить насосы нефти Н-101А/Б', tag: 'H-101A', value: 1 },
+    reference_actions: [
       {
-        time: 600,
+        step: 1,
+        description: 'Открыть подачу сырой нефти FV-101 на 30%',
+        expected: { target: 'FV-101', action: 'set', value: 30 },
+        deadline_seconds: 120,
+        mandatory: true,
+      },
+      {
+        step: 2,
+        description: 'Включить насосы нефти Н-101А/Б',
+        expected: { target: 'H-101A', action: 'start' },
+        deadline_seconds: 180,
+        mandatory: true,
+      },
+      {
+        step: 3,
         description: 'Запустить разогрев печи П-1, установить температуру 180°C',
-        tag: 'TRC-201',
-        value: 180,
+        expected: { target: 'TRC-201', action: 'set', value: 180 },
+        deadline_seconds: 300,
+        mandatory: false,
       },
       {
-        time: 1200,
+        step: 4,
         description: 'Повысить температуру печи до 280°C',
-        tag: 'TRC-201',
-        value: 280,
-        isCritical: true,
+        expected: { target: 'TRC-201', action: 'set', value: 280 },
+        deadline_seconds: 600,
+        mandatory: true,
       },
       {
-        time: 1800,
+        step: 5,
         description: 'Вывести уровень в рефлюксной ёмкости 50%',
-        tag: 'LRC-301',
-        value: 50,
-      },
-      { time: 2400, description: 'Включить орошение колонны К-2', tag: 'FRC-301', value: 80 },
-      {
-        time: 3000,
-        description: 'Выйти на рабочий режим, температура верха К-2 120°C',
-        tag: 'TI-302',
-        value: 120,
-        isCritical: true,
+        expected: { target: 'LRC-301', action: 'set', value: 50 },
+        deadline_seconds: 900,
+        mandatory: false,
       },
     ],
-    passingScore: 70,
+    criteria: {
+      ...CRITERIA_DEFAULT,
+      critical_actions: ['2', '4'],
+      pass_threshold: 70,
+    },
+    created_at: '2025-11-01T10:00:00Z',
+    updated_at: '2025-12-01T14:30:00Z',
   },
   {
     id: 'sc-pump-trip',
     name: 'Останов насоса нефти',
     description:
       'Внезапный аварийный останов насоса Н-101А. Переключение на резервный насос Н-101Б.',
-    difficulty: 2,
-    duration: 900,
+    template_id: 'tmpl-elou-avt',
+    type: 'training',
+    author_id: 'user-instructor',
+    status: 'published',
     faults: [
       {
-        id: 'f-pump-trip',
-        tag: 'H-101A',
-        type: 'pump_trip',
-        description: 'Аварийный останов насоса Н-101А',
-        severity: 'high',
-        triggerDelay: 120,
+        id: 'sf-001',
+        fault_id: 'flt-pump-trip',
+        component_instance_id: 'H-101A',
+        params: { severity_pct: 100, ramp_seconds: 0 },
+        trigger: { type: 'time', at_model_time: 120 },
+        hidden: false,
       },
     ],
-    referenceActions: [
+    reference_actions: [
       {
-        time: 120,
-        description: 'Обнаружить сигнализацию об останове насоса Н-101А',
-        isCritical: true,
+        step: 1,
+        description: 'Подтвердить сигнализацию останова Н-101А',
+        expected: { target: 'ALARM-H101A', action: 'acknowledge' },
+        deadline_seconds: 30,
+        mandatory: false,
       },
       {
-        time: 150,
+        step: 2,
         description: 'Включить резервный насос Н-101Б',
-        tag: 'H-101B',
-        value: 1,
-        isCritical: true,
+        expected: { target: 'H-101B', action: 'start' },
+        deadline_seconds: 60,
+        mandatory: true,
       },
       {
-        time: 200,
-        description: 'Убедиться в нормальном давлении на выкиде Н-101Б',
-        tag: 'PI-102',
-        value: 2.5,
-      },
-      { time: 300, description: 'Принять меры по устранению неисправности Н-101А' },
-    ],
-    passingScore: 75,
-  },
-  {
-    id: 'sc-level-loss',
-    name: 'Потеря уровня в рефлюксной ёмкости',
-    description:
-      'Нарушение регулирования уровня в рефлюксной ёмкости Е-301. Риск нарушения орошения колонны.',
-    difficulty: 3,
-    duration: 1800,
-    faults: [
-      {
-        id: 'f-lcv-stuck',
-        tag: 'LCV-301',
-        type: 'valve_stuck',
-        description: 'Заклинивание клапана уровня LCV-301 в положении "открыт"',
-        severity: 'medium',
-        triggerDelay: 300,
+        step: 3,
+        description: 'Проверить давление после переключения PI-101',
+        expected: { target: 'PI-101', action: 'check' },
+        deadline_seconds: 90,
+        mandatory: false,
       },
     ],
-    referenceActions: [
-      { time: 300, description: 'Обнаружить понижение уровня в Е-301 ниже 30%', isCritical: true },
-      {
-        time: 360,
-        description: 'Перевести регулятор LRC-301 в ручной режим',
-        tag: 'LRC-301',
-        value: 0,
-      },
-      {
-        time: 420,
-        description: 'Прикрыть клапан LCV-301 вручную до 40%',
-        tag: 'LCV-301',
-        value: 40,
-        isCritical: true,
-      },
-      { time: 600, description: 'Восстановить уровень в Е-301 до 50%', tag: 'LI-301', value: 50 },
-      { time: 900, description: 'Убедиться в стабильном орошении К-2' },
-    ],
-    passingScore: 70,
+    criteria: {
+      ...CRITERIA_DEFAULT,
+      critical_actions: ['2'],
+      pass_threshold: 60,
+    },
+    created_at: '2025-11-05T09:00:00Z',
+    updated_at: '2025-12-02T11:00:00Z',
   },
   {
     id: 'sc-temp-runaway',
-    name: 'Неконтролируемый рост температуры низа К-2',
-    description:
-      'Отказ регулятора температуры низа атмосферной колонны. Риск перегрева и аварийного останова.',
-    difficulty: 4,
-    duration: 1200,
+    name: 'Перегрев теплообменника Т-101',
+    description: 'Прогрессирующий рост температуры в теплообменнике Т-101. Защитные меры.',
+    template_id: 'tmpl-elou-avt',
+    type: 'exam',
+    author_id: 'user-instructor',
+    status: 'published',
     faults: [
       {
-        id: 'f-tc-fail',
-        tag: 'TRC-201',
-        type: 'controller_fail',
-        description: 'Отказ регулятора температуры печи TRC-201',
-        severity: 'critical',
-        triggerDelay: 180,
+        id: 'sf-002',
+        fault_id: 'flt-temp-runaway',
+        component_instance_id: 'T-101',
+        params: { severity_pct: 80, ramp_seconds: 300 },
+        trigger: { type: 'time', at_model_time: 60 },
+        hidden: true,
       },
     ],
-    referenceActions: [
+    reference_actions: [
       {
-        time: 180,
-        description: 'Обнаружить сигнализацию HH по температуре низа К-2',
-        isCritical: true,
+        step: 1,
+        description: 'Снизить расход горячей стороны Т-101',
+        expected: { target: 'FV-201', action: 'set', value: 20 },
+        deadline_seconds: 120,
+        mandatory: true,
       },
       {
-        time: 210,
-        description: 'Перевести TRC-201 в ручной режим',
-        tag: 'TRC-201',
-        value: 0,
-        isCritical: true,
+        step: 2,
+        description: 'Уведомить диспетчера о превышении температуры',
+        expected: { target: 'DISPATCH', action: 'notify' },
+        deadline_seconds: 180,
+        mandatory: false,
       },
-      {
-        time: 240,
-        description: 'Закрыть клапан подачи топлива в печь FV-201 до 20%',
-        tag: 'FV-201',
-        value: 20,
-      },
-      {
-        time: 360,
-        description: 'Стабилизировать температуру низа К-2 в диапазоне 345-355°C',
-        tag: 'TI-210',
-        value: 350,
-        isCritical: true,
-      },
-      { time: 600, description: 'Организовать ремонт регулятора TRC-201' },
     ],
-    passingScore: 80,
+    criteria: {
+      ...CRITERIA_DEFAULT,
+      max_score: 150,
+      critical_actions: ['1'],
+      pass_threshold: 65,
+    },
+    created_at: '2025-11-10T14:00:00Z',
+    updated_at: '2025-12-05T16:00:00Z',
   },
   {
-    id: 'sc-esd-test',
-    name: 'Аварийный останов по ПАЗ',
-    description:
-      'Срабатывание системы ПАЗ при достижении критических параметров. Правильная последовательность аварийного останова.',
-    difficulty: 3,
-    duration: 1800,
+    id: 'sc-column-flood',
+    name: 'Захлёбывание колонны К-2',
+    description: 'Нагрузка по жидкости превышает допустимую. Экзаменационный режим.',
+    template_id: 'tmpl-atm-column',
+    type: 'exam',
+    author_id: 'user-instructor',
+    status: 'draft',
     faults: [
       {
-        id: 'f-leak',
-        tag: 'P-101-LINE',
-        type: 'leak',
-        description: 'Разгерметизация трубопровода высокого давления',
-        severity: 'critical',
-        triggerDelay: 60,
+        id: 'sf-003',
+        fault_id: 'flt-column-flood',
+        component_instance_id: 'K-2',
+        params: { severity_pct: 60, ramp_seconds: 180 },
+        trigger: {
+          type: 'condition',
+          condition: { tag: 'FI-301', op: '>', value: 95, for_seconds: 30 },
+        },
+        hidden: false,
       },
     ],
-    referenceActions: [
-      { time: 60, description: 'Обнаружить аварийный сигнал о разгерметизации', isCritical: true },
+    reference_actions: [
       {
-        time: 90,
-        description: 'Нажать кнопку аварийного останова ESD',
-        tag: 'ESD',
-        value: 1,
-        isCritical: true,
+        step: 1,
+        description: 'Снизить подачу в колонну FRC-301 до 60%',
+        expected: { target: 'FRC-301', action: 'set', value: 60 },
+        deadline_seconds: 90,
+        mandatory: true,
       },
-      { time: 120, description: 'Убедиться в закрытии всех ПАЗ-клапанов', isCritical: true },
-      {
-        time: 180,
-        description: 'Перекрыть подачу нефти на установку FV-101',
-        tag: 'FV-101',
-        value: 0,
-      },
-      { time: 300, description: 'Остановить все насосы', isCritical: true },
-      { time: 600, description: 'Вести наблюдение за давлением и температурой при освобождении' },
-      { time: 900, description: 'Доложить о завершении аварийного останова' },
     ],
-    passingScore: 85,
+    criteria: {
+      ...CRITERIA_DEFAULT,
+      critical_actions: ['1'],
+      pass_threshold: 70,
+    },
+    created_at: '2025-12-01T08:00:00Z',
+    updated_at: '2025-12-06T09:00:00Z',
   },
   {
-    id: 'sc-fouling',
-    name: 'Загрязнение теплообменников',
-    description:
-      'Постепенное ухудшение теплообмена из-за загрязнения теплообменников типа Э-102. Оптимизация режима.',
-    difficulty: 3,
-    duration: 3600,
+    id: 'sc-gdm-sensor-fail',
+    name: 'Отказ датчиков ГДМ',
+    description: 'Множественный отказ датчиков давления в секции ГДМ. Действия оператора.',
+    template_id: 'tmpl-gdm',
+    type: 'training',
+    author_id: 'user-instructor',
+    status: 'archived',
     faults: [
       {
-        id: 'f-fouling',
-        tag: 'E-102',
-        type: 'fouling',
-        description: 'Загрязнение теплообменников нефть-нефть Э-102 A/B',
-        severity: 'medium',
-        triggerDelay: 600,
+        id: 'sf-004',
+        fault_id: 'flt-sensor-fail',
+        component_instance_id: 'PI-401',
+        params: { severity_pct: 100, ramp_seconds: 0 },
+        trigger: { type: 'time', at_model_time: 300 },
+        hidden: false,
       },
     ],
-    referenceActions: [
-      { time: 600, description: 'Обнаружить рост температуры нефти после теплообменников' },
-      {
-        time: 900,
-        description: 'Увеличить расход нефти через байпас теплообменников',
-        tag: 'HV-102',
-        value: 30,
-      },
-      {
-        time: 1200,
-        description: 'Скорректировать температуру входа в печь для поддержания режима',
-        tag: 'TRC-201',
-        value: 370,
-      },
-      { time: 1800, description: 'Оформить заявку на очистку теплообменников Э-102' },
-      {
-        time: 2400,
-        description: 'Вывести рабочую нитку теплообменников на очистку в паровой резерв',
-      },
-    ],
-    passingScore: 65,
+    reference_actions: [],
+    criteria: CRITERIA_DEFAULT,
+    created_at: '2025-10-01T08:00:00Z',
+    updated_at: '2025-10-15T12:00:00Z',
   },
 ]

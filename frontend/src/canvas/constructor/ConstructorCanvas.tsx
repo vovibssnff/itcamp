@@ -1,35 +1,44 @@
 import { useRef, useCallback, useEffect, useState } from 'react'
 import { Stage, Layer, Rect, Group, Text, Circle, Line } from 'react-konva'
 import type Konva from 'konva'
-import { useConstructorStore, type CanvasNode, type CanvasEdge } from '@/store/constructor'
+import {
+  useConstructorStore,
+  type CanvasNode,
+  type CanvasEdge,
+  DEFAULT_NODE_W,
+  DEFAULT_NODE_H,
+} from '@/store/constructor'
 import type { ComponentType } from '@/mocks/fixtures/components'
 import { PortConnection } from './PortConnection'
 import { ValidationOverlay } from './ValidationOverlay'
-import { tokens } from '@/theme/tokens'
+import { type CanvasTokens } from '@/theme/tokens'
+import { useCanvasTokens } from '@/theme/useCanvasTokens'
 
-const NODE_W = 80
-const NODE_H = 60
 const GRID_SIZE = 20
 const DOT_SPACING = GRID_SIZE
 
-interface ConstructorCanvasProps {
-  componentTypes: ComponentType[]
-  width: number
-  height: number
-  onDropComponent: (typeId: string, x: number, y: number) => void
+function makeShapeColors(tk: CanvasTokens): Record<string, string> {
+  return {
+    pump: tk.accent,
+    column: tk.warn,
+    vessel: tk.zone.gdm,
+    heatexchanger: '#9b8fff',
+    valve: tk.accent,
+    sensor: tk.warn,
+    controller: tk.zone.gdm,
+    separator: '#9b8fff',
+    compressor: tk.alarm,
+    furnace: tk.zone.atm,
+  }
 }
 
-const SHAPE_COLORS: Record<string, string> = {
-  pump: tokens.accent.cyan,
-  column: tokens.accent.amber,
-  vessel: tokens.accent.blue,
-  heatexchanger: '#9b8fff',
-  valve: tokens.accent.cyan,
-  sensor: tokens.accent.amber,
-  controller: tokens.accent.blue,
-  separator: '#9b8fff',
-  compressor: tokens.accent.red,
-  furnace: '#ff8c00',
+function makePortColors(tk: CanvasTokens): Record<string, string> {
+  return {
+    liquid: tk.accent,
+    gas: tk.warn,
+    signal: tk.zone.gdm,
+    electric: tk.alarm,
+  }
 }
 
 function snapToGrid(v: number): number {
@@ -37,46 +46,44 @@ function snapToGrid(v: number): number {
 }
 
 function getPortPositions(node: CanvasNode, ct: ComponentType) {
+  const nodeW = node.width ?? DEFAULT_NODE_W
+  const nodeH = node.height ?? DEFAULT_NODE_H
   const inputs = ct.ports.filter((p) => p.direction === 'in')
   const outputs = ct.ports.filter((p) => p.direction === 'out')
-
-  const positions: Record<string, { x: number; y: number; type: string }> = {}
+  const positions: Record<string, { x: number; y: number; type: string; direction: string }> = {}
 
   inputs.forEach((p, i) => {
-    const spacing = NODE_H / (inputs.length + 1)
-    positions[p.id] = {
-      x: node.x,
-      y: node.y + spacing * (i + 1),
-      type: p.type,
-    }
+    const spacing = nodeH / (inputs.length + 1)
+    positions[p.id] = { x: node.x, y: node.y + spacing * (i + 1), type: p.type, direction: 'in' }
   })
-
   outputs.forEach((p, i) => {
-    const spacing = NODE_H / (outputs.length + 1)
+    const spacing = nodeH / (outputs.length + 1)
     positions[p.id] = {
-      x: node.x + NODE_W,
+      x: node.x + nodeW,
       y: node.y + spacing * (i + 1),
       type: p.type,
+      direction: 'out',
     }
   })
 
   return positions
 }
 
-const PORT_COLORS: Record<string, string> = {
-  liquid: tokens.accent.cyan,
-  gas: tokens.accent.amber,
-  signal: tokens.accent.blue,
-  electric: tokens.accent.red,
-}
-
 interface DraftEdge {
   sourceNodeId: string
   sourcePortId: string
+  sourceType: string
   x1: number
   y1: number
   x2: number
   y2: number
+}
+
+interface ConstructorCanvasProps {
+  componentTypes: ComponentType[]
+  width: number
+  height: number
+  onDropComponent: (typeId: string, x: number, y: number) => void
 }
 
 export function ConstructorCanvas({
@@ -99,15 +106,27 @@ export function ConstructorCanvas({
     selectNode,
     selectEdge,
     updateNode,
+    liveUpdateNodePosition,
     removeEdge,
     addEdge,
     setZoom,
     setPan,
   } = useConstructorStore()
 
+  const canvasTokens = useCanvasTokens()
+  const SHAPE_COLORS = makeShapeColors(canvasTokens)
+  const PORT_COLORS = makePortColors(canvasTokens)
+
   const [draftEdge, setDraftEdge] = useState<DraftEdge | null>(null)
   const [hoveredPort, setHoveredPort] = useState<{ nodeId: string; portId: string } | null>(null)
   const [isDraggingStage, setIsDraggingStage] = useState(false)
+  const [resizingNode, setResizingNode] = useState<{
+    nodeId: string
+    startW: number
+    startH: number
+    startMX: number
+    startMY: number
+  } | null>(null)
   const lastPos = useRef<{ x: number; y: number } | null>(null)
 
   // Dot grid background
@@ -117,7 +136,6 @@ export function ConstructorCanvas({
     const rows = Math.ceil(height / DOT_SPACING) + 2
     const startX = Math.floor(-panX / DOT_SPACING) * DOT_SPACING
     const startY = Math.floor(-panY / DOT_SPACING) * DOT_SPACING
-
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         dots.push({
@@ -129,7 +147,7 @@ export function ConstructorCanvas({
     return dots
   }, [width, height, panX, panY, zoom])
 
-  // Handle drag-over and drop from palette
+  // Drag-over / drop from palette
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'copy'
@@ -140,15 +158,12 @@ export function ConstructorCanvas({
       e.preventDefault()
       const typeId = e.dataTransfer.getData('component-type-id')
       if (!typeId || !stageRef.current) return
-
       const stage = stageRef.current
       const container = stage.container()
       const rect = container.getBoundingClientRect()
       const rawX = (e.clientX - rect.left - panX * zoom) / zoom
       const rawY = (e.clientY - rect.top - panY * zoom) / zoom
-      const x = snapToGrid(rawX)
-      const y = snapToGrid(rawY)
-      onDropComponent(typeId, x, y)
+      onDropComponent(typeId, snapToGrid(rawX), snapToGrid(rawY))
     },
     [panX, panY, zoom, onDropComponent],
   )
@@ -160,26 +175,20 @@ export function ConstructorCanvas({
       const scaleBy = 1.08
       const stage = e.target.getStage()
       if (!stage) return
-
       const oldScale = zoom
       const pointer = stage.getPointerPosition()
       if (!pointer) return
-
       const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy
-      const clampedScale = Math.max(0.15, Math.min(4, newScale))
-
-      const mouseX = pointer.x
-      const mouseY = pointer.y
-      const newPanX = mouseX / clampedScale - mouseX / oldScale + panX
-      const newPanY = mouseY / clampedScale - mouseY / oldScale + panY
-
-      setZoom(clampedScale)
+      const clamped = Math.max(0.15, Math.min(4, newScale))
+      const newPanX = pointer.x / clamped - pointer.x / oldScale + panX
+      const newPanY = pointer.y / clamped - pointer.y / oldScale + panY
+      setZoom(clamped)
       setPan(newPanX, newPanY)
     },
     [zoom, panX, panY, setZoom, setPan],
   )
 
-  // Stage drag (pan)
+  // Stage pan (alt+drag / middle button)
   const handleStageMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       if (e.target !== e.target.getStage()) return
@@ -204,16 +213,47 @@ export function ConstructorCanvas({
         lastPos.current = { x: e.evt.clientX, y: e.evt.clientY }
       }
       if (draftEdge && stageRef.current) {
-        const stage = stageRef.current
-        const pos = stage.getPointerPosition()
+        const pos = stageRef.current.getPointerPosition()
         if (pos) {
           const worldX = pos.x / zoom - panX
           const worldY = pos.y / zoom - panY
           setDraftEdge((d) => (d ? { ...d, x2: worldX, y2: worldY } : null))
         }
       }
+      if (resizingNode && stageRef.current) {
+        const pos = stageRef.current.getPointerPosition()
+        if (pos) {
+          const worldX = pos.x / zoom - panX
+          const worldY = pos.y / zoom - panY
+          const dx = worldX - resizingNode.startMX
+          const dy = worldY - resizingNode.startMY
+          const newW = snapToGrid(Math.max(GRID_SIZE * 4, resizingNode.startW + dx))
+          const newH = snapToGrid(Math.max(GRID_SIZE * 3, resizingNode.startH + dy))
+          liveUpdateNodePosition(
+            resizingNode.nodeId,
+            nodes.find((n) => n.id === resizingNode.nodeId)?.x ?? 0,
+            nodes.find((n) => n.id === resizingNode.nodeId)?.y ?? 0,
+          )
+          // Update width/height live
+          useConstructorStore.setState((s) => ({
+            nodes: s.nodes.map((n) =>
+              n.id === resizingNode.nodeId ? { ...n, width: newW, height: newH } : n,
+            ),
+          }))
+        }
+      }
     },
-    [isDraggingStage, zoom, panX, panY, setPan, draftEdge],
+    [
+      isDraggingStage,
+      zoom,
+      panX,
+      panY,
+      setPan,
+      draftEdge,
+      resizingNode,
+      liveUpdateNodePosition,
+      nodes,
+    ],
   )
 
   const handleStageMouseUp = useCallback(() => {
@@ -222,7 +262,15 @@ export function ConstructorCanvas({
     if (draftEdge && !hoveredPort) {
       setDraftEdge(null)
     }
-  }, [draftEdge, hoveredPort])
+    if (resizingNode) {
+      // Persist final size to undo stack
+      const node = nodes.find((n) => n.id === resizingNode.nodeId)
+      if (node) {
+        updateNode(resizingNode.nodeId, { width: node.width, height: node.height })
+      }
+      setResizingNode(null)
+    }
+  }, [draftEdge, hoveredPort, resizingNode, nodes, updateNode])
 
   function handlePortMouseDown(
     e: Konva.KonvaEventObject<MouseEvent>,
@@ -230,9 +278,18 @@ export function ConstructorCanvas({
     portId: string,
     x: number,
     y: number,
+    portType: string,
   ) {
     e.cancelBubble = true
-    setDraftEdge({ sourceNodeId: nodeId, sourcePortId: portId, x1: x, y1: y, x2: x, y2: y })
+    setDraftEdge({
+      sourceNodeId: nodeId,
+      sourcePortId: portId,
+      sourceType: portType,
+      x1: x,
+      y1: y,
+      x2: x,
+      y2: y,
+    })
   }
 
   function handlePortMouseUp(
@@ -242,9 +299,8 @@ export function ConstructorCanvas({
   ) {
     e.cancelBubble = true
     if (draftEdge && draftEdge.sourceNodeId !== nodeId) {
-      const edgeId = `e-${Date.now()}`
       const newEdge: CanvasEdge = {
-        id: edgeId,
+        id: `e-${Date.now()}`,
         sourceNodeId: draftEdge.sourceNodeId,
         sourcePortId: draftEdge.sourcePortId,
         targetNodeId: nodeId,
@@ -255,7 +311,7 @@ export function ConstructorCanvas({
     setDraftEdge(null)
   }
 
-  // Delete key for selected node/edge
+  // Delete key
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -266,14 +322,30 @@ export function ConstructorCanvas({
     return () => window.removeEventListener('keydown', onKey)
   }, [selectedEdgeId, removeEdge])
 
+  /** Check if a port is compatible with the current draft edge */
+  function isCompatiblePort(nodeId: string, portId: string): boolean {
+    if (!draftEdge) return true
+    if (nodeId === draftEdge.sourceNodeId) return false
+    const ct = componentTypes.find((c) => c.id === nodes.find((n) => n.id === nodeId)?.typeId)
+    const port = ct?.ports.find((p) => p.id === portId)
+    if (!port) return false
+    // Compatible: same type, opposite direction
+    const srcPort = componentTypes
+      .find((c) => c.id === nodes.find((n) => n.id === draftEdge.sourceNodeId)?.typeId)
+      ?.ports.find((p) => p.id === draftEdge.sourcePortId)
+    if (!srcPort) return true
+    return port.type === srcPort.type && port.direction !== srcPort.direction
+  }
+
   return (
     <div
       ref={containerRef}
       style={{
         width,
         height,
-        background: tokens.bg.base,
+        background: canvasTokens.bg.canvas,
         cursor: isDraggingStage ? 'grab' : 'default',
+        position: 'relative',
       }}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
@@ -291,7 +363,7 @@ export function ConstructorCanvas({
         onMouseMove={handleStageMouseMove}
         onMouseUp={handleStageMouseUp}
       >
-        {/* Background grid */}
+        {/* Dot grid */}
         <Layer listening={false}>
           {dotGrid().map((d, i) => (
             <Circle
@@ -299,12 +371,12 @@ export function ConstructorCanvas({
               x={d.x / zoom - panX}
               y={d.y / zoom - panY}
               radius={1}
-              fill="rgba(255,255,255,0.08)"
+              fill={canvasTokens.gridDot}
             />
           ))}
         </Layer>
 
-        {/* Edges layer */}
+        {/* Edges */}
         <Layer>
           {edges.map((edge) => (
             <PortConnection
@@ -322,22 +394,26 @@ export function ConstructorCanvas({
           {draftEdge && (
             <Line
               points={[draftEdge.x1, draftEdge.y1, draftEdge.x2, draftEdge.y2]}
-              stroke={tokens.accent.cyan}
+              stroke={canvasTokens.accent}
               strokeWidth={1.5}
-              dash={[4, 4]}
+              dash={[5, 3]}
               listening={false}
             />
           )}
         </Layer>
 
-        {/* Nodes layer */}
+        {/* Nodes */}
         <Layer>
           {nodes.map((node) => {
             const ct = componentTypes.find((c) => c.id === node.typeId)
             if (!ct) return null
+
+            const nodeW = node.width ?? DEFAULT_NODE_W
+            const nodeH = node.height ?? DEFAULT_NODE_H
             const portPositions = getPortPositions(node, ct)
             const isSelected = selectedNodeId === node.id
-            const shapeColor = SHAPE_COLORS[ct.shape] ?? tokens.text.secondary
+            const shapeColor = SHAPE_COLORS[ct.shape] ?? canvasTokens.text.secondary
+            const MONO = canvasTokens.font.mono
 
             return (
               <Group
@@ -349,76 +425,96 @@ export function ConstructorCanvas({
                   e.cancelBubble = true
                   selectNode(node.id)
                 }}
+                onDragMove={(e) => {
+                  // Reactive: update position live so edges follow
+                  liveUpdateNodePosition(node.id, e.target.x(), e.target.y())
+                }}
                 onDragEnd={(e) => {
                   const x = snapToGrid(e.target.x())
                   const y = snapToGrid(e.target.y())
                   e.target.x(x)
                   e.target.y(y)
+                  // Snap and push to undo stack
                   updateNode(node.id, { x, y })
                 }}
               >
+                {/* Selection ring */}
+                {isSelected && (
+                  <Rect
+                    x={-3}
+                    y={-3}
+                    width={nodeW + 6}
+                    height={nodeH + 6}
+                    cornerRadius={3}
+                    stroke={canvasTokens.accent}
+                    strokeWidth={1.5}
+                    shadowColor={canvasTokens.accent}
+                    shadowBlur={8}
+                    shadowOpacity={0.5}
+                    listening={false}
+                  />
+                )}
+
                 {/* Node body */}
                 <Rect
                   x={0}
                   y={0}
-                  width={NODE_W}
-                  height={NODE_H}
-                  fill={isSelected ? 'rgba(0,229,199,0.06)' : tokens.bg.surface}
-                  stroke={isSelected ? tokens.accent.cyan : tokens.border.medium}
-                  strokeWidth={isSelected ? 1.5 : 1}
-                  cornerRadius={4}
-                  shadowColor={isSelected ? tokens.accent.cyan : undefined}
-                  shadowBlur={isSelected ? 6 : 0}
-                  shadowOpacity={0.4}
+                  width={nodeW}
+                  height={nodeH}
+                  fill={isSelected ? canvasTokens.selTint : canvasTokens.bg.surface}
+                  stroke={isSelected ? canvasTokens.accent : canvasTokens.border.subtle}
+                  strokeWidth={1}
+                  cornerRadius={2}
                 />
 
-                {/* Category color stripe */}
+                {/* Category stripe (left) */}
                 <Rect
                   x={0}
                   y={0}
                   width={3}
-                  height={NODE_H}
+                  height={nodeH}
                   fill={shapeColor}
-                  cornerRadius={[4, 0, 0, 4]}
+                  cornerRadius={[2, 0, 0, 2]}
                 />
 
-                {/* Shape icon placeholder */}
+                {/* Icon letter */}
                 <Text
-                  x={6}
-                  y={8}
-                  text={ct.name.charAt(0)}
-                  fontSize={20}
+                  x={7}
+                  y={7}
+                  text={ct.name.charAt(0).toUpperCase()}
+                  fontSize={Math.round(nodeH * 0.35)}
                   fill={shapeColor}
                   fontStyle="bold"
-                  opacity={0.4}
-                  fontFamily="Inter, sans-serif"
+                  opacity={0.3}
+                  fontFamily={MONO}
                   listening={false}
                 />
 
                 {/* Label */}
                 <Text
-                  x={4}
-                  y={NODE_H - 20}
-                  width={NODE_W - 8}
+                  x={5}
+                  y={nodeH - 22}
+                  width={nodeW - 10}
                   text={node.label}
                   fontSize={10}
-                  fill={tokens.text.primary}
-                  fontFamily="'IBM Plex Mono', monospace"
+                  fill={canvasTokens.text.primary}
+                  fontFamily={MONO}
+                  fontStyle="500"
                   align="center"
                   listening={false}
                 />
 
-                {/* Type name */}
+                {/* Category kicker */}
                 <Text
-                  x={4}
-                  y={NODE_H - 10}
-                  width={NODE_W - 8}
+                  x={5}
+                  y={nodeH - 10}
+                  width={nodeW - 10}
                   text={ct.category.toUpperCase()}
-                  fontSize={8}
+                  fontSize={7}
                   fill={shapeColor}
-                  fontFamily="Inter, sans-serif"
+                  fontFamily={MONO}
                   align="center"
-                  opacity={0.6}
+                  opacity={0.65}
                   listening={false}
                 />
 
@@ -428,24 +524,68 @@ export function ConstructorCanvas({
                   const localY = pos.y - node.y
                   const isHovered =
                     hoveredPort?.nodeId === node.id && hoveredPort?.portId === portId
-                  const portColor = PORT_COLORS[pos.type] ?? tokens.text.secondary
+                  const portColor = PORT_COLORS[pos.type] ?? canvasTokens.text.secondary
+
+                  let portFill = portColor
+                  let portRadius = isHovered ? 5 : 4
+                  let portOpacity = 1
+
+                  if (draftEdge && draftEdge.sourceNodeId !== node.id) {
+                    const compatible = isCompatiblePort(node.id, portId)
+                    portOpacity = compatible ? 1 : 0.25
+                    portFill = compatible ? canvasTokens.accent : portColor
+                    portRadius = compatible ? 6 : 3
+                  }
 
                   return (
                     <Circle
                       key={portId}
                       x={localX}
                       y={localY}
-                      radius={isHovered ? 5 : 4}
-                      fill={portColor}
-                      stroke={tokens.bg.base}
-                      strokeWidth={1}
+                      radius={portRadius}
+                      fill={portFill}
+                      stroke={canvasTokens.bg.canvas}
+                      strokeWidth={1.5}
+                      opacity={portOpacity}
                       onMouseEnter={() => setHoveredPort({ nodeId: node.id, portId })}
                       onMouseLeave={() => setHoveredPort(null)}
-                      onMouseDown={(e) => handlePortMouseDown(e, node.id, portId, pos.x, pos.y)}
+                      onMouseDown={(e) =>
+                        handlePortMouseDown(e, node.id, portId, pos.x, pos.y, pos.type)
+                      }
                       onMouseUp={(e) => handlePortMouseUp(e, node.id, portId)}
                     />
                   )
                 })}
+
+                {/* Resize handle (bottom-right corner) — only on selected */}
+                {isSelected && (
+                  <Rect
+                    x={nodeW - 8}
+                    y={nodeH - 8}
+                    width={8}
+                    height={8}
+                    fill={canvasTokens.accent}
+                    cornerRadius={1}
+                    opacity={0.85}
+                    onMouseDown={(e) => {
+                      e.cancelBubble = true
+                      const stage = stageRef.current
+                      if (!stage) return
+                      const pos = stage.getPointerPosition()
+                      if (!pos) return
+                      const worldX = pos.x / zoom - panX
+                      const worldY = pos.y / zoom - panY
+                      setResizingNode({
+                        nodeId: node.id,
+                        startW: nodeW,
+                        startH: nodeH,
+                        startMX: worldX,
+                        startMY: worldY,
+                      })
+                    }}
+                    style={{ cursor: 'nwse-resize' }}
+                  />
+                )}
               </Group>
             )
           })}

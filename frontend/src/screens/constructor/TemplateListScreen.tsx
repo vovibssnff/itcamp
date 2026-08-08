@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Button, Table, Tag, Space, Modal, Input, Typography, message } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons'
+import { message } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router'
-import { tokens } from '@/theme/tokens'
+import { DataTable, Pill, Modal } from '@/components/ui'
+import { Field } from '@/components/ui'
 import type { Template } from '@/mocks/fixtures/templates'
 
-const { Title, Text } = Typography
+type TemplateRow = Omit<Template, 'nodes' | 'edges'>
 
 export default function TemplateListScreen() {
-  const [templates, setTemplates] = useState<Omit<Template, 'nodes' | 'edges'>[]>([])
+  const [templates, setTemplates] = useState<TemplateRow[]>([])
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState('')
@@ -19,7 +20,7 @@ export default function TemplateListScreen() {
     setLoading(true)
     try {
       const res = await fetch('/api/templates')
-      const data = (await res.json()) as typeof templates
+      const data = (await res.json()) as TemplateRow[]
       setTemplates(data)
     } catch {
       void message.error('Ошибка загрузки шаблонов')
@@ -61,124 +62,128 @@ export default function TemplateListScreen() {
     }
   }
 
-  const columns = [
-    {
-      title: 'Название',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text: string) => <Text style={{ color: tokens.text.primary }}>{text}</Text>,
-    },
-    {
-      title: 'Описание',
-      dataIndex: 'description',
-      key: 'description',
-      render: (text: string) => (
-        <Text style={{ color: tokens.text.secondary, fontSize: 12 }}>{text}</Text>
-      ),
-    },
-    {
-      title: 'Статус',
-      dataIndex: 'isValid',
-      key: 'isValid',
-      render: (v: boolean) => (
-        <Tag color={v ? 'success' : 'warning'}>{v ? 'Валидный' : 'Черновик'}</Tag>
-      ),
-    },
-    {
-      title: 'Обновлён',
-      dataIndex: 'updatedAt',
-      key: 'updatedAt',
-      render: (v: string) => (
-        <Text style={{ color: tokens.text.dim, fontFamily: tokens.font.mono, fontSize: 11 }}>
-          {new Date(v).toLocaleDateString('ru-RU')}
-        </Text>
-      ),
-    },
-    {
-      title: '',
-      key: 'actions',
-      render: (_: unknown, record: { id: string }) => (
-        <Space>
-          <Button
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => void navigate(`/templates/${record.id}/edit`)}
-          >
-            Редактировать
-          </Button>
-          <Button size="small" icon={<CopyOutlined />} />
-          <Button
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => void deleteTemplate(record.id)}
-          />
-        </Space>
-      ),
-    },
-  ]
-
   return (
-    <div style={{ padding: 24, height: '100%' }}>
+    <div className="wrap">
+      {/* Header */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'space-between',
-          marginBottom: 20,
+          marginBottom: 28,
         }}
+        className="rise"
       >
         <div>
-          <Title level={4} style={{ color: tokens.text.primary, margin: 0 }}>
-            Шаблоны установок
-          </Title>
-          <Text style={{ color: tokens.text.muted, fontSize: 12 }}>
-            Конструктор технологических схем
-          </Text>
+          <div className="kick" style={{ marginBottom: 6 }}>
+            Конструктор
+          </div>
+          <h1 className="h1">Шаблоны установок</h1>
+          <p className="note" style={{ marginTop: 6 }}>
+            Технологические схемы КТК для сценариев обучения
+          </p>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-          Новый шаблон
-        </Button>
+        <button className="btn btn-acc" onClick={() => setCreateOpen(true)}>
+          <PlusOutlined /> Новый шаблон
+        </button>
       </div>
 
-      <Table
-        dataSource={templates}
-        columns={columns}
-        rowKey="id"
-        loading={loading}
-        pagination={false}
-        style={{ background: tokens.bg.surface }}
-        rowClassName={() => 'template-row'}
-      />
+      {/* Table */}
+      {loading ? (
+        <div className="loading-spinner" />
+      ) : (
+        <div className="rise d2">
+          <DataTable<TemplateRow>
+            columns={[
+              { key: 'name', title: 'Название', width: '2fr' },
+              { key: 'description', title: 'Описание', width: '3fr' },
+              {
+                key: 'isValid',
+                title: 'Статус',
+                width: '100px',
+                render: (row) => (
+                  <Pill variant={row.isValid ? 'ok' : 'warn'}>
+                    {row.isValid ? 'Валидный' : 'Черновик'}
+                  </Pill>
+                ),
+              },
+              {
+                key: 'updatedAt',
+                title: 'Обновлён',
+                width: '120px',
+                render: (row) => (
+                  <span
+                    style={{
+                      fontFamily: 'var(--mono)',
+                      fontSize: 11,
+                      color: 'var(--tx3)',
+                    }}
+                  >
+                    {new Date(row.updatedAt).toLocaleDateString('ru-RU')}
+                  </span>
+                ),
+              },
+              {
+                key: 'actions',
+                title: '',
+                width: '140px',
+                render: (row) => (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => void navigate(`/templates/${row.id}/edit`)}
+                    >
+                      <EditOutlined /> Открыть
+                    </button>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      style={{ padding: '5px 8px' }}
+                      onClick={() => void deleteTemplate(row.id)}
+                    >
+                      <DeleteOutlined />
+                    </button>
+                  </div>
+                ),
+              },
+            ]}
+            rows={templates}
+            rowKey={(row) => row.id}
+            onRowClick={(row) => void navigate(`/templates/${row.id}/edit`)}
+            emptyText="Шаблоны не найдены"
+          />
+        </div>
+      )}
 
+      {/* Create modal */}
       <Modal
-        title="Новый шаблон"
         open={createOpen}
-        onOk={() => void createTemplate()}
-        onCancel={() => setCreateOpen(false)}
-        okText="Создать"
-        cancelText="Отмена"
+        onClose={() => setCreateOpen(false)}
+        title="Новый шаблон"
+        width={480}
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => setCreateOpen(false)}>
+              Отмена
+            </button>
+            <button className="btn btn-acc" onClick={() => void createTemplate()}>
+              Создать
+            </button>
+          </>
+        }
       >
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 12, color: tokens.text.muted }}>Название</label>
-          <Input
-            style={{ marginTop: 4 }}
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="ЭЛОУ-АВТ №1"
-            autoFocus
-          />
-        </div>
-        <div>
-          <label style={{ fontSize: 12, color: tokens.text.muted }}>Описание</label>
-          <Input.TextArea
-            style={{ marginTop: 4 }}
-            value={newDesc}
-            onChange={(e) => setNewDesc(e.target.value)}
-            rows={2}
-            placeholder="Краткое описание шаблона"
-          />
-        </div>
+        <Field
+          label="Название"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="ЭЛОУ-АВТ №1"
+          autoFocus
+        />
+        <Field
+          label="Описание"
+          value={newDesc}
+          onChange={(e) => setNewDesc(e.target.value)}
+          placeholder="Краткое описание шаблона"
+        />
       </Modal>
     </div>
   )

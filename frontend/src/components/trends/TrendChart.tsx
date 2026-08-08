@@ -70,7 +70,6 @@ export function TrendChart({ series, data, timestamps, width, height }: TrendCha
         })),
       ],
       cursor: {
-        stroke: tokens.text.dim,
         points: { fill: 'transparent', stroke: 'transparent' },
       },
       legend: {

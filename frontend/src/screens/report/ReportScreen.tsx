@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router'
-import { Button, Tag, Progress, Typography, message } from 'antd'
+import { useParams, useNavigate } from 'react-router'
+import { message } from 'antd'
 import { DownloadOutlined, PlayCircleOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router'
-import { tokens } from '@/theme/tokens'
-
-const { Title, Text } = Typography
+import { MetricGrid, BoxAcc, Pill } from '@/components/ui'
 
 interface Penalty {
   id: string
@@ -49,145 +46,124 @@ export default function ReportScreen() {
 
   if (loading || !report) return <div className="loading-spinner" />
 
+  const passed = report.score >= 60
+  const deducted = report.penalties.reduce((s, p) => s + p.deduction, 0)
+  const scoreVariant = report.score >= 80 ? 'ok' : report.score >= 60 ? 'warn' : 'alarm'
   const scoreColor =
-    report.score >= 80
-      ? tokens.accent.cyan
-      : report.score >= 60
-        ? tokens.accent.amber
-        : tokens.accent.red
+    report.score >= 80 ? 'var(--ok)' : report.score >= 60 ? 'var(--warn)' : 'var(--alarm)'
+
+  function fmtTime(sec: number) {
+    return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
+  }
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
+    <div className="wrap">
+      {/* Header */}
       <div
         style={{
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
-          marginBottom: 32,
+          marginBottom: 28,
         }}
+        className="rise"
       >
         <div>
-          <Title level={3} style={{ color: tokens.text.primary, margin: 0 }}>
-            Отчёт об обучении
-          </Title>
-          <Text style={{ color: tokens.text.muted, fontSize: 12 }}>
-            Сессия {report.sessionId} · {new Date(report.completedAt).toLocaleString('ru-RU')}
-          </Text>
+          <div className="kick" style={{ marginBottom: 6 }}>
+            Отчёт · {report.sessionId}
+          </div>
+          <h1 className="h1">Результаты обучения</h1>
+          <p className="note" style={{ marginTop: 6 }}>
+            {new Date(report.completedAt).toLocaleString('ru-RU')}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button
-            icon={<PlayCircleOutlined />}
-            onClick={() => void navigate(`/reports/${id}/replay`)}
-          >
-            Воспроизведение
-          </Button>
-          <Button
-            type="primary"
-            icon={<DownloadOutlined />}
+          <button className="btn btn-ghost" onClick={() => void navigate(`/reports/${id}/replay`)}>
+            <PlayCircleOutlined /> Воспроизведение
+          </button>
+          <button
+            className="btn btn-acc"
             onClick={() => window.open(`/api/reports/${id}/download`)}
           >
-            Скачать PDF
-          </Button>
+            <DownloadOutlined /> Скачать PDF
+          </button>
         </div>
       </div>
 
       {/* Score card */}
       <div
-        style={{
-          background: tokens.bg.surface,
-          border: `1px solid ${tokens.border.subtle}`,
-          borderRadius: tokens.radius.lg,
-          padding: '24px',
-          marginBottom: 24,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 32,
-        }}
+        className="cell rise d2"
+        style={{ display: 'flex', gap: 28, alignItems: 'center', marginBottom: 18 }}
       >
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center', flexShrink: 0 }}>
           <div
             style={{
-              fontFamily: tokens.font.mono,
-              fontSize: 56,
+              fontFamily: 'var(--mono)',
+              fontSize: 64,
+              fontWeight: 700,
               color: scoreColor,
-              fontWeight: 600,
               lineHeight: 1,
+              letterSpacing: '-0.04em',
             }}
           >
             {report.score}
           </div>
-          <div style={{ fontSize: 12, color: tokens.text.muted, marginTop: 4 }}>
+          <div className="note" style={{ marginTop: 4 }}>
             из {report.maxScore}
           </div>
+          <Pill variant={scoreVariant} style={{ marginTop: 8 }}>
+            {passed ? 'Зачтено' : 'Не зачтено'}
+          </Pill>
         </div>
+
         <div style={{ flex: 1 }}>
-          <Progress
-            percent={report.score}
-            strokeColor={scoreColor}
-            trailColor={tokens.border.subtle}
-            strokeWidth={12}
-            showInfo={false}
-          />
-          <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
-            <div>
-              <div style={{ fontSize: 11, color: tokens.text.dim }}>Нарушений</div>
-              <div
-                style={{ fontFamily: tokens.font.mono, fontSize: 18, color: tokens.accent.amber }}
-              >
-                {report.penalties.length}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: tokens.text.dim }}>Критических</div>
-              <div style={{ fontFamily: tokens.font.mono, fontSize: 18, color: tokens.accent.red }}>
-                {report.criticalErrors.length}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: tokens.text.dim }}>Снято баллов</div>
-              <div
-                style={{ fontFamily: tokens.font.mono, fontSize: 18, color: tokens.text.primary }}
-              >
-                {report.penalties.reduce((s, p) => s + p.deduction, 0)}
-              </div>
-            </div>
+          <div
+            style={{
+              height: 10,
+              background: 'var(--srf3)',
+              borderRadius: 'var(--r)',
+              overflow: 'hidden',
+              marginBottom: 16,
+            }}
+          >
+            <div
+              style={{
+                height: '100%',
+                width: `${report.score}%`,
+                background: scoreColor,
+                transition: 'width 0.6s var(--ease)',
+              }}
+            />
           </div>
+          <MetricGrid
+            metrics={[
+              { label: 'Нарушений', value: report.penalties.length, color: 'var(--warn)' },
+              { label: 'Критических', value: report.criticalErrors.length, color: 'var(--alarm)' },
+              { label: 'Снято баллов', value: `−${deducted}`, color: 'var(--alarm)' },
+            ]}
+            cols={3}
+          />
         </div>
       </div>
 
       {/* Penalties */}
       {report.penalties.length > 0 && (
-        <div
-          style={{
-            background: tokens.bg.surface,
-            border: `1px solid ${tokens.border.subtle}`,
-            borderRadius: tokens.radius.lg,
-            padding: 20,
-            marginBottom: 16,
-          }}
-        >
-          <Title level={5} style={{ color: tokens.text.primary, margin: '0 0 12px' }}>
-            Нарушения
-          </Title>
+        <div className="cell rise d3" style={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--ln)' }}>
+            <span className="sec">Нарушения</span>
+          </div>
           {report.penalties.map((p) => (
             <div
               key={p.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '6px 0',
-                borderBottom: `1px solid ${tokens.border.subtle}`,
-              }}
+              className="dr"
+              style={{ padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 12 }}
             >
-              {p.isCritical && <Tag color="error">Крит.</Tag>}
-              <span style={{ flex: 1, fontSize: 13, color: tokens.text.secondary }}>
-                {p.description}
+              {p.isCritical && <Pill variant="alarm">Крит.</Pill>}
+              <span style={{ flex: 1, fontSize: 13, color: 'var(--tx2)' }}>{p.description}</span>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--tx4)' }}>
+                {fmtTime(p.timestamp)}
               </span>
-              <span style={{ fontFamily: tokens.font.mono, fontSize: 11, color: tokens.text.dim }}>
-                {Math.floor(p.timestamp / 60)}:{String(p.timestamp % 60).padStart(2, '0')}
-              </span>
-              <span style={{ fontFamily: tokens.font.mono, color: tokens.accent.red }}>
+              <span style={{ fontFamily: 'var(--mono)', color: 'var(--alarm)', fontWeight: 600 }}>
                 −{p.deduction}
               </span>
             </div>
@@ -196,21 +172,14 @@ export default function ReportScreen() {
       )}
 
       {/* AI Analysis */}
-      <div
-        style={{
-          background: tokens.accent.cyanBg,
-          border: `1px solid ${tokens.accent.cyanBorder}`,
-          borderRadius: tokens.radius.lg,
-          padding: 20,
-        }}
-      >
-        <Title level={5} style={{ color: tokens.accent.cyan, margin: '0 0 8px' }}>
+      <BoxAcc className="rise d4">
+        <div className="kick" style={{ marginBottom: 8 }}>
           Анализ ИИ
-        </Title>
-        <Text style={{ color: tokens.text.secondary, fontSize: 13, lineHeight: 1.6 }}>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.6, margin: 0 }}>
           {report.aiAnalysis}
-        </Text>
-      </div>
+        </p>
+      </BoxAcc>
     </div>
   )
 }

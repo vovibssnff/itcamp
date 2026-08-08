@@ -1,7 +1,8 @@
 import { Group, Rect, Text, Circle, Line } from 'react-konva'
 import type { CanvasNode } from '@/store/constructor'
 import type { TagValue } from '@/store/session'
-import { tokens } from '@/theme/tokens'
+import { type CanvasTokens } from '@/theme/tokens'
+import { useCanvasTokens } from '@/theme/useCanvasTokens'
 
 interface NodeWidgetProps {
   node: CanvasNode
@@ -11,19 +12,25 @@ interface NodeWidgetProps {
   interactive: boolean
 }
 
-const ALARM_COLORS = {
-  normal: undefined,
-  L: tokens.accent.blue,
-  LL: '#7c5cff',
-  H: tokens.accent.amber,
-  HH: tokens.accent.red,
+function makeAlarmColors(tk: CanvasTokens): Record<string, string> {
+  return {
+    normal: tk.text.muted,
+    L: tk.zone.gdm,
+    LL: tk.zone.k1,
+    H: tk.warn,
+    HH: tk.alarm,
+  }
 }
 
-const NODE_W = 80
-const NODE_H = 60
+const NODE_W = 88
+const NODE_H = 66
 
 export function NodeWidget({ node, telemetry, isSelected, onClick, interactive }: NodeWidgetProps) {
-  // Find the primary tag for this node (first sensor-like tag matching node label)
+  const canvasTokens = useCanvasTokens()
+  const ALARM_COLORS = makeAlarmColors(canvasTokens)
+  const READOUT_BG = canvasTokens.readout
+  const MONO = canvasTokens.font.mono
+
   const primaryTag = Object.values(telemetry).find(
     (t) =>
       t.tag.includes(node.label.toUpperCase()) ||
@@ -31,8 +38,13 @@ export function NodeWidget({ node, telemetry, isSelected, onClick, interactive }
   )
 
   const alarmState = primaryTag?.alarmState ?? 'normal'
-  const alarmColor = ALARM_COLORS[alarmState]
+  const alarmColor = ALARM_COLORS[alarmState] ?? canvasTokens.text.muted
   const isAlarm = alarmState !== 'normal'
+  const isCrit = alarmState === 'HH'
+
+  // Derive zone color from node data or use accent
+  const zoneColor = node.data?.zoneColor as string | undefined
+  const stripeColor = isAlarm ? alarmColor : (zoneColor ?? canvasTokens.accent)
 
   return (
     <Group
@@ -41,21 +53,20 @@ export function NodeWidget({ node, telemetry, isSelected, onClick, interactive }
       onClick={interactive ? onClick : undefined}
       style={{ cursor: interactive ? 'pointer' : 'default' }}
     >
-      {/* Selection / alarm glow */}
-      {(isSelected || isAlarm) && (
+      {/* Alarm glow */}
+      {(isSelected || isCrit) && (
         <Rect
           x={-4}
           y={-4}
           width={NODE_W + 8}
           height={NODE_H + 8}
-          cornerRadius={6}
-          stroke={isAlarm ? alarmColor : tokens.accent.cyan}
+          cornerRadius={3}
+          stroke={isCrit ? canvasTokens.alarm : canvasTokens.accent}
           strokeWidth={1.5}
-          shadowColor={isAlarm ? alarmColor : tokens.accent.cyan}
-          shadowBlur={isAlarm && alarmState === 'HH' ? 12 : 6}
-          shadowOpacity={0.7}
+          shadowColor={isCrit ? canvasTokens.alarm : canvasTokens.accent}
+          shadowBlur={isCrit ? 14 : 7}
+          shadowOpacity={0.75}
           listening={false}
-          opacity={isAlarm && alarmState === 'HH' ? undefined : 1}
         />
       )}
 
@@ -65,62 +76,75 @@ export function NodeWidget({ node, telemetry, isSelected, onClick, interactive }
         y={0}
         width={NODE_W}
         height={NODE_H}
-        fill={tokens.bg.surface}
-        stroke={alarmColor ?? tokens.border.medium}
+        fill={canvasTokens.bg.surface}
+        stroke={isAlarm ? alarmColor : canvasTokens.border.subtle}
         strokeWidth={1}
-        cornerRadius={4}
+        cornerRadius={2}
       />
 
-      {/* Zone color stripe */}
-      <Rect
-        x={0}
-        y={0}
-        width={3}
-        height={NODE_H}
-        fill={alarmColor ?? tokens.border.medium}
-        cornerRadius={[4, 0, 0, 4]}
-      />
+      {/* Category / zone stripe (left edge) */}
+      <Rect x={0} y={0} width={3} height={NODE_H} fill={stripeColor} cornerRadius={[2, 0, 0, 2]} />
 
       {/* Label */}
       <Text
-        x={6}
+        x={8}
         y={8}
         text={node.label}
-        fontSize={11}
-        fill={tokens.text.primary}
-        fontFamily="'IBM Plex Mono', monospace"
-        fontStyle="bold"
+        fontSize={10}
+        fill={canvasTokens.text.secondary}
+        fontFamily={MONO}
+        fontStyle="500"
         listening={false}
       />
 
-      {/* Primary value */}
-      {primaryTag && (
-        <Text
-          x={6}
-          y={28}
-          text={`${primaryTag.value.toFixed(1)}`}
-          fontSize={16}
-          fill={alarmColor ?? tokens.text.primary}
-          fontFamily="'IBM Plex Mono', monospace"
-          listening={false}
-        />
-      )}
+      {/* Readout box (near-black bg, bright mono value) */}
+      <Rect
+        x={8}
+        y={24}
+        width={NODE_W - 16}
+        height={22}
+        fill={READOUT_BG}
+        cornerRadius={2}
+        listening={false}
+      />
+      <Text
+        x={10}
+        y={29}
+        text={primaryTag ? primaryTag.value.toFixed(1) : '—'}
+        fontSize={13}
+        fontStyle="700"
+        fill={isAlarm ? alarmColor : canvasTokens.text.primary}
+        fontFamily={MONO}
+        listening={false}
+      />
 
       {/* Unit */}
-      {primaryTag && (
-        <Text
-          x={6}
-          y={NODE_H - 14}
-          text={primaryTag.unit}
-          fontSize={9}
-          fill={tokens.text.dim}
-          fontFamily="'IBM Plex Mono', monospace"
+      <Text
+        x={8}
+        y={NODE_H - 13}
+        text={primaryTag?.unit ?? ''}
+        fontSize={8}
+        fill={canvasTokens.text.dim}
+        fontFamily={MONO}
+        listening={false}
+      />
+
+      {/* Alarm dot */}
+      {isAlarm && <Circle x={NODE_W - 8} y={9} radius={4} fill={alarmColor} listening={false} />}
+
+      {/* Selected ring */}
+      {isSelected && !isCrit && (
+        <Rect
+          x={-2}
+          y={-2}
+          width={NODE_W + 4}
+          height={NODE_H + 4}
+          cornerRadius={3}
+          stroke={canvasTokens.accent}
+          strokeWidth={1}
           listening={false}
         />
       )}
-
-      {/* Alarm level indicator */}
-      {isAlarm && <Circle x={NODE_W - 8} y={8} radius={4} fill={alarmColor} listening={false} />}
     </Group>
   )
 }
@@ -135,36 +159,53 @@ export function ValveWidget({
   const tag = Object.values(telemetry).find((t) => t.tag.includes(node.label))
   const isOpen = tag ? tag.value > 50 : true
 
-  const VALVE_SIZE = 28
+  const S = 32
 
   return (
     <Group x={node.x} y={node.y} onClick={interactive ? onClick : undefined}>
       {isSelected && (
-        <Circle
-          x={VALVE_SIZE / 2}
-          y={VALVE_SIZE / 2}
-          radius={20}
-          stroke={tokens.accent.cyan}
-          strokeWidth={1.5}
+        <Rect
+          x={-4}
+          y={-4}
+          width={S + 8}
+          height={S + 8}
+          stroke={canvasTokens.accent}
+          strokeWidth={1}
+          cornerRadius={2}
           listening={false}
         />
       )}
-      {/* Bowtie valve shape */}
+
+      {/* Bowtie valve chevrons */}
       <Line
-        points={[0, 0, VALVE_SIZE, VALVE_SIZE, VALVE_SIZE, 0, 0, VALVE_SIZE]}
+        points={[0, 0, S, S, S, 0, 0, S]}
         closed
-        fill={isOpen ? 'rgba(0,229,199,0.15)' : 'rgba(255,77,77,0.15)'}
-        stroke={isOpen ? tokens.accent.cyan : tokens.accent.red}
+        fill={isOpen ? 'rgba(127,209,143,0.18)' : 'rgba(255,74,74,0.18)'}
+        stroke={isOpen ? canvasTokens.valveOpen : canvasTokens.valveClosed}
         strokeWidth={1.5}
       />
+
+      {/* State label */}
       <Text
-        x={0}
-        y={VALVE_SIZE + 2}
-        width={VALVE_SIZE + 10}
+        x={-4}
+        y={S + 4}
+        width={S + 8}
         text={node.label}
-        fontSize={9}
-        fill={tokens.text.dim}
-        fontFamily="'IBM Plex Mono', monospace"
+        fontSize={8}
+        fill={canvasTokens.text.dim}
+        fontFamily={MONO}
+        align="center"
+        listening={false}
+      />
+      <Text
+        x={-4}
+        y={S + 14}
+        width={S + 8}
+        text={isOpen ? 'ОТК' : 'ЗКР'}
+        fontSize={8}
+        fill={isOpen ? canvasTokens.valveOpen : canvasTokens.valveClosed}
+        fontFamily={MONO}
+        fontStyle="700"
         align="center"
         listening={false}
       />

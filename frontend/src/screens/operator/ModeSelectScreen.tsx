@@ -1,21 +1,20 @@
 import { useParams, useNavigate } from 'react-router'
-import { Card } from 'antd'
-import { BookOutlined, TrophyOutlined } from '@ant-design/icons'
-import { tokens } from '@/theme/tokens'
 
 const MODES = [
   {
     key: 'operator',
-    icon: <BookOutlined style={{ fontSize: 28, color: tokens.accent.cyan }} />,
+    num: '01',
+    icon: '📗',
     label: 'Тренировка',
-    desc: 'Изучение технологического процесса с подсказками ИИ',
+    desc: 'Изучение технологического процесса с подсказками ИИ и неограниченным временем',
     route: 'operator',
   },
   {
     key: 'exam',
-    icon: <TrophyOutlined style={{ fontSize: 28, color: tokens.accent.amber }} />,
+    num: '02',
+    icon: '🏆',
     label: 'Экзамен',
-    desc: 'Оценочное испытание без подсказок с фиксацией результата',
+    desc: 'Оценочное испытание без подсказок — результат фиксируется в журнале',
     route: 'exam',
   },
 ]
@@ -25,35 +24,34 @@ export default function ModeSelectScreen() {
   const navigate = useNavigate()
 
   return (
-    <div
-      style={{
-        maxWidth: 800,
-        margin: '0 auto',
-        padding: '48px 24px',
-      }}
-    >
-      <h2 style={{ color: tokens.text.primary, marginBottom: 8 }}>Выберите режим</h2>
-      <p style={{ color: tokens.text.muted, marginBottom: 32 }}>Сессия {id}</p>
-      <div style={{ display: 'flex', gap: 16 }}>
-        {MODES.map((mode) => (
-          <Card
-            key={mode.key}
-            hoverable
-            style={{
-              flex: 1,
-              background: tokens.bg.surface,
-              border: `1px solid ${tokens.border.subtle}`,
-              cursor: 'pointer',
-            }}
-            onClick={() => void navigate(`/sessions/${id}/${mode.route}`)}
-          >
-            <div style={{ textAlign: 'center', padding: '8px 0' }}>
-              {mode.icon}
-              <h3 style={{ color: tokens.text.primary, margin: '12px 0 8px' }}>{mode.label}</h3>
-              <p style={{ color: tokens.text.muted, fontSize: 13 }}>{mode.desc}</p>
+    <div className="wrap-n">
+      <div style={{ marginBottom: 32 }} className="rise">
+        <div className="kick" style={{ marginBottom: 8 }}>
+          Сессия {id}
+        </div>
+        <h1 className="h1">Выберите режим</h1>
+        <p className="lede" style={{ marginTop: 8 }}>
+          Тренировка доступна в любое время. Экзамен назначается инструктором.
+        </p>
+      </div>
+
+      <div className="cell rise d2" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="rows">
+          {MODES.map((mode) => (
+            <div
+              key={mode.key}
+              className="row"
+              onClick={() => void navigate(`/sessions/${id}/${mode.route}`)}
+            >
+              <span className="row-num">{mode.num}</span>
+              <div className="row-body">
+                <div className="row-title">{mode.label}</div>
+                <div className="row-desc">{mode.desc}</div>
+              </div>
+              <span className="row-arrow">→</span>
             </div>
-          </Card>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )

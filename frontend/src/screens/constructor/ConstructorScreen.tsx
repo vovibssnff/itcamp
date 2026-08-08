@@ -46,7 +46,13 @@ export default function ConstructorScreen() {
     redo,
   } = useConstructorStore()
 
-  const { canUndo, canRedo } = useUndo()
+  const { canUndo, canRedo, handleKeyDown } = useUndo()
+
+  // Register Ctrl+Z / Ctrl+Y keyboard shortcuts
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
 
   useEffect(() => {
     if (!id) return
@@ -144,6 +150,8 @@ export default function ConstructorScreen() {
       typeId,
       x,
       y,
+      width: 88,
+      height: 66,
       label: ct.name.substring(0, 8),
       parameters: defaults,
     })

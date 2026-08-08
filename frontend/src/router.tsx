@@ -5,13 +5,14 @@ import { RoleGuard } from './components/layout/RoleGuard'
 import LoginScreen from './screens/LoginScreen'
 import { useAuthStore } from './store/auth'
 
+// eslint-disable-next-line react-refresh/only-export-components
 function IndexRedirect() {
   const role = useAuthStore((s) => s.user?.role)
-  if (role === 'admin') return <Navigate to="/admin/users" replace />
   if (role === 'operator') return <Navigate to="/sessions/sess-001/mode" replace />
-  return <Navigate to="/sessions" replace />
+  return <Navigate to="/home" replace />
 }
 
+const HomeScreen = lazy(() => import('./screens/HomeScreen'))
 const TemplateListScreen = lazy(() => import('./screens/constructor/TemplateListScreen'))
 const ConstructorScreen = lazy(() => import('./screens/constructor/ConstructorScreen'))
 const ComponentLibraryScreen = lazy(() => import('./screens/constructor/ComponentLibraryScreen'))
@@ -26,6 +27,7 @@ const ReplayScreen = lazy(() => import('./screens/report/ReplayScreen'))
 const UsersScreen = lazy(() => import('./screens/admin/UsersScreen'))
 const SystemScreen = lazy(() => import('./screens/admin/SystemScreen'))
 
+// eslint-disable-next-line react-refresh/only-export-components
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<div className="loading-spinner" />}>{children}</Suspense>
 }
@@ -42,6 +44,16 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <IndexRedirect />,
+      },
+      {
+        path: 'home',
+        element: (
+          <RoleGuard roles={['instructor', 'admin']}>
+            <Lazy>
+              <HomeScreen />
+            </Lazy>
+          </RoleGuard>
+        ),
       },
       {
         path: 'templates',
@@ -75,6 +87,16 @@ export const router = createBrowserRouter([
       },
       {
         path: 'scenarios',
+        element: (
+          <RoleGuard roles={['instructor', 'admin']}>
+            <Lazy>
+              <ScenarioEditorScreen />
+            </Lazy>
+          </RoleGuard>
+        ),
+      },
+      {
+        path: 'scenarios/:id',
         element: (
           <RoleGuard roles={['instructor', 'admin']}>
             <Lazy>
@@ -129,6 +151,16 @@ export const router = createBrowserRouter([
           <RoleGuard roles={['operator']}>
             <Lazy>
               <ExamScreen />
+            </Lazy>
+          </RoleGuard>
+        ),
+      },
+      {
+        path: 'reports',
+        element: (
+          <RoleGuard roles={['operator', 'instructor', 'admin']}>
+            <Lazy>
+              <ReportScreen />
             </Lazy>
           </RoleGuard>
         ),

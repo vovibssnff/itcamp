@@ -1,14 +1,13 @@
-import { Tag, Button } from 'antd'
 import { CheckOutlined } from '@ant-design/icons'
 import { useSessionStore, type ActiveAlarm } from '@/store/session'
 import { useTranslation } from 'react-i18next'
-import { tokens } from '@/theme/tokens'
+import { Pill } from '@/components/ui'
 
-const LEVEL_COLORS: Record<ActiveAlarm['level'], string> = {
-  HH: 'error',
-  H: 'warning',
-  L: 'processing',
-  LL: 'purple',
+const LEVEL_VARIANT: Record<ActiveAlarm['level'], 'alarm' | 'warn' | 'ok' | 'acc'> = {
+  HH: 'alarm',
+  H: 'warn',
+  L: 'acc',
+  LL: 'acc',
 }
 
 export function AlarmList({ maxHeight = 300 }: { maxHeight?: number }) {
@@ -16,51 +15,81 @@ export function AlarmList({ maxHeight = 300 }: { maxHeight?: number }) {
   const acknowledgeAlarm = useSessionStore((s) => s.acknowledgeAlarm)
   const { t } = useTranslation()
 
+  if (alarms.length === 0) {
+    return (
+      <div
+        style={{
+          padding: '20px 16px',
+          textAlign: 'center',
+          color: 'var(--tx3)',
+          fontFamily: 'var(--mono)',
+          fontSize: 10,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+        }}
+      >
+        Нет активных сигнализаций
+      </div>
+    )
+  }
+
   return (
     <div style={{ maxHeight, overflowY: 'auto' }}>
-      {alarms.length === 0 && (
-        <div
-          style={{
-            padding: '16px',
-            textAlign: 'center',
-            color: tokens.text.inactive,
-            fontSize: 12,
-          }}
-        >
-          Нет активных сигнализаций
-        </div>
-      )}
       {alarms.map((alarm) => (
         <div
           key={alarm.id}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
-            padding: '6px 12px',
-            borderBottom: `1px solid ${tokens.border.subtle}`,
-            opacity: alarm.acknowledged ? 0.5 : 1,
-            background: alarm.acknowledged ? 'transparent' : tokens.accent.redBg,
+            gap: 10,
+            padding: '8px 14px',
+            borderBottom: '1px solid var(--ln)',
+            opacity: alarm.acknowledged ? 0.45 : 1,
+            background: alarm.acknowledged ? 'transparent' : 'rgba(255,74,74,0.04)',
           }}
         >
-          <Tag color={LEVEL_COLORS[alarm.level]}>{t(`alarm.levels.${alarm.level}`)}</Tag>
+          <Pill variant={LEVEL_VARIANT[alarm.level]}>{t(`alarm.levels.${alarm.level}`)}</Pill>
           <span
-            style={{ fontFamily: tokens.font.mono, fontSize: 11, color: tokens.text.secondary }}
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: 10,
+              color: 'var(--tx3)',
+              letterSpacing: '0.08em',
+              flexShrink: 0,
+            }}
           >
             {alarm.tag}
           </span>
-          <span style={{ flex: 1, fontSize: 12, color: tokens.text.primary }}>{alarm.message}</span>
-          <span style={{ fontSize: 10, color: tokens.text.dim, fontFamily: tokens.font.mono }}>
+          <span style={{ flex: 1, fontSize: 12, color: 'var(--tx)' }}>{alarm.message}</span>
+          <span
+            style={{
+              fontSize: 9,
+              color: 'var(--tx4)',
+              fontFamily: 'var(--mono)',
+              letterSpacing: '0.06em',
+              flexShrink: 0,
+            }}
+          >
             {new Date(alarm.timestamp).toLocaleTimeString('ru-RU')}
           </span>
           {!alarm.acknowledged && (
-            <Button
-              size="small"
-              type="text"
-              icon={<CheckOutlined />}
+            <button
+              className="btn-icon"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--tx3)',
+                cursor: 'pointer',
+                fontSize: 12,
+                padding: '4px 6px',
+                borderRadius: '2px',
+                transition: 'color 0.15s',
+              }}
               onClick={() => acknowledgeAlarm(alarm.id)}
-              style={{ color: tokens.text.muted }}
-            />
+              title={t('alarm.acknowledge')}
+            >
+              <CheckOutlined />
+            </button>
           )}
         </div>
       ))}

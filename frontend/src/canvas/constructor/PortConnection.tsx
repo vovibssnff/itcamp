@@ -1,6 +1,8 @@
 import { Line, Circle } from 'react-konva'
 import type { CanvasNode, CanvasEdge } from '@/store/constructor'
+import { DEFAULT_NODE_W, DEFAULT_NODE_H } from '@/store/constructor'
 import type { ComponentType } from '@/mocks/fixtures/components'
+import { useCanvasTokens } from '@/theme/useCanvasTokens'
 
 interface PortConnectionProps {
   edge: CanvasEdge
@@ -11,37 +13,43 @@ interface PortConnectionProps {
   onDelete: () => void
 }
 
-function getPortPosition(node: CanvasNode, portId: string, componentTypes: ComponentType[]) {
+/** Get absolute port position using per-node dimensions */
+function getPortPosition(
+  node: CanvasNode,
+  portId: string,
+  componentTypes: ComponentType[],
+): { x: number; y: number; type: string; direction: string } {
   const ct = componentTypes.find((c) => c.id === node.typeId)
-  if (!ct) return { x: node.x, y: node.y }
+  const fallback = { x: node.x, y: node.y, type: 'liquid', direction: 'in' }
+  if (!ct) return fallback
+
+  const nodeW = node.width ?? DEFAULT_NODE_W
+  const nodeH = node.height ?? DEFAULT_NODE_H
 
   const ports = ct.ports
-  const idx = ports.findIndex((p) => p.id === portId)
-  const total = ports.length
+  const port = ports.find((p) => p.id === portId)
+  if (!port) return fallback
 
-  const NODE_W = 80
-  const NODE_H = 60
-
-  // Distribute ports: inputs on left, outputs on right
   const inputPorts = ports.filter((p) => p.direction === 'in')
   const outputPorts = ports.filter((p) => p.direction === 'out')
 
-  const port = ports[idx]
-  if (!port) return { x: node.x, y: node.y }
-
   if (port.direction === 'in') {
     const portIdx = inputPorts.findIndex((p) => p.id === portId)
-    const spacing = NODE_H / (inputPorts.length + 1)
+    const spacing = nodeH / (inputPorts.length + 1)
     return {
       x: node.x,
       y: node.y + spacing * (portIdx + 1),
+      type: port.type,
+      direction: 'in',
     }
   } else {
     const portIdx = outputPorts.findIndex((p) => p.id === portId)
-    const spacing = NODE_H / (outputPorts.length + 1)
+    const spacing = nodeH / (outputPorts.length + 1)
     return {
-      x: node.x + NODE_W,
+      x: node.x + nodeW,
       y: node.y + spacing * (portIdx + 1),
+      type: port.type,
+      direction: 'out',
     }
   }
 }
@@ -53,6 +61,7 @@ export function PortConnection({
   isSelected,
   onSelect,
 }: PortConnectionProps) {
+  const canvasTokens = useCanvasTokens()
   const srcNode = nodes.find((n) => n.id === edge.sourceNodeId)
   const dstNode = nodes.find((n) => n.id === edge.targetNodeId)
   if (!srcNode || !dstNode) return null
@@ -64,24 +73,42 @@ export function PortConnection({
   const points = [src.x, src.y, src.x + cpOffset, src.y, dst.x - cpOffset, dst.y, dst.x, dst.y]
 
   const hasErrors = (edge.validationErrors ?? []).length > 0
+  const strokeColor = hasErrors
+    ? canvasTokens.alarm
+    : isSelected
+      ? canvasTokens.accent
+      : canvasTokens.border.medium
 
   return (
     <>
+      {/* Hit area (invisible, wide) */}
       <Line
         points={points}
         tension={0}
-        bezier={true}
-        stroke={hasErrors ? '#ff4d4d' : isSelected ? '#00e5c7' : 'rgba(255,255,255,0.25)'}
-        strokeWidth={isSelected ? 2 : 1.5}
+        bezier
+        stroke="transparent"
+        strokeWidth={14}
         onClick={onSelect}
-        hitStrokeWidth={10}
+        hitStrokeWidth={14}
       />
-      {/* midpoint handle */}
+      {/* Visible edge */}
+      <Line
+        points={points}
+        tension={0}
+        bezier
+        stroke={strokeColor}
+        strokeWidth={isSelected ? 2 : 1.5}
+        listening={false}
+        dash={hasErrors ? [5, 3] : undefined}
+      />
+      {/* Midpoint handle */}
       <Circle
         x={(src.x + dst.x) / 2}
         y={(src.y + dst.y) / 2}
-        radius={4}
-        fill={isSelected ? '#00e5c7' : 'rgba(255,255,255,0.2)'}
+        radius={isSelected ? 5 : 3.5}
+        fill={isSelected ? canvasTokens.accent : canvasTokens.text.muted}
+        stroke={canvasTokens.bg.base}
+        strokeWidth={1}
         onClick={onSelect}
       />
     </>

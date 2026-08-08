@@ -218,22 +218,28 @@ export default function InstructorConsole() {
   ]
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className="wrap">
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'space-between',
-          marginBottom: 20,
+          marginBottom: 24,
         }}
+        className="rise"
       >
         <div>
-          <h3 style={{ color: tokens.text.primary, margin: 0 }}>Консоль инструктора</h3>
-          <span style={{ color: tokens.text.muted, fontSize: 12 }}>
-            Управление активными сессиями
-          </span>
+          <div className="kick" style={{ marginBottom: 6 }}>
+            Инструктор
+          </div>
+          <h1 className="h1">Консоль управления</h1>
+          <p className="note" style={{ marginTop: 6 }}>
+            Мониторинг и управление активными сессиями
+          </p>
         </div>
-        <Button onClick={() => void fetchSessions()}>Обновить</Button>
+        <button className="btn btn-ghost btn-sm" onClick={() => void fetchSessions()}>
+          Обновить
+        </button>
       </div>
 
       <Table

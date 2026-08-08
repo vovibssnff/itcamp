@@ -69,6 +69,10 @@ func (h *TemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
+	if !domain.CanEditTemplate(rolesFromHeader(r)) {
+		writeError(w, domain.ErrForbidden)
+		return
+	}
 	id := r.PathValue("id")
 	var req createTemplateReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -92,6 +96,10 @@ func (h *TemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *TemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	force := r.URL.Query().Get("force") == "true"
+	if !domain.CanDeleteTemplate(rolesFromHeader(r), force) {
+		writeError(w, domain.ErrForbidden)
+		return
+	}
 	if err := h.svc.Delete(r.Context(), id, force); err != nil {
 		writeError(w, err)
 		return

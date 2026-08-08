@@ -41,6 +41,10 @@ func (h *ComponentHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ComponentHandler) Create(w http.ResponseWriter, r *http.Request) {
+	if !domain.CanManageComponent(rolesFromHeader(r)) {
+		writeError(w, domain.ErrForbidden)
+		return
+	}
 	var c domain.ComponentType
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
 		writeError(w, err)
@@ -55,6 +59,10 @@ func (h *ComponentHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ComponentHandler) Update(w http.ResponseWriter, r *http.Request) {
+	if !domain.CanManageComponent(rolesFromHeader(r)) {
+		writeError(w, domain.ErrForbidden)
+		return
+	}
 	id := r.PathValue("id")
 	var c domain.ComponentType
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
@@ -71,6 +79,10 @@ func (h *ComponentHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ComponentHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	if !domain.CanDeleteComponent(rolesFromHeader(r)) {
+		writeError(w, domain.ErrForbidden)
+		return
+	}
 	id := r.PathValue("id")
 	if err := h.svc.Delete(r.Context(), id); err != nil {
 		writeError(w, err)

@@ -6,17 +6,31 @@ import (
 	"log/slog"
 
 	"github.com/itcamp/ktc/services/snapshot/internal/domain"
-	"github.com/itcamp/ktc/services/snapshot/internal/repository"
 	"github.com/itcamp/ktc/services/snapshot/internal/storage"
 )
 
-type SnapshotService struct {
-	repo   *repository.SnapshotRepo
-	storage *storage.S3Storage
-	log    *slog.Logger
+// SnapshotRepo — интерфейс хранилища метаданных снапшотов.
+type SnapshotRepo interface {
+	GetByID(ctx context.Context, id string) (domain.SnapshotMeta, error)
+	Create(ctx context.Context, m domain.SnapshotMeta) error
+	Delete(ctx context.Context, id string) error
+	List(ctx context.Context, sessionID string, isPreset *bool, limit, offset int) ([]domain.SnapshotMeta, error)
 }
 
-func NewSnapshotService(repo *repository.SnapshotRepo, storage *storage.S3Storage, log *slog.Logger) *SnapshotService {
+// SnapshotStorage — интерфейс объектного хранилища (S3).
+type SnapshotStorage interface {
+	Save(ctx context.Context, key string, data []byte) (string, error)
+	Load(ctx context.Context, key string) ([]byte, error)
+	Delete(ctx context.Context, key string) error
+}
+
+type SnapshotService struct {
+	repo    SnapshotRepo
+	storage SnapshotStorage
+	log     *slog.Logger
+}
+
+func NewSnapshotService(repo SnapshotRepo, storage SnapshotStorage, log *slog.Logger) *SnapshotService {
 	return &SnapshotService{repo: repo, storage: storage, log: log}
 }
 

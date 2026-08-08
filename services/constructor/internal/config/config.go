@@ -9,10 +9,10 @@ import (
 )
 
 type Config struct {
-	HTTP     HTTPConfig     `toml:"http"`
-	DB       DBConfig       `toml:"db"`
-	S3       S3Config       `toml:"s3"`
-	Seed     SeedConfig     `toml:"seed"`
+	HTTP HTTPConfig `toml:"http"`
+	DB   DBConfig   `toml:"db"`
+	S3   S3Config   `toml:"s3"`
+	Seed SeedConfig `toml:"seed"`
 }
 
 type HTTPConfig struct {
@@ -39,8 +39,8 @@ type S3Config struct {
 }
 
 type SeedConfig struct {
-	Enabled   bool   `toml:"enabled"`
-	SeedFile  string `toml:"seed_file"`
+	Enabled  bool   `toml:"enabled"`
+	SeedFile string `toml:"seed_file"`
 }
 
 type Duration time.Duration

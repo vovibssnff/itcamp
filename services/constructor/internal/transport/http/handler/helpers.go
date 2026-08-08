@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/itcamp/ktc/services/constructor/internal/domain"
 )
@@ -35,6 +36,8 @@ func mapError(err error) (int, string) {
 		return http.StatusConflict, "in_use"
 	case errors.Is(err, domain.ErrValidationFailed), errors.Is(err, domain.ErrInvalidGraph):
 		return http.StatusUnprocessableEntity, "validation_failed"
+	case errors.Is(err, domain.ErrForbidden):
+		return http.StatusForbidden, "forbidden"
 	case errors.Is(err, domain.ErrExportFailed):
 		return http.StatusInternalServerError, "export_failed"
 	default:
@@ -44,6 +47,20 @@ func mapError(err error) (int, string) {
 
 func userIDFromHeader(r *http.Request) string {
 	return r.Header.Get("X-User-ID")
+}
+
+func rolesFromHeader(r *http.Request) []string {
+	raw := r.Header.Get("X-Roles")
+	if raw == "" {
+		return nil
+	}
+	var roles []string
+	for _, part := range strings.Split(raw, ",") {
+		if r := strings.TrimSpace(part); r != "" {
+			roles = append(roles, r)
+		}
+	}
+	return roles
 }
 
 func queryInt(r *http.Request, key string, def int) int {

@@ -9,6 +9,7 @@ var (
 	ErrValidationFailed   = errors.New("graph validation failed")
 	ErrInvalidGraph       = errors.New("invalid graph format")
 	ErrExportFailed       = errors.New("export failed")
+	ErrForbidden          = errors.New("insufficient role")
 )
 
 type ValidationError struct {

@@ -23,14 +23,13 @@ export default function ExamScreen() {
   const [faceplateOpen, setFaceplateOpen] = useState(false)
   const navigate = useNavigate()
 
-  const { connected, send } = useWebSocket({
+  const { send } = useWebSocket({
     sessionId: sessionId ?? null,
     channel: 'operator',
     enabled: !!sessionId,
   })
   const telemetry = useSessionStore((s) => s.telemetry)
   const regulators = useSessionStore((s) => s.regulators)
-  const status = useSessionStore((s) => s.status)
 
   const template = TEMPLATES[0]!
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Select, Button } from 'antd'
 import { useSessionStore } from '@/store/session'
 import { TrendChart, type TrendSeries } from './TrendChart'

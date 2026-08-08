@@ -1,8 +1,16 @@
-import { createBrowserRouter } from 'react-router'
+import { createBrowserRouter, Navigate } from 'react-router'
 import { lazy, Suspense } from 'react'
 import { AppShell } from './components/layout/AppShell'
 import { RoleGuard } from './components/layout/RoleGuard'
 import LoginScreen from './screens/LoginScreen'
+import { useAuthStore } from './store/auth'
+
+function IndexRedirect() {
+  const role = useAuthStore((s) => s.user?.role)
+  if (role === 'admin') return <Navigate to="/admin/users" replace />
+  if (role === 'operator') return <Navigate to="/sessions/sess-001/mode" replace />
+  return <Navigate to="/sessions" replace />
+}
 
 const TemplateListScreen = lazy(() => import('./screens/constructor/TemplateListScreen'))
 const ConstructorScreen = lazy(() => import('./screens/constructor/ConstructorScreen'))
@@ -31,6 +39,10 @@ export const router = createBrowserRouter([
     path: '/',
     element: <AppShell />,
     children: [
+      {
+        index: true,
+        element: <IndexRedirect />,
+      },
       {
         path: 'templates',
         element: (

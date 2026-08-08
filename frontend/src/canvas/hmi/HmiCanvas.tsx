@@ -1,5 +1,5 @@
-import { useRef, useState, useCallback, useEffect } from 'react'
-import { Stage, Layer, Rect, Text, Line, Circle } from 'react-konva'
+import { useRef, useState, useCallback } from 'react'
+import { Stage, Layer, Rect, Text, Line } from 'react-konva'
 import type Konva from 'konva'
 import type { CanvasNode, CanvasEdge } from '@/store/constructor'
 import type { TagValue } from '@/store/session'

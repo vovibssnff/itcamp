@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'react-router'
-import { Button, Tooltip, Space, message, Spin } from 'antd'
+import { Button, Tooltip, Space, message } from 'antd'
 import {
   UndoOutlined,
   RedoOutlined,
@@ -40,7 +40,6 @@ export default function ConstructorScreen() {
     addNode,
     updateNode,
     removeNode,
-    removeEdge,
     markClean,
     setValidationErrors,
     undo,

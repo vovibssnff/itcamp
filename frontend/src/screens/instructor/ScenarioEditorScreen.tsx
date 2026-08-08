@@ -1,17 +1,5 @@
 import { useState, useEffect } from 'react'
-import {
-  Table,
-  Button,
-  Tag,
-  Modal,
-  Form,
-  Input,
-  Select,
-  InputNumber,
-  Space,
-  message,
-  Tabs,
-} from 'antd'
+import { Table, Button, Tag, Modal, Form, Input, InputNumber, Space, message, Tabs } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import type { Scenario, ScenarioFault, ReferenceAction } from '@/mocks/fixtures/scenarios'
 import { tokens } from '@/theme/tokens'
@@ -195,6 +183,9 @@ export default function ScenarioEditorScreen() {
                             }}
                           >
                             <Tag color={SEVERITY_COLORS[f.severity]}>{f.severity}</Tag>
+                            <Tag>
+                              {FAULT_TYPES.find((ft) => ft.value === f.type)?.label ?? f.type}
+                            </Tag>
                             <span style={{ fontFamily: tokens.font.mono, fontSize: 11 }}>
                               {f.tag}
                             </span>

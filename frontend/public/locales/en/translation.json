@@ -9,7 +9,14 @@
     "username": "Username",
     "password": "Password",
     "loginError": "Invalid credentials",
-    "system": "Operator Training Management System"
+    "system": "Operator Training Management System",
+    "register": "Register",
+    "registerError": "Registration failed",
+    "userExists": "A user with this name already exists",
+    "displayName": "Full name",
+    "noAccount": "No account? Register",
+    "haveAccount": "Already have an account? Log in",
+    "registerTitle": "Register a new user"
   },
   "nav": {
     "templates": "Templates",

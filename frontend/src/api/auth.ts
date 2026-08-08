@@ -1,4 +1,4 @@
-import type { UserProfile } from '@/store/auth'
+import type { UserProfile, UserRole } from '@/store/auth'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
@@ -6,6 +6,13 @@ interface LoginResponse {
   access_token: string
   refresh_token: string
   user: UserProfile
+}
+
+export interface RegisterRequest {
+  username: string
+  password: string
+  displayName: string
+  role: UserRole
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -24,6 +31,8 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 export const authApi = {
   login: (username: string, password: string) =>
     post<LoginResponse>('/api/auth/login', { username, password }),
+
+  register: (data: RegisterRequest) => post<LoginResponse>('/api/auth/register', data),
 
   refresh: (refresh_token: string) => post<LoginResponse>('/api/auth/refresh', { refresh_token }),
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router'
-import { Button, Tag, Progress, Divider, Typography, message } from 'antd'
+import { Button, Tag, Progress, Typography, message } from 'antd'
 import { DownloadOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router'
 import { tokens } from '@/theme/tokens'

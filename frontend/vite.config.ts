@@ -43,15 +43,20 @@ export default defineConfig(({ mode }) => {
       globals: true,
       environment: 'jsdom',
       setupFiles: ['src/test-setup.ts'],
+      // Only run Vitest unit tests; Playwright specs live in e2e/ and use a
+      // different runner (their *.spec.ts would otherwise be picked up here).
+      include: ['src/**/*.{test,spec}.{ts,tsx}'],
+      exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
       coverage: {
         provider: 'v8',
         reporter: ['text', 'lcov'],
-        exclude: [
-          'src/api/generated/**',
-          'src/mocks/**',
-          'e2e/**',
-          '**/*.config.*',
-          '**/vite-env.d.ts',
+        // Scope coverage to the pure-logic modules covered by unit tests
+        // (canvas/UI/mocks are exercised by Playwright E2E instead).
+        include: [
+          'src/utils/**',
+          'src/store/**',
+          'src/canvas/constructor/UndoManager.ts',
+          'src/mocks/fixtures/telemetry.ts',
         ],
         thresholds: {
           lines: 70,

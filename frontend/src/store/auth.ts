@@ -42,6 +42,14 @@ export const useAuthStore = create<AuthState>()(
         refreshToken: state.refreshToken,
         user: state.user,
       }),
+      // Access tokens are intentionally not persisted. If we have a stored
+      // refresh token + user, optimistically treat the session as valid on
+      // reload; App bootstrap then exchanges it for a fresh access token.
+      onRehydrateStorage: () => (state) => {
+        if (state?.refreshToken && state.user) {
+          state.isAuthenticated = true
+        }
+      },
     },
   ),
 )

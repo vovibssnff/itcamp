@@ -129,6 +129,24 @@
   cursor: not-allowed;
 }
 
+.modeToggle {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  text-align: center;
+  background: transparent;
+  border: none;
+  color: #7c8a94;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: color 0.15s;
+}
+
+.modeToggle:hover {
+  color: #00e5c7;
+}
+
 .footer {
   margin-top: 16px;
   font-size: 11px;

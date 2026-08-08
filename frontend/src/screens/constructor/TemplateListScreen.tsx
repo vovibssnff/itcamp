@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button, Table, Tag, Space, Modal, Input, Typography, message } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router'
@@ -15,7 +15,7 @@ export default function TemplateListScreen() {
   const [newDesc, setNewDesc] = useState('')
   const navigate = useNavigate()
 
-  async function fetchTemplates() {
+  const fetchTemplates = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch('/api/templates')
@@ -26,11 +26,11 @@ export default function TemplateListScreen() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     void fetchTemplates()
-  }, [])
+  }, [fetchTemplates])
 
   async function createTemplate() {
     if (!newName.trim()) return

@@ -9,7 +9,6 @@ import {
   EditOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router'
-import { useTranslation } from 'react-i18next'
 import type { SessionRecord } from '@/mocks/fixtures/sessions'
 import { tokens } from '@/theme/tokens'
 
@@ -44,7 +43,6 @@ export default function InstructorConsole() {
   const [overrideScore, setOverrideScore] = useState(0)
   const [overrideComment, setOverrideComment] = useState('')
   const navigate = useNavigate()
-  const { t } = useTranslation()
 
   async function fetchSessions() {
     setLoading(true)

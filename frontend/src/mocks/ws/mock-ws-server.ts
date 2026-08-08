@@ -110,11 +110,18 @@ export function createMockWsSession(sessionId: string): MockSession {
   return session
 }
 
+export interface MockWsClient {
+  /** Feed a raw message string sent by the client into the mock server. */
+  onMessage: (rawData: string) => void
+  /** Detach this client; stops the telemetry loop when the last one leaves. */
+  disconnect: () => void
+}
+
 export function connectMockWsClient(
   sessionId: string,
   send: SendFn,
   channel: 'operator' | 'observe',
-): () => void {
+): MockWsClient {
   const session = createMockWsSession(sessionId)
   session.sockets.add(send)
 
@@ -149,8 +156,7 @@ export function connectMockWsClient(
     }
   }
 
-  return onMessage
-  void disconnect
+  return { onMessage, disconnect }
 }
 
 function handleClientMessage(

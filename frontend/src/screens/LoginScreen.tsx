@@ -14,38 +14,52 @@ const ROLE_DESCRIPTIONS: Record<RoleTab, string> = {
   instructor: 'Режим инструктора — управление сессиями, сценариями, шаблонами и оценкой обучаемых',
 }
 
+type AuthMode = 'login' | 'register'
+
 export default function LoginScreen() {
   const [roleTab, setRoleTab] = useState<RoleTab>('operator')
+  const [mode, setMode] = useState<AuthMode>('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
   const [loading, setLoading] = useState(false)
   const { setTokens, setUser } = useAuthStore()
   const navigate = useNavigate()
   const { t } = useTranslation()
 
-  async function handleLogin() {
+  async function handleSubmit() {
     if (!username || !password) return
     setLoading(true)
     try {
-      const result = await authApi.login(username, password)
+      const result =
+        mode === 'register'
+          ? await authApi.register({ username, password, displayName, role: roleTab })
+          : await authApi.login(username, password)
       setTokens(result.access_token, result.refresh_token)
       setUser(result.user)
-      const defaultRoute =
-        result.user.role === 'operator'
-          ? '/sessions'
-          : result.user.role === 'instructor'
-            ? '/sessions'
-            : '/admin/users'
-      void navigate(defaultRoute, { replace: true })
-    } catch {
-      void message.error(t('auth.loginError'))
+      // Landing route is resolved by the role-based index redirect at "/".
+      void navigate('/', { replace: true })
+    } catch (err) {
+      if (mode === 'register') {
+        const msg =
+          err instanceof Error && err.message.includes('already exists')
+            ? t('auth.userExists')
+            : t('auth.registerError')
+        void message.error(msg)
+      } else {
+        void message.error(t('auth.loginError'))
+      }
     } finally {
       setLoading(false)
     }
   }
 
+  function toggleMode() {
+    setMode((m) => (m === 'login' ? 'register' : 'login'))
+  }
+
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') void handleLogin()
+    if (e.key === 'Enter') void handleSubmit()
   }
 
   return (
@@ -84,6 +98,22 @@ export default function LoginScreen() {
           autoComplete="username"
         />
 
+        {mode === 'register' && (
+          <>
+            <label className={styles.label} style={{ marginTop: 16 }}>
+              {t('auth.displayName')}
+            </label>
+            <Input
+              className={styles.input}
+              placeholder="Иванов Иван Иванович"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              onKeyDown={handleKeyDown}
+              autoComplete="name"
+            />
+          </>
+        )}
+
         <label className={styles.label} style={{ marginTop: 16 }}>
           {t('auth.password')}
         </label>
@@ -93,15 +123,19 @@ export default function LoginScreen() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={handleKeyDown}
-          autoComplete="current-password"
+          autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
         />
 
         <button
           className={styles.loginBtn}
-          onClick={() => void handleLogin()}
+          onClick={() => void handleSubmit()}
           disabled={loading || !username || !password}
         >
-          {loading ? 'Вход...' : t('auth.login')}
+          {loading ? '...' : mode === 'register' ? t('auth.register') : t('auth.login')}
+        </button>
+
+        <button type="button" className={styles.modeToggle} onClick={toggleMode}>
+          {mode === 'login' ? t('auth.noAccount') : t('auth.haveAccount')}
         </button>
 
         <div className={styles.footer}>Astra Linux SE 1.8 · Аутентификация: корпоративный LDAP</div>

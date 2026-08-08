@@ -1,9 +1,11 @@
 import createClient, { type Middleware } from 'openapi-fetch'
 import { useAuthStore } from '@/store/auth'
+import type { GatewayPaths } from './generated'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
-export const apiClient = createClient<Record<string, never>>({ baseUrl: BASE_URL })
+// Typed against the API Gateway OpenAPI spec (generated via `pnpm openapi:gen`).
+export const apiClient = createClient<GatewayPaths>({ baseUrl: BASE_URL })
 
 let isRefreshing = false
 let refreshQueue: Array<(token: string) => void> = []

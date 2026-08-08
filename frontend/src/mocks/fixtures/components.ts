@@ -1,0 +1,719 @@
+export interface ComponentPort {
+  id: string
+  name: string
+  type: 'liquid' | 'gas' | 'signal' | 'electric'
+  direction: 'in' | 'out'
+}
+
+export interface ComponentParameter {
+  id: string
+  name: string
+  label: string
+  type: 'number' | 'string' | 'boolean' | 'enum'
+  unit?: string
+  defaultValue?: unknown
+  options?: string[]
+  min?: number
+  max?: number
+  required?: boolean
+}
+
+export interface ComponentType {
+  id: string
+  name: string
+  category: 'elou' | 'atm' | 'gdm' | 'common'
+  description: string
+  shape:
+    | 'pump'
+    | 'column'
+    | 'vessel'
+    | 'heatexchanger'
+    | 'valve'
+    | 'sensor'
+    | 'controller'
+    | 'separator'
+    | 'compressor'
+    | 'furnace'
+  ports: ComponentPort[]
+  parameters: ComponentParameter[]
+}
+
+export const COMPONENT_TYPES: ComponentType[] = [
+  // ЭЛОУ
+  {
+    id: 'ct-desalter',
+    name: 'Электродесольватор',
+    category: 'elou',
+    description: 'Аппарат для обессоливания и обезвоживания нефти',
+    shape: 'vessel',
+    ports: [
+      { id: 'in-crude', name: 'Нефть сырая', type: 'liquid', direction: 'in' },
+      { id: 'in-water', name: 'Промывная вода', type: 'liquid', direction: 'in' },
+      { id: 'out-crude', name: 'Нефть обессоленная', type: 'liquid', direction: 'out' },
+      { id: 'out-brine', name: 'Подтоварная вода', type: 'liquid', direction: 'out' },
+    ],
+    parameters: [
+      {
+        id: 'p-temp',
+        name: 'temp',
+        label: 'Температура',
+        type: 'number',
+        unit: '°C',
+        defaultValue: 120,
+        min: 80,
+        max: 160,
+      },
+      {
+        id: 'p-pressure',
+        name: 'pressure',
+        label: 'Давление',
+        type: 'number',
+        unit: 'МПа',
+        defaultValue: 1.2,
+        min: 0.5,
+        max: 2.0,
+      },
+      {
+        id: 'p-voltage',
+        name: 'voltage',
+        label: 'Напряжение',
+        type: 'number',
+        unit: 'кВ',
+        defaultValue: 25,
+        min: 10,
+        max: 45,
+      },
+    ],
+  },
+  {
+    id: 'ct-mix-valve',
+    name: 'Клапан смешения',
+    category: 'elou',
+    description: 'Трёхходовой клапан для смешения потоков',
+    shape: 'valve',
+    ports: [
+      { id: 'in-a', name: 'Поток А', type: 'liquid', direction: 'in' },
+      { id: 'in-b', name: 'Поток Б', type: 'liquid', direction: 'in' },
+      { id: 'out', name: 'Смешанный поток', type: 'liquid', direction: 'out' },
+    ],
+    parameters: [
+      {
+        id: 'p-ratio',
+        name: 'ratio',
+        label: 'Соотношение A:B',
+        type: 'number',
+        defaultValue: 0.5,
+        min: 0,
+        max: 1,
+      },
+    ],
+  },
+  // Атмосферный блок
+  {
+    id: 'ct-preflash',
+    name: 'Колонна отбензинивания',
+    category: 'atm',
+    description: 'Ректификационная колонна К-1 отбензинивания нефти',
+    shape: 'column',
+    ports: [
+      { id: 'in-feed', name: 'Питание', type: 'liquid', direction: 'in' },
+      { id: 'out-top', name: 'Верх (бензин)', type: 'gas', direction: 'out' },
+      { id: 'out-bottom', name: 'Низ (нефть)', type: 'liquid', direction: 'out' },
+      { id: 'in-steam', name: 'Водяной пар', type: 'gas', direction: 'in' },
+    ],
+    parameters: [
+      {
+        id: 'p-temp-top',
+        name: 'temp_top',
+        label: 'Температура верха',
+        type: 'number',
+        unit: '°C',
+        defaultValue: 130,
+      },
+      {
+        id: 'p-temp-bot',
+        name: 'temp_bot',
+        label: 'Температура низа',
+        type: 'number',
+        unit: '°C',
+        defaultValue: 220,
+      },
+      {
+        id: 'p-pressure',
+        name: 'pressure',
+        label: 'Давление верха',
+        type: 'number',
+        unit: 'МПа',
+        defaultValue: 0.25,
+      },
+      { id: 'p-trays', name: 'trays', label: 'Число тарелок', type: 'number', defaultValue: 28 },
+    ],
+  },
+  {
+    id: 'ct-atm-column',
+    name: 'Атмосферная колонна',
+    category: 'atm',
+    description: 'Основная ректификационная колонна К-2 АВТ',
+    shape: 'column',
+    ports: [
+      { id: 'in-feed', name: 'Питание', type: 'liquid', direction: 'in' },
+      { id: 'out-top', name: 'Бензин', type: 'gas', direction: 'out' },
+      { id: 'out-kerosene', name: 'Керосин', type: 'liquid', direction: 'out' },
+      { id: 'out-diesel', name: 'Дизельное топливо', type: 'liquid', direction: 'out' },
+      { id: 'out-mazut', name: 'Мазут', type: 'liquid', direction: 'out' },
+      { id: 'in-steam', name: 'Водяной пар', type: 'gas', direction: 'in' },
+      { id: 'in-reflux', name: 'Флегма', type: 'liquid', direction: 'in' },
+    ],
+    parameters: [
+      {
+        id: 'p-temp-top',
+        name: 'temp_top',
+        label: 'Температура верха',
+        type: 'number',
+        unit: '°C',
+        defaultValue: 120,
+      },
+      {
+        id: 'p-temp-bot',
+        name: 'temp_bot',
+        label: 'Температура низа',
+        type: 'number',
+        unit: '°C',
+        defaultValue: 350,
+      },
+      {
+        id: 'p-pressure',
+        name: 'pressure',
+        label: 'Давление верха',
+        type: 'number',
+        unit: 'МПа',
+        defaultValue: 0.15,
+      },
+      { id: 'p-trays', name: 'trays', label: 'Число тарелок', type: 'number', defaultValue: 42 },
+      {
+        id: 'p-reflux',
+        name: 'reflux_ratio',
+        label: 'Флегмовое число',
+        type: 'number',
+        defaultValue: 2.5,
+      },
+    ],
+  },
+  {
+    id: 'ct-pipe-furnace',
+    name: 'Трубчатая печь',
+    category: 'atm',
+    description: 'Печь огневого нагрева П-1 нефти перед атм. колонной',
+    shape: 'furnace',
+    ports: [
+      { id: 'in-feed', name: 'Нефть холодная', type: 'liquid', direction: 'in' },
+      { id: 'out-feed', name: 'Нефть горячая', type: 'liquid', direction: 'out' },
+      { id: 'in-fuel', name: 'Топливный газ', type: 'gas', direction: 'in' },
+    ],
+    parameters: [
+      {
+        id: 'p-temp-out',
+        name: 'temp_out',
+        label: 'Температура выхода',
+        type: 'number',
+        unit: '°C',
+        defaultValue: 360,
+        min: 300,
+        max: 400,
+      },
+      {
+        id: 'p-fuel-flow',
+        name: 'fuel_flow',
+        label: 'Расход топлива',
+        type: 'number',
+        unit: 'кг/ч',
+        defaultValue: 2000,
+      },
+    ],
+  },
+  {
+    id: 'ct-condenser',
+    name: 'Конденсатор',
+    category: 'atm',
+    description: 'Воздушный конденсатор-холодильник верхнего продукта',
+    shape: 'heatexchanger',
+    ports: [
+      { id: 'in', name: 'Пар', type: 'gas', direction: 'in' },
+      { id: 'out-liq', name: 'Конденсат', type: 'liquid', direction: 'out' },
+      { id: 'out-gas', name: 'Несконденсированные газы', type: 'gas', direction: 'out' },
+    ],
+    parameters: [
+      {
+        id: 'p-temp-out',
+        name: 'temp_out',
+        label: 'Температура выхода',
+        type: 'number',
+        unit: '°C',
+        defaultValue: 40,
+      },
+    ],
+  },
+  {
+    id: 'ct-reflux-drum',
+    name: 'Рефлюксная ёмкость',
+    category: 'atm',
+    description: 'Ёмкость флегмы и верхнего продукта',
+    shape: 'vessel',
+    ports: [
+      { id: 'in', name: 'Из конденсатора', type: 'liquid', direction: 'in' },
+      { id: 'out-reflux', name: 'Флегма', type: 'liquid', direction: 'out' },
+      { id: 'out-product', name: 'Бензин на склад', type: 'liquid', direction: 'out' },
+      { id: 'out-gas', name: 'Углеводородные газы', type: 'gas', direction: 'out' },
+    ],
+    parameters: [
+      {
+        id: 'p-level',
+        name: 'level_sp',
+        label: 'Уставка уровня',
+        type: 'number',
+        unit: '%',
+        defaultValue: 50,
+      },
+    ],
+  },
+  // ГДМ блок
+  {
+    id: 'ct-stabilizer',
+    name: 'Стабилизатор',
+    category: 'gdm',
+    description: 'Колонна стабилизации бензина',
+    shape: 'column',
+    ports: [
+      { id: 'in-feed', name: 'Нестабильный бензин', type: 'liquid', direction: 'in' },
+      { id: 'out-top', name: 'Головка стабилизации', type: 'gas', direction: 'out' },
+      { id: 'out-bot', name: 'Стабильный бензин', type: 'liquid', direction: 'out' },
+    ],
+    parameters: [
+      {
+        id: 'p-temp-top',
+        name: 'temp_top',
+        label: 'Температура верха',
+        type: 'number',
+        unit: '°C',
+        defaultValue: 65,
+      },
+      {
+        id: 'p-temp-bot',
+        name: 'temp_bot',
+        label: 'Температура низа',
+        type: 'number',
+        unit: '°C',
+        defaultValue: 185,
+      },
+      {
+        id: 'p-pressure',
+        name: 'pressure',
+        label: 'Давление',
+        type: 'number',
+        unit: 'МПа',
+        defaultValue: 0.7,
+      },
+    ],
+  },
+  {
+    id: 'ct-absorber',
+    name: 'Абсорбер',
+    category: 'gdm',
+    description: 'Абсорбционная колонна для очистки газов',
+    shape: 'column',
+    ports: [
+      { id: 'in-gas', name: 'Газ на очистку', type: 'gas', direction: 'in' },
+      { id: 'in-absorb', name: 'Абсорбент', type: 'liquid', direction: 'in' },
+      { id: 'out-gas', name: 'Очищенный газ', type: 'gas', direction: 'out' },
+      { id: 'out-rich', name: 'Насыщенный абсорбент', type: 'liquid', direction: 'out' },
+    ],
+    parameters: [
+      {
+        id: 'p-pressure',
+        name: 'pressure',
+        label: 'Давление',
+        type: 'number',
+        unit: 'МПа',
+        defaultValue: 1.5,
+      },
+      { id: 'p-trays', name: 'trays', label: 'Число тарелок', type: 'number', defaultValue: 20 },
+    ],
+  },
+  {
+    id: 'ct-gas-separator',
+    name: 'Газосепаратор',
+    category: 'gdm',
+    description: 'Трёхфазный сепаратор газ/нефть/вода',
+    shape: 'separator',
+    ports: [
+      { id: 'in', name: 'Смесь', type: 'liquid', direction: 'in' },
+      { id: 'out-gas', name: 'Газ', type: 'gas', direction: 'out' },
+      { id: 'out-oil', name: 'Нефть', type: 'liquid', direction: 'out' },
+      { id: 'out-water', name: 'Вода', type: 'liquid', direction: 'out' },
+    ],
+    parameters: [
+      {
+        id: 'p-pressure',
+        name: 'pressure',
+        label: 'Давление',
+        type: 'number',
+        unit: 'МПа',
+        defaultValue: 0.6,
+      },
+      {
+        id: 'p-temp',
+        name: 'temp',
+        label: 'Температура',
+        type: 'number',
+        unit: '°C',
+        defaultValue: 50,
+      },
+    ],
+  },
+  // Общие
+  {
+    id: 'ct-pump',
+    name: 'Насос центробежный',
+    category: 'common',
+    description: 'Центробежный насос с электроприводом',
+    shape: 'pump',
+    ports: [
+      { id: 'in', name: 'Вход', type: 'liquid', direction: 'in' },
+      { id: 'out', name: 'Выход', type: 'liquid', direction: 'out' },
+      { id: 'sig-run', name: 'Работа', type: 'signal', direction: 'out' },
+    ],
+    parameters: [
+      {
+        id: 'p-flow',
+        name: 'flow_nominal',
+        label: 'Номинальный расход',
+        type: 'number',
+        unit: 'м³/ч',
+        defaultValue: 100,
+      },
+      { id: 'p-head', name: 'head', label: 'Напор', type: 'number', unit: 'м', defaultValue: 80 },
+      {
+        id: 'p-power',
+        name: 'power',
+        label: 'Мощность',
+        type: 'number',
+        unit: 'кВт',
+        defaultValue: 55,
+      },
+    ],
+  },
+  {
+    id: 'ct-valve-control',
+    name: 'Клапан регулирующий',
+    category: 'common',
+    description: 'Регулирующий клапан с пневмоприводом',
+    shape: 'valve',
+    ports: [
+      { id: 'in', name: 'Вход', type: 'liquid', direction: 'in' },
+      { id: 'out', name: 'Выход', type: 'liquid', direction: 'out' },
+      { id: 'sig-pos', name: 'Положение', type: 'signal', direction: 'in' },
+    ],
+    parameters: [
+      {
+        id: 'p-cv',
+        name: 'cv',
+        label: 'Пропускная способность Cv',
+        type: 'number',
+        defaultValue: 100,
+      },
+      {
+        id: 'p-char',
+        name: 'characteristic',
+        label: 'Характеристика',
+        type: 'enum',
+        options: ['linear', 'equal-percent', 'quick-open'],
+        defaultValue: 'equal-percent',
+      },
+      {
+        id: 'p-fail',
+        name: 'fail_position',
+        label: 'Положение при обесточивании',
+        type: 'enum',
+        options: ['open', 'close', 'hold'],
+        defaultValue: 'close',
+      },
+    ],
+  },
+  {
+    id: 'ct-pid',
+    name: 'ПИД-регулятор',
+    category: 'common',
+    description: 'Регулятор ПИД с переключением авто/ручной',
+    shape: 'controller',
+    ports: [
+      { id: 'in-pv', name: 'PV', type: 'signal', direction: 'in' },
+      { id: 'in-sp', name: 'SP', type: 'signal', direction: 'in' },
+      { id: 'out', name: 'OUT', type: 'signal', direction: 'out' },
+    ],
+    parameters: [
+      {
+        id: 'p-kp',
+        name: 'kp',
+        label: 'Пропорциональная составляющая Kp',
+        type: 'number',
+        defaultValue: 1.0,
+      },
+      {
+        id: 'p-ti',
+        name: 'ti',
+        label: 'Время интегрирования Ti, с',
+        type: 'number',
+        unit: 'с',
+        defaultValue: 60,
+      },
+      {
+        id: 'p-td',
+        name: 'td',
+        label: 'Время дифференцирования Td, с',
+        type: 'number',
+        unit: 'с',
+        defaultValue: 0,
+      },
+      {
+        id: 'p-sp',
+        name: 'sp_default',
+        label: 'Уставка по умолчанию',
+        type: 'number',
+        defaultValue: 50,
+      },
+    ],
+  },
+  {
+    id: 'ct-flow-sensor',
+    name: 'Расходомер',
+    category: 'common',
+    description: 'Вихревой расходомер жидкости/газа',
+    shape: 'sensor',
+    ports: [
+      { id: 'in', name: 'Поток', type: 'liquid', direction: 'in' },
+      { id: 'out', name: 'Поток', type: 'liquid', direction: 'out' },
+      { id: 'sig', name: 'Сигнал расхода', type: 'signal', direction: 'out' },
+    ],
+    parameters: [
+      {
+        id: 'p-range',
+        name: 'range_max',
+        label: 'Верхний предел',
+        type: 'number',
+        unit: 'м³/ч',
+        defaultValue: 200,
+      },
+      { id: 'p-tag', name: 'tag', label: 'Тег', type: 'string', defaultValue: 'FI-001' },
+    ],
+  },
+  {
+    id: 'ct-temp-sensor',
+    name: 'Термопара',
+    category: 'common',
+    description: 'Датчик температуры (термопара типа K)',
+    shape: 'sensor',
+    ports: [{ id: 'sig', name: 'Сигнал температуры', type: 'signal', direction: 'out' }],
+    parameters: [
+      {
+        id: 'p-range-min',
+        name: 'range_min',
+        label: 'Нижний предел',
+        type: 'number',
+        unit: '°C',
+        defaultValue: 0,
+      },
+      {
+        id: 'p-range-max',
+        name: 'range_max',
+        label: 'Верхний предел',
+        type: 'number',
+        unit: '°C',
+        defaultValue: 500,
+      },
+      { id: 'p-tag', name: 'tag', label: 'Тег', type: 'string', defaultValue: 'TI-001' },
+    ],
+  },
+  {
+    id: 'ct-pressure-sensor',
+    name: 'Датчик давления',
+    category: 'common',
+    description: 'Манометрический преобразователь давления',
+    shape: 'sensor',
+    ports: [{ id: 'sig', name: 'Сигнал давления', type: 'signal', direction: 'out' }],
+    parameters: [
+      {
+        id: 'p-range',
+        name: 'range_max',
+        label: 'Верхний предел',
+        type: 'number',
+        unit: 'МПа',
+        defaultValue: 2.0,
+      },
+      { id: 'p-tag', name: 'tag', label: 'Тег', type: 'string', defaultValue: 'PI-001' },
+    ],
+  },
+  {
+    id: 'ct-level-sensor',
+    name: 'Уровнемер',
+    category: 'common',
+    description: 'Радарный уровнемер',
+    shape: 'sensor',
+    ports: [{ id: 'sig', name: 'Сигнал уровня', type: 'signal', direction: 'out' }],
+    parameters: [
+      {
+        id: 'p-range',
+        name: 'range_max',
+        label: 'Высота ёмкости',
+        type: 'number',
+        unit: 'м',
+        defaultValue: 3.0,
+      },
+      { id: 'p-tag', name: 'tag', label: 'Тег', type: 'string', defaultValue: 'LI-001' },
+    ],
+  },
+  {
+    id: 'ct-heatexchanger',
+    name: 'Теплообменник',
+    category: 'common',
+    description: 'Кожухотрубчатый теплообменник',
+    shape: 'heatexchanger',
+    ports: [
+      { id: 'in-hot', name: 'Горячий вход', type: 'liquid', direction: 'in' },
+      { id: 'out-hot', name: 'Горячий выход', type: 'liquid', direction: 'out' },
+      { id: 'in-cold', name: 'Холодный вход', type: 'liquid', direction: 'in' },
+      { id: 'out-cold', name: 'Холодный выход', type: 'liquid', direction: 'out' },
+    ],
+    parameters: [
+      {
+        id: 'p-area',
+        name: 'area',
+        label: 'Площадь теплообмена',
+        type: 'number',
+        unit: 'м²',
+        defaultValue: 100,
+      },
+      {
+        id: 'p-u',
+        name: 'u_coeff',
+        label: 'Коэффициент теплопередачи',
+        type: 'number',
+        unit: 'Вт/м²К',
+        defaultValue: 300,
+      },
+    ],
+  },
+  {
+    id: 'ct-tank',
+    name: 'Ёмкость',
+    category: 'common',
+    description: 'Технологическая ёмкость/резервуар',
+    shape: 'vessel',
+    ports: [
+      { id: 'in', name: 'Вход', type: 'liquid', direction: 'in' },
+      { id: 'out', name: 'Выход', type: 'liquid', direction: 'out' },
+    ],
+    parameters: [
+      { id: 'p-vol', name: 'volume', label: 'Объём', type: 'number', unit: 'м³', defaultValue: 10 },
+      {
+        id: 'p-level',
+        name: 'level_sp',
+        label: 'Уставка уровня',
+        type: 'number',
+        unit: '%',
+        defaultValue: 50,
+      },
+    ],
+  },
+  {
+    id: 'ct-compressor',
+    name: 'Компрессор',
+    category: 'common',
+    description: 'Центробежный газовый компрессор',
+    shape: 'compressor',
+    ports: [
+      { id: 'in', name: 'Газ входной', type: 'gas', direction: 'in' },
+      { id: 'out', name: 'Газ сжатый', type: 'gas', direction: 'out' },
+      { id: 'sig-run', name: 'Работа', type: 'signal', direction: 'out' },
+    ],
+    parameters: [
+      {
+        id: 'p-ratio',
+        name: 'pressure_ratio',
+        label: 'Степень сжатия',
+        type: 'number',
+        defaultValue: 3.0,
+      },
+      {
+        id: 'p-power',
+        name: 'power',
+        label: 'Мощность',
+        type: 'number',
+        unit: 'кВт',
+        defaultValue: 500,
+      },
+    ],
+  },
+  {
+    id: 'ct-valve-shutoff',
+    name: 'Задвижка',
+    category: 'common',
+    description: 'Запорная задвижка с электроприводом',
+    shape: 'valve',
+    ports: [
+      { id: 'in', name: 'Вход', type: 'liquid', direction: 'in' },
+      { id: 'out', name: 'Выход', type: 'liquid', direction: 'out' },
+      { id: 'sig-open', name: 'Команда открытия', type: 'signal', direction: 'in' },
+      { id: 'sig-status', name: 'Статус', type: 'signal', direction: 'out' },
+    ],
+    parameters: [
+      {
+        id: 'p-time',
+        name: 'stroke_time',
+        label: 'Время хода',
+        type: 'number',
+        unit: 'с',
+        defaultValue: 30,
+      },
+      {
+        id: 'p-fail',
+        name: 'fail_position',
+        label: 'Положение при обесточивании',
+        type: 'enum',
+        options: ['open', 'close', 'hold'],
+        defaultValue: 'close',
+      },
+    ],
+  },
+  {
+    id: 'ct-vacuum-column',
+    name: 'Вакуумная колонна',
+    category: 'gdm',
+    description: 'Ректификационная колонна вакуумного блока',
+    shape: 'column',
+    ports: [
+      { id: 'in-feed', name: 'Мазут', type: 'liquid', direction: 'in' },
+      { id: 'out-vgo', name: 'ВГО', type: 'liquid', direction: 'out' },
+      { id: 'out-lgo', name: 'ЛГО', type: 'liquid', direction: 'out' },
+      { id: 'out-goudron', name: 'Гудрон', type: 'liquid', direction: 'out' },
+      { id: 'out-gas', name: 'Газы разложения', type: 'gas', direction: 'out' },
+    ],
+    parameters: [
+      {
+        id: 'p-vacuum',
+        name: 'vacuum',
+        label: 'Остаточное давление',
+        type: 'number',
+        unit: 'мм рт.ст.',
+        defaultValue: 20,
+      },
+      {
+        id: 'p-temp-bot',
+        name: 'temp_bot',
+        label: 'Температура низа',
+        type: 'number',
+        unit: '°C',
+        defaultValue: 395,
+      },
+    ],
+  },
+]

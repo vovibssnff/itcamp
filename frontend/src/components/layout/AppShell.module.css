@@ -1,0 +1,83 @@
+.root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  line-height: 48px;
+  padding: 0 16px;
+  background: #0d1319 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.collapseBtn {
+  color: #9aa7ad !important;
+  font-size: 16px;
+}
+
+.collapseBtn:hover {
+  color: #e6edf1 !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.logo {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+.logoCyan {
+  color: #00e5c7;
+}
+
+.logoText {
+  color: #9aa7ad;
+}
+
+.userRole {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #4d5a63;
+  letter-spacing: 0.08em;
+}
+
+.userBtn {
+  color: #9aa7ad !important;
+}
+
+.userBtn:hover {
+  color: #e6edf1 !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.sider {
+  background: #11181f !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.menu {
+  background: transparent !important;
+  border-right: none !important;
+  padding: 8px 0;
+}
+
+.content {
+  flex: 1;
+  overflow: auto;
+  background: #0a0f14;
+}

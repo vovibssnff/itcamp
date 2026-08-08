@@ -1,0 +1,234 @@
+/* ─── Reset & Base ─────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 1024px;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0a0f14;
+  color: #e6edf1;
+  font-family: 'Inter', sans-serif;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Typography ────────────────────────────────────────────────────────────── */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  color: #e6edf1;
+  margin: 0;
+}
+
+.mono,
+.value,
+.tag,
+code,
+kbd {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.9em;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ─── Animations ────────────────────────────────────────────────────────────── */
+@keyframes pulseAlarm {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes blinkBanner {
+  0%,
+  100% {
+    background-color: rgba(255, 77, 77, 0.15);
+  }
+  50% {
+    background-color: rgba(255, 77, 77, 0.05);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.alarm-pulse {
+  animation: pulseAlarm 1.2s ease-in-out infinite;
+}
+
+.alarm-banner-blink {
+  animation: blinkBanner 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alarm-pulse,
+  .alarm-banner-blink {
+    animation: none;
+  }
+}
+
+/* ─── Loading spinner ───────────────────────────────────────────────────────── */
+.loading-spinner {
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-spinner::after {
+  content: '';
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(0, 229, 199, 0.2);
+  border-top-color: #00e5c7;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* ─── Ant Design overrides ───────────────────────────────────────────────────── */
+.ant-layout {
+  background: #0a0f14 !important;
+}
+
+.ant-layout-header {
+  background: #0d1319 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0 20px;
+  height: 48px;
+  line-height: 48px;
+}
+
+.ant-layout-sider {
+  background: #11181f !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ant-menu-dark {
+  background: transparent !important;
+}
+
+.ant-menu-dark .ant-menu-item-selected {
+  background-color: rgba(0, 229, 199, 0.08) !important;
+}
+
+.ant-card {
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.ant-table {
+  background: #11181f !important;
+}
+
+.ant-table-thead > tr > th {
+  background: #0d1319 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #9aa7ad !important;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ant-modal-content {
+  background: #11181f !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ant-modal-header {
+  background: #0d1319 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ─── Utility classes ────────────────────────────────────────────────────────── */
+.text-cyan {
+  color: #00e5c7;
+}
+.text-amber {
+  color: #ffb020;
+}
+.text-blue {
+  color: #5b8cff;
+}
+.text-red {
+  color: #ff4d4d;
+}
+.text-muted {
+  color: #7c8a94;
+}
+.text-secondary {
+  color: #9aa7ad;
+}
+
+.zone-elou {
+  color: #00e5c7;
+}
+.zone-atm {
+  color: #ffb020;
+}
+.zone-gdm {
+  color: #5b8cff;
+}
+
+.full-height {
+  height: 100%;
+}
+.flex-1 {
+  flex: 1;
+}
+.overflow-hidden {
+  overflow: hidden;
+}

@@ -1,0 +1,100 @@
+{
+  "app": {
+    "title": "KTK Constructor",
+    "loading": "Loading..."
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "username": "Username",
+    "password": "Password",
+    "loginError": "Invalid credentials",
+    "system": "Operator Training Management System"
+  },
+  "nav": {
+    "templates": "Templates",
+    "components": "Components",
+    "scenarios": "Scenarios",
+    "sessions": "Sessions",
+    "reports": "Reports",
+    "admin": "Administration",
+    "users": "Users",
+    "system": "System"
+  },
+  "constructor": {
+    "title": "Constructor",
+    "palette": "Component Palette",
+    "properties": "Properties",
+    "validate": "Validate",
+    "save": "Save",
+    "export": "Export",
+    "undo": "Undo",
+    "redo": "Redo",
+    "search": "Search components...",
+    "categories": {
+      "all": "All",
+      "elou": "ELOU",
+      "atm": "Atmosphere",
+      "gdm": "GDM",
+      "common": "Common"
+    }
+  },
+  "hmi": {
+    "title": "HMI Schematic",
+    "mode": {
+      "training": "Training",
+      "exam": "Exam"
+    }
+  },
+  "session": {
+    "start": "Start",
+    "pause": "Pause",
+    "stop": "Stop",
+    "speed": "Speed",
+    "snapshot": "Snapshot"
+  },
+  "alarm": {
+    "title": "Alarms",
+    "acknowledge": "Acknowledge",
+    "acknowledgeAll": "Acknowledge All",
+    "journal": "Journal",
+    "levels": {
+      "HH": "HH",
+      "H": "H",
+      "L": "L",
+      "LL": "LL"
+    }
+  },
+  "report": {
+    "title": "Training Report",
+    "score": "Score",
+    "penalties": "Violations",
+    "critical": "Critical Errors",
+    "download": "Download PDF",
+    "replay": "Replay"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search...",
+    "confirm": "Confirm",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  },
+  "faceplate": {
+    "pv": "PV",
+    "sp": "SP",
+    "out": "OUT",
+    "auto": "Auto",
+    "manual": "Manual",
+    "open": "Open",
+    "close": "Close"
+  }
+}

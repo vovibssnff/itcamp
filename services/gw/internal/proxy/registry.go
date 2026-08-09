@@ -11,9 +11,9 @@ import (
 )
 
 type Registry struct {
-	mu       sync.RWMutex
+	mu        sync.RWMutex
 	upstreams map[string]*httputil.ReverseProxy
-	urls     map[string]*url.URL
+	urls      map[string]*url.URL
 }
 
 func NewRegistry(upstreams map[string]config.UpstreamConfig) (*Registry, error) {

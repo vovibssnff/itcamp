@@ -36,7 +36,7 @@ class TagDictionary:
     interlocks: dict[str, list[str]]
 
     @classmethod
-    def load(cls, path: str | Path) -> "TagDictionary":
+    def load(cls, path: str | Path) -> TagDictionary:
         raw = json.loads(Path(path).read_text(encoding="utf-8"))
         tags = raw.get("tags", []) + raw.get("equipment_tags", [])
         interlocks: dict[str, list[str]] = {}

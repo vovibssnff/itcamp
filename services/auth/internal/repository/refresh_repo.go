@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -35,14 +36,19 @@ func (r *RefreshRepo) GetByHash(ctx context.Context, hash string) (domain.Refres
 		SELECT id, user_id, login, roles, token_hash, issued_at, expires_at, revoked, replaced_by
 		FROM refresh_tokens WHERE token_hash = $1`, hash).
 		Scan(&t.ID, &t.UserID, &t.Login, &rolesJSON, &t.TokenHash, &t.IssuedAt, &t.ExpiresAt, &t.Revoked, &replacedBy)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return domain.RefreshToken{}, domain.ErrTokenRevoked
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.RefreshToken{}, domain.ErrTokenRevoked
+		}
+		return domain.RefreshToken{}, err
 	}
 	if replacedBy != nil {
 		t.ReplacedBy = *replacedBy
 	}
-	json.Unmarshal(rolesJSON, &t.Roles)
-	return t, err
+	if err := json.Unmarshal(rolesJSON, &t.Roles); err != nil {
+		return domain.RefreshToken{}, fmt.Errorf("unmarshal roles: %w", err)
+	}
+	return t, nil
 }
 
 func (r *RefreshRepo) Revoke(ctx context.Context, id string) error {

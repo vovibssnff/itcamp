@@ -18,9 +18,9 @@ func NewMFARepo(pg *Postgres) *MFARepo {
 }
 
 type MFARecord struct {
-	UserID      string
-	SecretEnc   []byte
-	Enabled     bool
+	UserID    string
+	SecretEnc []byte
+	Enabled   bool
 }
 
 func (r *MFARepo) Get(ctx context.Context, userID string) (MFARecord, error) {

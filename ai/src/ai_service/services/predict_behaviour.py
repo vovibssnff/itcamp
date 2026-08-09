@@ -50,12 +50,14 @@ class RiskRule:
             return False
         if self.targets and not any(same_target(t, action.target) for t in self.targets):
             return False
-        if self.value_below is not None:
-            if action.value_to is None or action.value_to >= self.value_below:
-                return False
-        if self.value_above is not None:
-            if action.value_to is None or action.value_to <= self.value_above:
-                return False
+        if self.value_below is not None and (
+            action.value_to is None or action.value_to >= self.value_below
+        ):
+            return False
+        if self.value_above is not None and (
+            action.value_to is None or action.value_to <= self.value_above
+        ):
+            return False
         if self.relative_drop is not None:
             if action.value_from is None or action.value_to is None or action.value_from == 0:
                 return False

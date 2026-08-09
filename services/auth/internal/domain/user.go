@@ -11,15 +11,15 @@ const (
 )
 
 type User struct {
-	ID        string
-	Login     string
-	FullName  string
-	LDAPDN    string
-	Roles     []Role
-	Status    UserStatus
+	ID         string
+	Login      string
+	FullName   string
+	LDAPDN     string
+	Roles      []Role
+	Status     UserStatus
 	MFAEnabled bool
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 func (u User) HasRole(r Role) bool {

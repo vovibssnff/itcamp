@@ -9,9 +9,9 @@ import (
 )
 
 type Config struct {
-	HTTP     HTTPConfig     `toml:"http"`
-	DB       DBConfig       `toml:"db"`
-	NATS     NATSConfig     `toml:"nats"`
+	HTTP HTTPConfig `toml:"http"`
+	DB   DBConfig   `toml:"db"`
+	NATS NATSConfig `toml:"nats"`
 }
 
 type HTTPConfig struct {

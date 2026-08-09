@@ -42,11 +42,11 @@ type IntrospectRequest struct {
 }
 
 type IntrospectResponse struct {
-	Active   bool     `json:"active"`
-	UserID   string   `json:"user_id,omitempty"`
-	Login    string   `json:"login,omitempty"`
-	Roles    []string `json:"roles,omitempty"`
-	TokenID  string   `json:"token_id,omitempty"`
+	Active  bool     `json:"active"`
+	UserID  string   `json:"user_id,omitempty"`
+	Login   string   `json:"login,omitempty"`
+	Roles   []string `json:"roles,omitempty"`
+	TokenID string   `json:"token_id,omitempty"`
 }
 
 type UserResponse struct {

@@ -10,10 +10,10 @@ type TokenPair struct {
 }
 
 type Claims struct {
-	UserID   string   `json:"uid"`
-	Login    string   `json:"login"`
-	Roles    []Role   `json:"roles"`
-	TokenID  string   `json:"jti"`
+	UserID  string `json:"uid"`
+	Login   string `json:"login"`
+	Roles   []Role `json:"roles"`
+	TokenID string `json:"jti"`
 }
 
 type RefreshToken struct {

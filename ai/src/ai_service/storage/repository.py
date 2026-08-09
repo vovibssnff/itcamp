@@ -149,6 +149,6 @@ def to_dict(obj: Any) -> Any:
         return {k: to_dict(v) for k, v in asdict(obj).items()}
     if isinstance(obj, dict):
         return {k: to_dict(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
+    if isinstance(obj, list | tuple):
         return [to_dict(v) for v in obj]
     return obj

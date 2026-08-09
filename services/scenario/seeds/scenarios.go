@@ -34,7 +34,7 @@ func scenarioLevelDropDehydrator() domain.Scenario {
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
 			{ID: "f1", FaultID: "level_drop_dehydrator", ComponentInstanceID: "elec-dehydrator-1",
-				Params: domain.FaultParams{SeverityPct: 100, RampSeconds: 60},
+				Params:  domain.FaultParams{SeverityPct: 100, RampSeconds: 60},
 				Trigger: domain.Trigger{Type: domain.TriggerTime, AtModelTime: pFloat(120)}},
 		},
 		ReferenceActions: []domain.ReferenceAction{
@@ -80,7 +80,7 @@ func scenarioFeedFlowDrop() domain.Scenario {
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
 			{ID: "f1", FaultID: "feed_flow_drop", ComponentInstanceID: "pump-n1",
-				Params: domain.FaultParams{SeverityPct: 100, RampSeconds: 0},
+				Params:  domain.FaultParams{SeverityPct: 100, RampSeconds: 0},
 				Trigger: domain.Trigger{Type: domain.TriggerTime, AtModelTime: pFloat(60)}},
 		},
 		ReferenceActions: []domain.ReferenceAction{
@@ -130,7 +130,7 @@ func scenarioPressureRiseK1() domain.Scenario {
 		Type:        domain.ScenarioExam,
 		Faults: []domain.ScenarioFault{
 			{ID: "f1", FaultID: "pressure_rise_K1", ComponentInstanceID: "column-k1",
-				Params: domain.FaultParams{SeverityPct: 100, RampSeconds: 120},
+				Params:  domain.FaultParams{SeverityPct: 100, RampSeconds: 120},
 				Trigger: domain.Trigger{Type: domain.TriggerTime, AtModelTime: pFloat(180)}},
 		},
 		ReferenceActions: []domain.ReferenceAction{
@@ -182,7 +182,7 @@ func scenarioVacuumLossK2() domain.Scenario {
 		Type:        domain.ScenarioExam,
 		Faults: []domain.ScenarioFault{
 			{ID: "f1", FaultID: "vacuum_loss_K2", ComponentInstanceID: "column-k2",
-				Params: domain.FaultParams{SeverityPct: 100, RampSeconds: 150},
+				Params:  domain.FaultParams{SeverityPct: 100, RampSeconds: 150},
 				Trigger: domain.Trigger{Type: domain.TriggerTime, AtModelTime: pFloat(200)}},
 		},
 		ReferenceActions: []domain.ReferenceAction{
@@ -258,7 +258,7 @@ func scenarioInstrumentAirLoss() domain.Scenario {
 		Type:        domain.ScenarioExam,
 		Faults: []domain.ScenarioFault{
 			{ID: "f1", FaultID: "instrument_air_loss", ComponentInstanceID: "kip-air-supply",
-				Params: domain.FaultParams{SeverityPct: 100, RampSeconds: 0},
+				Params:  domain.FaultParams{SeverityPct: 100, RampSeconds: 0},
 				Trigger: domain.Trigger{Type: domain.TriggerTime, AtModelTime: pFloat(100)}},
 		},
 		ReferenceActions: []domain.ReferenceAction{

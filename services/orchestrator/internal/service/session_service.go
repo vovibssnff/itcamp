@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"sync"
 	"time"
@@ -15,19 +14,19 @@ import (
 )
 
 type SessionService struct {
-	repo      *repository.SessionRepo
-	cache     *cache.Cache
-	publisher *events.Publisher
-	sim       client.SimClient
-	assessment client.AssessmentClient
-	snapshot   client.SnapshotClient
-	scenario   client.ScenarioClient
+	repo        *repository.SessionRepo
+	cache       *cache.Cache
+	publisher   *events.Publisher
+	sim         client.SimClient
+	assessment  client.AssessmentClient
+	snapshot    client.SnapshotClient
+	scenario    client.ScenarioClient
 	constructor client.ConstructorClient
-	hub        *WSHub
-	log        *slog.Logger
+	hub         *WSHub
+	log         *slog.Logger
 
-	mu       sync.Mutex
-	runners  map[string]*SessionRunner
+	mu      sync.Mutex
+	runners map[string]*SessionRunner
 }
 
 func NewSessionService(
@@ -123,7 +122,7 @@ func (s *SessionService) Start(ctx context.Context, id string) (domain.Session, 
 	go runner.run(ctx)
 
 	sess.Status = domain.StatusRunning
-	s.publisher.PublishSessionEvent(ctx, id, "started", nil)
+	_ = s.publisher.PublishSessionEvent(ctx, id, "started", nil)
 	return sess, nil
 }
 
@@ -137,7 +136,7 @@ func (s *SessionService) Pause(ctx context.Context, id string) (domain.Session, 
 	if err := s.repo.UpdateStatus(ctx, id, domain.StatusPaused, 0); err != nil {
 		return domain.Session{}, err
 	}
-	s.publisher.PublishSessionEvent(ctx, id, "paused", nil)
+	_ = s.publisher.PublishSessionEvent(ctx, id, "paused", nil)
 	return s.repo.GetByID(ctx, id)
 }
 
@@ -162,7 +161,7 @@ func (s *SessionService) Stop(ctx context.Context, id string) (domain.Session, e
 	if err := s.repo.UpdateStatus(ctx, id, domain.StatusStopped, modelTime); err != nil {
 		return domain.Session{}, err
 	}
-	s.publisher.PublishSessionEvent(ctx, id, "stopped", nil)
+	_ = s.publisher.PublishSessionEvent(ctx, id, "stopped", nil)
 	return s.repo.GetByID(ctx, id)
 }
 
@@ -223,7 +222,7 @@ func (s *SessionService) HandleActuator(ctx context.Context, id, userID, target 
 	}
 	s.hub.BroadcastOperatorAction(id, action)
 	_ = s.assessment.SendEvent(ctx, id, "action", action)
-	s.publisher.PublishSessionEvent(ctx, id, "operator_action", action)
+	_ = s.publisher.PublishSessionEvent(ctx, id, "operator_action", action)
 	return nil
 }
 
@@ -237,13 +236,13 @@ func (s *SessionService) AckAlarm(ctx context.Context, id, alarmID, userID strin
 }
 
 type SessionRunner struct {
-	sessionID string
+	sessionID  string
 	scenarioID string
-	svc       *SessionService
-	log       *slog.Logger
-	paused    bool
-	stopped   bool
-	mu        sync.Mutex
+	svc        *SessionService
+	log        *slog.Logger
+	paused     bool
+	stopped    bool
+	mu         sync.Mutex
 }
 
 func newSessionRunner(sessionID, scenarioID string, svc *SessionService, log *slog.Logger) *SessionRunner {
@@ -253,12 +252,6 @@ func newSessionRunner(sessionID, scenarioID string, svc *SessionService, log *sl
 func (r *SessionRunner) pause() {
 	r.mu.Lock()
 	r.paused = true
-	r.mu.Unlock()
-}
-
-func (r *SessionRunner) resume() {
-	r.mu.Lock()
-	r.paused = false
 	r.mu.Unlock()
 }
 
@@ -325,5 +318,3 @@ func (r *SessionRunner) tick(ctx context.Context, engine *TriggerEngine) {
 
 	engine.CheckTriggers(ctx, r.sessionID, state.ModelTime, state.Tags, r.svc.sim, r.svc.repo, r.svc.publisher)
 }
-
-var _ = json.Marshal

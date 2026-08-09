@@ -32,20 +32,20 @@ def _linear_fit(values: list[float], step_s: int) -> tuple[float, float, float]:
     weights = [(i + 1) / n for i in range(n)]
     w_sum = sum(weights)
 
-    mean_x = sum(w * x for w, x in zip(weights, xs)) / w_sum
-    mean_y = sum(w * y for w, y in zip(weights, values)) / w_sum
+    mean_x = sum(w * x for w, x in zip(weights, xs, strict=False)) / w_sum
+    mean_y = sum(w * y for w, y in zip(weights, values, strict=False)) / w_sum
 
-    sxx = sum(w * (x - mean_x) ** 2 for w, x in zip(weights, xs))
-    sxy = sum(w * (x - mean_x) * (y - mean_y) for w, x, y in zip(weights, xs, values))
+    sxx = sum(w * (x - mean_x) ** 2 for w, x in zip(weights, xs, strict=False))
+    sxy = sum(w * (x - mean_x) * (y - mean_y) for w, x, y in zip(weights, xs, values, strict=False))
     if sxx == 0:
         return 0.0, mean_y, 0.0
 
     slope = sxy / sxx
     intercept = mean_y - slope * mean_x
 
-    ss_tot = sum(w * (y - mean_y) ** 2 for w, y in zip(weights, values))
+    ss_tot = sum(w * (y - mean_y) ** 2 for w, y in zip(weights, values, strict=False))
     ss_res = sum(
-        w * (y - (slope * x + intercept)) ** 2 for w, x, y in zip(weights, xs, values)
+        w * (y - (slope * x + intercept)) ** 2 for w, x, y in zip(weights, xs, values, strict=False)
     )
     r2 = 1.0 - ss_res / ss_tot if ss_tot > 1e-12 else 0.0
     return slope, intercept, max(0.0, min(1.0, r2))

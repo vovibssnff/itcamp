@@ -29,7 +29,7 @@ from . import mappers
 logger = logging.getLogger(__name__)
 
 
-def create_app(application: Application | None = None) -> "FastAPI":
+def create_app(application: Application | None = None) -> FastAPI:
     app = FastAPI(title="КТК — ИИ-сервис", version="1.0.0")
     state: dict[str, Application] = {}
 
@@ -103,7 +103,7 @@ def create_app(application: Application | None = None) -> "FastAPI":
     @app.post("/v1/predict/physics")
     def predict_physics(payload: dict[str, Any]) -> dict[str, Any]:
         series = [mappers.to_series(s) for s in payload.get("series", [])]
-        limits = [mappers.to_limit(l) for l in payload.get("limits", [])]
+        limits = [mappers.to_limit(lim) for lim in payload.get("limits", [])]
         predictions = predict(series, limits, horizon_s=int(payload.get("horizon_s", 300)))
         mode = payload.get("session_mode", SessionMode.TRAINING.value)
         visible = {p.tag_id for p in visible_to_operator(predictions, mode)}

@@ -24,7 +24,7 @@ func TestTriggerEngine_TimeTrigger_FiresAtCorrectTime(t *testing.T) {
 	scenario := ScenarioData{
 		Faults: []ScenarioFaultData{
 			{ID: "f1", FaultID: "pressure_rise_K1", ComponentInstanceID: "column-k1",
-				Params: FaultParamsData{SeverityPct: 100, RampSeconds: 0},
+				Params:  FaultParamsData{SeverityPct: 100, RampSeconds: 0},
 				Trigger: TriggerData{Type: "time", AtModelTime: &t120}},
 		},
 	}

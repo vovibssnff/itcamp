@@ -27,8 +27,12 @@ func (r *FaultRepo) scanFault(row pgx.Row) (domain.Fault, error) {
 	if err := row.Scan(&f.FaultID, &f.Name, &typesJSON, &f.Description, &tagsJSON, &f.Severity, &f.DamagePerSec); err != nil {
 		return domain.Fault{}, err
 	}
-	json.Unmarshal(typesJSON, &f.ApplicableComponentTypes)
-	json.Unmarshal(tagsJSON, &f.AffectedTags)
+	if err := json.Unmarshal(typesJSON, &f.ApplicableComponentTypes); err != nil {
+		return domain.Fault{}, fmt.Errorf("unmarshal applicable_component_types: %w", err)
+	}
+	if err := json.Unmarshal(tagsJSON, &f.AffectedTags); err != nil {
+		return domain.Fault{}, fmt.Errorf("unmarshal affected_tags: %w", err)
+	}
 	return f, nil
 }
 

@@ -100,3 +100,6 @@ temp/
 .cache/
 *.tmp
 .direnv/
+
+# Go
+tools/migrator/migrator

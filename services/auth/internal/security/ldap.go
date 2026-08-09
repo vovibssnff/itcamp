@@ -114,9 +114,7 @@ func (c *LDAPClient) findUser(conn *ldap.Conn, login string) (LDAPUser, error) {
 		Login:    entry.GetAttributeValue("sAMAccountName"),
 		FullName: firstNonEmpty(entry.GetAttributeValue("displayName"), entry.GetAttributeValue("cn"), login),
 	}
-	for _, g := range entry.GetAttributeValues(c.cfg.GroupAttr) {
-		user.Groups = append(user.Groups, g)
-	}
+	user.Groups = append(user.Groups, entry.GetAttributeValues(c.cfg.GroupAttr)...)
 	return user, nil
 }
 

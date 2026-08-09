@@ -13,10 +13,10 @@ import (
 )
 
 type Deps struct {
-	Cfg       config.Config
-	Sessions  *service.SessionService
-	Hub       *service.WSHub
-	Log       *slog.Logger
+	Cfg      config.Config
+	Sessions *service.SessionService
+	Hub      *service.WSHub
+	Log      *slog.Logger
 }
 
 type Server struct {

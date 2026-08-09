@@ -3,9 +3,9 @@ package domain
 type Role string
 
 const (
-	RoleAdmin       Role = "admin"
-	RoleInstructor  Role = "instructor"
-	RoleOperator    Role = "operator"
+	RoleAdmin      Role = "admin"
+	RoleInstructor Role = "instructor"
+	RoleOperator   Role = "operator"
 )
 
 func (r Role) Valid() bool {

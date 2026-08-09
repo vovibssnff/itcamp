@@ -15,11 +15,11 @@ type ScenarioData struct {
 }
 
 type ScenarioFaultData struct {
-	ID                  string         `json:"id"`
-	FaultID             string         `json:"fault_id"`
-	ComponentInstanceID string         `json:"component_instance_id"`
+	ID                  string          `json:"id"`
+	FaultID             string          `json:"fault_id"`
+	ComponentInstanceID string          `json:"component_instance_id"`
 	Params              FaultParamsData `json:"params"`
-	Trigger             TriggerData    `json:"trigger"`
+	Trigger             TriggerData     `json:"trigger"`
 }
 
 type FaultParamsData struct {
@@ -28,9 +28,9 @@ type FaultParamsData struct {
 }
 
 type TriggerData struct {
-	Type         string          `json:"type"`
-	AtModelTime  *float64        `json:"at_model_time,omitempty"`
-	Condition    *ConditionData  `json:"condition,omitempty"`
+	Type        string         `json:"type"`
+	AtModelTime *float64       `json:"at_model_time,omitempty"`
+	Condition   *ConditionData `json:"condition,omitempty"`
 }
 
 type ConditionData struct {

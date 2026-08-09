@@ -54,10 +54,10 @@ func TestLoad_Validation(t *testing.T) {
 	path := filepath.Join(dir, "config.toml")
 
 	tests := []struct {
-		name     string
-		content  string
-		wantErr  bool
-		envDSN   string
+		name    string
+		content string
+		wantErr bool
+		envDSN  string
 	}{
 		{
 			name:    "valid",

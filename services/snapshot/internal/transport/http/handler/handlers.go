@@ -3,8 +3,8 @@ package handler
 import (
 	"encoding/json"
 	"errors"
-	"net/http"
 	"fmt"
+	"net/http"
 
 	"github.com/itcamp/ktc/services/snapshot/internal/domain"
 	"github.com/itcamp/ktc/services/snapshot/internal/service"

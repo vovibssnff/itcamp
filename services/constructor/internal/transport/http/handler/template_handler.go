@@ -42,9 +42,9 @@ func (h *TemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 type createTemplateReq struct {
-	Name        string        `json:"name"`
-	Description string        `json:"description"`
-	Graph       domain.Graph  `json:"graph"`
+	Name        string       `json:"name"`
+	Description string       `json:"description"`
+	Graph       domain.Graph `json:"graph"`
 }
 
 func (h *TemplateHandler) Create(w http.ResponseWriter, r *http.Request) {

@@ -1,15 +1,14 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
-	"fmt"
+
+	"nhooyr.io/websocket"
 
 	"github.com/itcamp/ktc/services/orchestrator/internal/domain"
 	"github.com/itcamp/ktc/services/orchestrator/internal/service"
-	"nhooyr.io/websocket"
 )
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -46,48 +45,6 @@ func mapError(err error) (int, string) {
 
 func userIDFromHeader(r *http.Request) string {
 	return r.Header.Get("X-User-ID")
-}
-
-func rolesFromHeader(r *http.Request) []string {
-	roles := r.Header.Get("X-Roles")
-	if roles == "" {
-		return nil
-	}
-	var result []string
-	for _, r := range splitComma(roles) {
-		result = append(result, r)
-	}
-	return result
-}
-
-func splitComma(s string) []string {
-	var result []string
-	start := 0
-	for i, c := range s {
-		if c == ',' {
-			if i > start {
-				result = append(result, s[start:i])
-			}
-			start = i + 1
-		}
-	}
-	if start < len(s) {
-		result = append(result, s[start:])
-	}
-	return result
-}
-
-func queryInt(r *http.Request, key string, def int) int {
-	v := r.URL.Query().Get(key)
-	if v == "" {
-		return def
-	}
-	var n int
-	_, _ = fmt.Sscanf(v, "%d", &n)
-	if n <= 0 {
-		return def
-	}
-	return n
 }
 
 type SessionHandler struct {
@@ -294,5 +251,3 @@ func (h *SessionHandler) handleWS(w http.ResponseWriter, r *http.Request, sessio
 		}
 	}
 }
-
-var _ = context.Background

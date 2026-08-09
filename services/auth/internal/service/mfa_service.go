@@ -10,9 +10,9 @@ import (
 )
 
 type MFAService struct {
-	repo   *repository.MFARepo
-	totp   *security.TOTPService
-	audit  *AuditService
+	repo  *repository.MFARepo
+	totp  *security.TOTPService
+	audit *AuditService
 }
 
 func NewMFAService(repo *repository.MFARepo, totp *security.TOTPService, audit *AuditService) *MFAService {

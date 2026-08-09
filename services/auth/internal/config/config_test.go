@@ -42,7 +42,7 @@ func TestDuration_UnmarshalText(t *testing.T) {
 
 func validConfig() Config {
 	return Config{
-		DB:  DBConfig{DSN: "postgres://u:p@host/db"},
+		DB: DBConfig{DSN: "postgres://u:p@host/db"},
 		JWT: JWTConfig{
 			SigningKey:    strings.Repeat("k", 32),
 			SigningMethod: "HS256",

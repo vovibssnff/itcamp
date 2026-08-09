@@ -36,33 +36,33 @@ type Session struct {
 }
 
 type OperatorAction struct {
-	ID         string  `json:"id"`
-	SessionID  string  `json:"session_id"`
-	UserID     string  `json:"user_id"`
-	Type       string  `json:"type"`
-	Target     string  `json:"target"`
-	Action     string  `json:"action"`
-	Value      any     `json:"value,omitempty"`
-	ModelTime  float64 `json:"model_time"`
+	ID         string    `json:"id"`
+	SessionID  string    `json:"session_id"`
+	UserID     string    `json:"user_id"`
+	Type       string    `json:"type"`
+	Target     string    `json:"target"`
+	Action     string    `json:"action"`
+	Value      any       `json:"value,omitempty"`
+	ModelTime  float64   `json:"model_time"`
 	ServerTime time.Time `json:"server_time"`
 }
 
 type AlarmEvent struct {
-	ID              string  `json:"id"`
-	SessionID       string  `json:"session_id"`
-	TagID           string  `json:"tag_id"`
-	Priority        string  `json:"priority"`
-	RaisedModelTime float64 `json:"raised_model_time"`
+	ID              string   `json:"id"`
+	SessionID       string   `json:"session_id"`
+	TagID           string   `json:"tag_id"`
+	Priority        string   `json:"priority"`
+	RaisedModelTime float64  `json:"raised_model_time"`
 	AckModelTime    *float64 `json:"ack_model_time,omitempty"`
-	AckUserID       string  `json:"ack_user_id,omitempty"`
+	AckUserID       string   `json:"ack_user_id,omitempty"`
 }
 
 type FaultEvent struct {
-	ID            string  `json:"id"`
-	SessionID     string  `json:"session_id"`
-	FaultID       string  `json:"fault_id"`
-	ComponentID   string  `json:"component_instance_id"`
-	TriggerType   string  `json:"trigger_type"`
+	ID             string  `json:"id"`
+	SessionID      string  `json:"session_id"`
+	FaultID        string  `json:"fault_id"`
+	ComponentID    string  `json:"component_instance_id"`
+	TriggerType    string  `json:"trigger_type"`
 	FiredModelTime float64 `json:"fired_model_time"`
 }
 
@@ -82,27 +82,27 @@ type Regulator struct {
 }
 
 type Telemetry struct {
-	ModelTime  float64     `json:"model_time"`
-	Tags       []Tag       `json:"tags"`
+	ModelTime  float64      `json:"model_time"`
+	Tags       []Tag        `json:"tags"`
 	Alarms     []AlarmEvent `json:"alarms"`
-	Regulators []Regulator `json:"regulators"`
+	Regulators []Regulator  `json:"regulators"`
 }
 
 type SimState struct {
-	SessionID       string  `json:"session_id"`
-	ModelTime       float64 `json:"model_time"`
-	Seed            int64   `json:"seed"`
-	Tags            []Tag   `json:"tags"`
-	Regulators      []Regulator `json:"regulators"`
+	SessionID       string       `json:"session_id"`
+	ModelTime       float64      `json:"model_time"`
+	Seed            int64        `json:"seed"`
+	Tags            []Tag        `json:"tags"`
+	Regulators      []Regulator  `json:"regulators"`
 	Alarms          []AlarmEvent `json:"alarms"`
-	ComponentsState string  `json:"components_state_json"`
-	SchemaVersion   string  `json:"schema_version"`
+	ComponentsState string       `json:"components_state_json"`
+	SchemaVersion   string       `json:"schema_version"`
 }
 
 type InjectFaultReq struct {
-	SessionID            string  `json:"session_id"`
-	FaultID              string  `json:"fault_id"`
-	ComponentInstanceID  string  `json:"component_instance_id"`
-	SeverityPct          float64 `json:"severity_pct"`
-	RampSeconds          float64 `json:"ramp_seconds"`
+	SessionID           string  `json:"session_id"`
+	FaultID             string  `json:"fault_id"`
+	ComponentInstanceID string  `json:"component_instance_id"`
+	SeverityPct         float64 `json:"severity_pct"`
+	RampSeconds         float64 `json:"ramp_seconds"`
 }

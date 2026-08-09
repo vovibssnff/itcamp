@@ -1,8 +1,9 @@
 import unittest
 
 import context  # noqa: F401
-from ai_service.domain.models import ForbiddenAction, OperatorAction, ReferenceStep
+
 from ai_service.analysis.sequence import compare_sequence
+from ai_service.domain.models import ForbiddenAction, OperatorAction, ReferenceStep
 
 
 def step(n, act, target, within=None, value=None, **kw):

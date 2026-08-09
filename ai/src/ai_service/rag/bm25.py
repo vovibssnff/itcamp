@@ -186,9 +186,12 @@ class Bm25Index:
 
         results: list[tuple[Chunk, float]] = []
         for idx, chunk in enumerate(self.chunks):
-            if equipment_filter and chunk.equipment:
-                if not set(chunk.equipment) & equipment_filter:
-                    continue
+            if (
+                equipment_filter
+                and chunk.equipment
+                and not (set(chunk.equipment) & equipment_filter)
+            ):
+                continue
             value = self.score(query_tokens, idx)
             # Если в запросе названа позиция аппарата или прибора, фрагменты
             # именно про неё поднимаются: «производительность насоса Н-2» должно

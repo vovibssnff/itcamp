@@ -1,6 +1,7 @@
 import unittest
 
 import context  # noqa: F401
+
 from ai_service.config import Settings
 from ai_service.llm.stub import StubProvider
 from ai_service.rag.bm25 import Chunk

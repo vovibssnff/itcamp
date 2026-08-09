@@ -39,16 +39,16 @@ type FaultParams struct {
 }
 
 type Trigger struct {
-	Type         TriggerType     `json:"type"`
-	AtModelTime  *float64        `json:"at_model_time,omitempty"`
-	Condition    *ConditionSpec  `json:"condition,omitempty"`
+	Type        TriggerType    `json:"type"`
+	AtModelTime *float64       `json:"at_model_time,omitempty"`
+	Condition   *ConditionSpec `json:"condition,omitempty"`
 }
 
 type ConditionSpec struct {
-	Tag        string        `json:"tag"`
-	Op         ComparisonOp  `json:"op"`
-	Value      float64       `json:"value"`
-	ForSeconds *float64      `json:"for_seconds,omitempty"`
+	Tag        string       `json:"tag"`
+	Op         ComparisonOp `json:"op"`
+	Value      float64      `json:"value"`
+	ForSeconds *float64     `json:"for_seconds,omitempty"`
 }
 
 type ScenarioFault struct {
@@ -61,11 +61,11 @@ type ScenarioFault struct {
 }
 
 type ReferenceAction struct {
-	Step            int             `json:"step"`
-	Description     string          `json:"description"`
-	Expected        ExpectedAction  `json:"expected"`
-	DeadlineSeconds int             `json:"deadline_seconds"`
-	Mandatory       bool            `json:"mandatory"`
+	Step            int            `json:"step"`
+	Description     string         `json:"description"`
+	Expected        ExpectedAction `json:"expected"`
+	DeadlineSeconds int            `json:"deadline_seconds"`
+	Mandatory       bool           `json:"mandatory"`
 }
 
 type ExpectedAction struct {
@@ -84,15 +84,15 @@ type Criteria struct {
 }
 
 type Scenario struct {
-	ID              string            `json:"id"`
-	TemplateID      string            `json:"template_id"`
-	Name            string            `json:"name"`
-	Description     string            `json:"description"`
-	Type            ScenarioType      `json:"type"`
-	StartPresetID   string            `json:"start_preset_id,omitempty"`
-	Faults          []ScenarioFault   `json:"faults"`
+	ID               string            `json:"id"`
+	TemplateID       string            `json:"template_id"`
+	Name             string            `json:"name"`
+	Description      string            `json:"description"`
+	Type             ScenarioType      `json:"type"`
+	StartPresetID    string            `json:"start_preset_id,omitempty"`
+	Faults           []ScenarioFault   `json:"faults"`
 	ReferenceActions []ReferenceAction `json:"reference_actions"`
-	Criteria        Criteria          `json:"criteria"`
-	AuthorID        string            `json:"author_id"`
-	CreatedAt       string            `json:"created_at"`
+	Criteria         Criteria          `json:"criteria"`
+	AuthorID         string            `json:"author_id"`
+	CreatedAt        string            `json:"created_at"`
 }

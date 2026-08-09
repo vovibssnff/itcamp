@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import threading
 from collections import defaultdict
+from typing import Any
 
 try:  # pragma: no cover - зависит от окружения
-    from prometheus_client import Counter, Histogram  # type: ignore
+    from prometheus_client import Counter, Histogram
 
     _HAS_PROMETHEUS = True
 except ImportError:  # pragma: no cover
@@ -39,13 +40,17 @@ class _InMemoryMetrics:
 
 registry = _InMemoryMetrics()
 
+# Any: типы prometheus_client недоступны, если пакет не установлен.
+_requests: Any = None
+_fallbacks: Any = None
+_rejects: Any = None
+_duration: Any = None
+
 if _HAS_PROMETHEUS:  # pragma: no cover
     _requests = Counter("ai_requests_total", "Вызовы ИИ-сервиса", ["rpc", "status"])
     _fallbacks = Counter("ai_fallback_total", "Деградации", ["rpc", "reason"])
     _rejects = Counter("ai_validation_reject_total", "Брак постобработки", ["reason"])
     _duration = Histogram("ai_request_duration_seconds", "Латентность", ["rpc"])
-else:  # pragma: no cover
-    _requests = _fallbacks = _rejects = _duration = None
 
 
 def request(rpc: str, status: str) -> None:

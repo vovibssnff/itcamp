@@ -29,7 +29,7 @@ func newAuthClient(t *testing.T, handler http.HandlerFunc) *auth.Client {
 func introspectHandler(active bool, userID string, roles []string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(auth.IntrospectResponse{
+		_ = json.NewEncoder(w).Encode(auth.IntrospectResponse{
 			Active: active, UserID: userID, Login: "login", Roles: roles,
 		})
 	}

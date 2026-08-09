@@ -2,9 +2,13 @@
 import unittest
 
 import context  # noqa: F401
+
 from ai_service.analysis.profile import build_profile
 from ai_service.domain.models import (
-    AlarmEvent, OperatorAction, ReferenceStep, ScenarioCriteria,
+    AlarmEvent,
+    OperatorAction,
+    ReferenceStep,
+    ScenarioCriteria,
 )
 from ai_service.llm.stub import StubProvider
 from ai_service.rag.store import KnowledgeBase

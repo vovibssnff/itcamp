@@ -14,17 +14,17 @@ type Position struct {
 }
 
 type PortConnection struct {
-	Type         string `json:"type"`
-	ConnectedTo  string `json:"connected_to"`
+	Type        string `json:"type"`
+	ConnectedTo string `json:"connected_to"`
 }
 
 type Node struct {
-	ID               string            `json:"id"`
-	ComponentTypeID  string            `json:"component_type_id"`
-	Label            string            `json:"label"`
-	Position         Position          `json:"position"`
-	Parameters       map[string]any    `json:"parameters"`
-	Ports            map[string]PortConnection `json:"ports"`
+	ID              string                    `json:"id"`
+	ComponentTypeID string                    `json:"component_type_id"`
+	Label           string                    `json:"label"`
+	Position        Position                  `json:"position"`
+	Parameters      map[string]any            `json:"parameters"`
+	Ports           map[string]PortConnection `json:"ports"`
 }
 
 type EdgeEndpoint struct {
@@ -45,10 +45,10 @@ type Layout struct {
 }
 
 type Graph struct {
-	SchemaVersion string  `json:"schema_version"`
-	Nodes         []Node  `json:"nodes"`
-	Edges         []Edge  `json:"edges"`
-	Layout        Layout  `json:"layout"`
+	SchemaVersion string `json:"schema_version"`
+	Nodes         []Node `json:"nodes"`
+	Edges         []Edge `json:"edges"`
+	Layout        Layout `json:"layout"`
 }
 
 type Template struct {

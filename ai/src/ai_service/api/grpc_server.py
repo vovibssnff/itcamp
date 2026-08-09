@@ -18,8 +18,8 @@ _STUBS_MISSING = (
 
 def _load_stubs():
     try:
-        from .generated.ktk.ai.v1 import ai_service_pb2 as pb2  # type: ignore
-        from .generated.ktk.ai.v1 import ai_service_pb2_grpc as pb2_grpc  # type: ignore
+        from .generated.ktk.ai.v1 import ai_service_pb2 as pb2
+        from .generated.ktk.ai.v1 import ai_service_pb2_grpc as pb2_grpc
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(_STUBS_MISSING) from exc
     return pb2, pb2_grpc
@@ -30,10 +30,18 @@ def build_servicer(application=None):  # pragma: no cover - требует ст�
 
     from ..bootstrap import build_application
     from ..domain.enums import SessionMode
-    from ..domain.models import AlarmEvent, LimitDef, OperatorAction, TagSeries
+    from ..domain.models import (
+        AlarmEvent,
+        ForbiddenAction,
+        LimitDef,
+        OperatorAction,
+        PenaltyRule,
+        ReferenceStep,
+        ScenarioCriteria,
+        TagSeries,
+    )
     from ..services.pipeline import review_session
     from ..services.predict_physics import predict, visible_to_operator
-    from ..domain.models import ReferenceStep, ScenarioCriteria, PenaltyRule, ForbiddenAction
 
     app = application or build_application()
 
@@ -111,8 +119,8 @@ def build_servicer(application=None):  # pragma: no cover - требует ст�
                 for s in request.series
             ]
             limits = [
-                LimitDef(tag_id=l.tag_id, value=l.value, limit_type=l.limit_type)
-                for l in request.limits
+                LimitDef(tag_id=lim.tag_id, value=lim.value, limit_type=lim.limit_type)
+                for lim in request.limits
             ]
             preds = predict(series, limits, horizon_s=request.horizon_s or 300)
             visible = {p.tag_id for p in visible_to_operator(preds, request.session_mode)}

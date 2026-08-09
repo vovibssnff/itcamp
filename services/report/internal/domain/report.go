@@ -5,10 +5,10 @@ import "errors"
 type ReportStatus string
 
 const (
-	StatusQueued      ReportStatus = "queued"
-	StatusProcessing  ReportStatus = "processing"
-	StatusReady       ReportStatus = "ready"
-	StatusFailed      ReportStatus = "failed"
+	StatusQueued     ReportStatus = "queued"
+	StatusProcessing ReportStatus = "processing"
+	StatusReady      ReportStatus = "ready"
+	StatusFailed     ReportStatus = "failed"
 )
 
 type ReportType string
@@ -32,8 +32,8 @@ type Report struct {
 }
 
 type CreateReportRequest struct {
-	SessionID string      `json:"session_id"`
-	Type      ReportType  `json:"type"`
+	SessionID string     `json:"session_id"`
+	Type      ReportType `json:"type"`
 }
 
 type ReportTask struct {
@@ -79,9 +79,9 @@ type ActionData struct {
 }
 
 type AlarmData struct {
-	TagID      string  `json:"tag_id"`
-	Priority   string  `json:"priority"`
-	ModelTime  float64 `json:"model_time"`
+	TagID     string  `json:"tag_id"`
+	Priority  string  `json:"priority"`
+	ModelTime float64 `json:"model_time"`
 }
 
 type FaultData struct {
@@ -90,7 +90,7 @@ type FaultData struct {
 }
 
 var (
-	ErrReportNotFound  = errors.New("report not found")
-	ErrReportNotReady  = errors.New("report is not ready")
+	ErrReportNotFound   = errors.New("report not found")
+	ErrReportNotReady   = errors.New("report is not ready")
 	ErrGenerationFailed = errors.New("report generation failed")
 )

@@ -8,7 +8,7 @@ import (
 )
 
 type ScenarioService struct {
-	repo     *repository.ScenarioRepo
+	repo      *repository.ScenarioRepo
 	validator *TriggerValidator
 }
 

@@ -3,13 +3,13 @@ package domain
 import "errors"
 
 var (
-	ErrComponentNotFound  = errors.New("component type not found")
-	ErrComponentInUse     = errors.New("component type is used in templates")
-	ErrTemplateNotFound   = errors.New("template not found")
-	ErrValidationFailed   = errors.New("graph validation failed")
-	ErrInvalidGraph       = errors.New("invalid graph format")
-	ErrExportFailed       = errors.New("export failed")
-	ErrForbidden          = errors.New("insufficient role")
+	ErrComponentNotFound = errors.New("component type not found")
+	ErrComponentInUse    = errors.New("component type is used in templates")
+	ErrTemplateNotFound  = errors.New("template not found")
+	ErrValidationFailed  = errors.New("graph validation failed")
+	ErrInvalidGraph      = errors.New("invalid graph format")
+	ErrExportFailed      = errors.New("export failed")
+	ErrForbidden         = errors.New("insufficient role")
 )
 
 type ValidationError struct {

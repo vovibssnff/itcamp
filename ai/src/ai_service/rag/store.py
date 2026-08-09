@@ -26,7 +26,7 @@ class KnowledgeBase:
     # -- построение ---------------------------------------------------------
 
     @classmethod
-    def from_directory(cls, directory: str | Path) -> "KnowledgeBase":
+    def from_directory(cls, directory: str | Path) -> KnowledgeBase:
         """Индексирует .txt и .md из каталога; .pdf — если доступен pdfplumber."""
         path = Path(directory)
         chunks: list[Chunk] = []
@@ -38,9 +38,10 @@ class KnowledgeBase:
             if file.suffix.lower() in {".txt", ".md"}:
                 text = file.read_text(encoding="utf-8", errors="ignore")
             elif file.suffix.lower() == ".pdf":
-                text = _extract_pdf(file)
-                if text is None:
+                extracted = _extract_pdf(file)
+                if extracted is None:
                     continue
+                text = extracted
             else:
                 continue
             chunks.extend(chunk_document(text, source=file.name))
@@ -49,7 +50,7 @@ class KnowledgeBase:
         return cls(chunks)
 
     @classmethod
-    def from_jsonl(cls, file: str | Path) -> "KnowledgeBase":
+    def from_jsonl(cls, file: str | Path) -> KnowledgeBase:
         """Загружает заранее подготовленный индекс (артефакт сборки образа)."""
         chunks: list[Chunk] = []
         for line in Path(file).read_text(encoding="utf-8").splitlines():
@@ -105,7 +106,7 @@ class KnowledgeBase:
 
 def _extract_pdf(file: Path) -> str | None:
     try:
-        import pdfplumber  # type: ignore
+        import pdfplumber
     except ImportError:
         logger.warning("pdfplumber не установлен, PDF пропущен: %s", file.name)
         return None

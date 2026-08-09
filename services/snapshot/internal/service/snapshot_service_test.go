@@ -16,16 +16,16 @@ func discardLogger() *slog.Logger {
 }
 
 type mockRepo struct {
-	meta    domain.SnapshotMeta
-	getErr  error
-	createErr error
-	deleteErr error
-	metaList []domain.SnapshotMeta
-	listErr  error
-	getCalls int
+	meta        domain.SnapshotMeta
+	getErr      error
+	createErr   error
+	deleteErr   error
+	metaList    []domain.SnapshotMeta
+	listErr     error
+	getCalls    int
 	createCalls int
 	deleteCalls int
-	listCalls int
+	listCalls   int
 }
 
 func (m *mockRepo) GetByID(ctx context.Context, id string) (domain.SnapshotMeta, error) {
@@ -49,15 +49,15 @@ func (m *mockRepo) List(ctx context.Context, sessionID string, isPreset *bool, l
 }
 
 type mockStorage struct {
-	sha        string
-	saveErr    error
-	data       []byte
-	loadErr    error
-	deleteErr  error
-	delCalls   int
-	savedKey   string
-	savedData  []byte
-	loadCalls  int
+	sha       string
+	saveErr   error
+	data      []byte
+	loadErr   error
+	deleteErr error
+	delCalls  int
+	savedKey  string
+	savedData []byte
+	loadCalls int
 }
 
 func (m *mockStorage) Save(ctx context.Context, key string, data []byte) (string, error) {

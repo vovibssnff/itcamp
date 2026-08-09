@@ -8,11 +8,11 @@ import (
 )
 
 type LoginAttempt struct {
-	Login     string
-	Success   bool
-	IPAddr    string
-	UserID    string
-	At        time.Time
+	Login   string
+	Success bool
+	IPAddr  string
+	UserID  string
+	At      time.Time
 }
 
 type LoginAttemptRepo struct {

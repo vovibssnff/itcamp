@@ -15,17 +15,17 @@ type AssessmentService struct {
 	client client.ScenarioClient
 	log    *slog.Logger
 
-	mu          sync.Mutex
-	sessions    map[string]*sessionState
+	mu       sync.Mutex
+	sessions map[string]*sessionState
 }
 
 type sessionState struct {
-	scenario      domain.ScenarioData
-	engine        *ScoringEngine
-	score         domain.Score
-	actionStart   float64
+	scenario       domain.ScenarioData
+	engine         *ScoringEngine
+	score          domain.Score
+	actionStart    float64
 	completedSteps map[int]bool
-	alarmTimes    map[string]float64
+	alarmTimes     map[string]float64
 }
 
 func NewAssessmentService(repo *repository.AssessmentRepo, client client.ScenarioClient, log *slog.Logger) *AssessmentService {

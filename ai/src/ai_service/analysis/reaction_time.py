@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from statistics import mean
 
-from ..domain.enums import ActionType, CORRECTIVE_ACTIONS
+from ..domain.enums import CORRECTIVE_ACTIONS, ActionType
 from ..domain.models import AlarmEvent, AlarmReaction, OperatorAction, ReactionTimeReport
 from .normalize import same_target
 

@@ -1,6 +1,7 @@
 import unittest
 
 import context  # noqa: F401
+
 from ai_service.domain.models import LimitDef, TagSeries
 from ai_service.services.predict_physics import predict, visible_to_operator
 

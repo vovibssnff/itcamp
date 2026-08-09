@@ -37,7 +37,7 @@ func NewClient(cfg config.AuthClientConfig, log *slog.Logger) *Client {
 			Timeout: cfg.Timeout.Std(),
 		},
 		cache: newTokenCache(cfg.CacheTTL.Std(), cfg.CacheMaxSize),
-		log:    log,
+		log:   log,
 	}
 }
 

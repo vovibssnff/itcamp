@@ -53,33 +53,12 @@ func mapError(err error) (int, string) {
 	}
 }
 
-func clientIP(r *http.Request) string {
-	if ip := r.Header.Get("X-Forwarded-For"); ip != "" {
-		return ip
-	}
-	if ip := r.Header.Get("X-Real-IP"); ip != "" {
-		return ip
-	}
-	return r.RemoteAddr
-}
-
 func rolesToStrings(roles []domain.Role) []string {
 	out := make([]string, 0, len(roles))
 	for _, r := range roles {
 		out = append(out, string(r))
 	}
 	return out
-}
-
-func stringsToRoles(ss []string) []domain.Role {
-	roles := make([]domain.Role, 0, len(ss))
-	for _, s := range ss {
-		r := domain.Role(s)
-		if r.Valid() {
-			roles = append(roles, r)
-		}
-	}
-	return roles
 }
 
 func userToResponse(u domain.User) dto.UserResponse {

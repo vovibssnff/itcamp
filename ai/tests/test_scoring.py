@@ -1,12 +1,18 @@
 import unittest
 
 import context  # noqa: F401
+
 from ai_service.analysis.reaction_time import evaluate_reaction_times
 from ai_service.analysis.scoring import build_assessment
 from ai_service.analysis.sequence import compare_sequence
 from ai_service.domain.models import (
-    AlarmEvent, ForbiddenAction, InterlockEvent, OperatorAction,
-    PenaltyRule, ReferenceStep, ScenarioCriteria,
+    AlarmEvent,
+    ForbiddenAction,
+    InterlockEvent,
+    OperatorAction,
+    PenaltyRule,
+    ReferenceStep,
+    ScenarioCriteria,
 )
 
 REFERENCE = [

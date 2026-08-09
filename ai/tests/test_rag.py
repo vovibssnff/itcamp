@@ -1,7 +1,8 @@
 import unittest
 
 import context  # noqa: F401
-from ai_service.rag.bm25 import Bm25Index, Chunk, tokenize
+
+from ai_service.rag.bm25 import Bm25Index, tokenize
 from ai_service.rag.chunker import chunk_document, dehyphenate
 
 REG_TEXT = """3.5 Атмосферный блок

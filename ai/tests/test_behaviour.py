@@ -1,6 +1,7 @@
 import unittest
 
 import context  # noqa: F401
+
 from ai_service.bootstrap import load_risk_rules
 from ai_service.domain.models import OperatorAction
 from ai_service.llm.stub import StubProvider

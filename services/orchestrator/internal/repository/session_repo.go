@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -27,7 +28,9 @@ func (r *SessionRepo) scanSession(row pgx.Row) (domain.Session, error) {
 	if err := row.Scan(&s.ID, &s.TemplateID, &s.ScenarioID, &operatorsJSON, &s.InstructorID, &s.Mode, &s.Speed, &s.Status, &s.ModelTime, &s.StartedAt, &s.StoppedAt, &s.CreatedAt); err != nil {
 		return domain.Session{}, err
 	}
-	json.Unmarshal(operatorsJSON, &s.OperatorIDs)
+	if err := json.Unmarshal(operatorsJSON, &s.OperatorIDs); err != nil {
+		return domain.Session{}, fmt.Errorf("unmarshal operator_ids: %w", err)
+	}
 	return s, nil
 }
 

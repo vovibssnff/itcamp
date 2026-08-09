@@ -40,7 +40,7 @@ func TestClient_Introspect_EmptyToken(t *testing.T) {
 func TestClient_Introspect_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"active":true,"user_id":"u-1","login":"alice","roles":["admin"],"token_id":"t-1"}`))
+		_, _ = w.Write([]byte(`{"active":true,"user_id":"u-1","login":"alice","roles":["admin"],"token_id":"t-1"}`))
 	}))
 	defer srv.Close()
 
@@ -68,7 +68,7 @@ func TestClient_Introspect_NonSuccessStatus(t *testing.T) {
 
 func TestClient_Introspect_BadJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`not json`))
+		_, _ = w.Write([]byte(`not json`))
 	}))
 	defer srv.Close()
 

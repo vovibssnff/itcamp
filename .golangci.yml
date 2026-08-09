@@ -1,0 +1,33 @@
+# Shared golangci-lint config for all Go modules in this monorepo.
+# Run from a module root: golangci-lint run --config ../../.golangci.yml
+# (depth varies: services/<name> → ../.. ; tools/migrator → ../..)
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/itcamp/ktc
+
+issues:
+  exclude-dirs:
+    - vendor
+    - third_party
+    - testdata
+  exclude-files:
+    - ".*\\.pb\\.go$"
+    - ".*_gen\\.go$"
+    - "zz_generated\\..*"
+  max-issues-per-linter: 0
+  max-same-issues: 0

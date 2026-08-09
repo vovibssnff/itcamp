@@ -26,7 +26,7 @@ func TestTriggerValidator_TimeTrigger_MissingTime(t *testing.T) {
 func TestTriggerValidator_ConditionTrigger_Valid(t *testing.T) {
 	v := NewTriggerValidator()
 	err := v.ValidateTrigger(domain.Trigger{
-		Type: domain.TriggerCondition,
+		Type:      domain.TriggerCondition,
 		Condition: &domain.ConditionSpec{Tag: "PRSA-204", Op: domain.OpGTE, Value: 4.5},
 	})
 	if err != nil {
@@ -45,7 +45,7 @@ func TestTriggerValidator_ConditionTrigger_MissingCondition(t *testing.T) {
 func TestTriggerValidator_ConditionTrigger_MissingTag(t *testing.T) {
 	v := NewTriggerValidator()
 	err := v.ValidateTrigger(domain.Trigger{
-		Type: domain.TriggerCondition,
+		Type:      domain.TriggerCondition,
 		Condition: &domain.ConditionSpec{Op: domain.OpGTE, Value: 4.5},
 	})
 	if err == nil {
@@ -56,7 +56,7 @@ func TestTriggerValidator_ConditionTrigger_MissingTag(t *testing.T) {
 func TestTriggerValidator_ConditionTrigger_InvalidOp(t *testing.T) {
 	v := NewTriggerValidator()
 	err := v.ValidateTrigger(domain.Trigger{
-		Type: domain.TriggerCondition,
+		Type:      domain.TriggerCondition,
 		Condition: &domain.ConditionSpec{Tag: "PRSA-204", Op: "!=", Value: 4.5},
 	})
 	if err == nil {

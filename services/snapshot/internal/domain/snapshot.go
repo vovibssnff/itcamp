@@ -44,8 +44,8 @@ type RestoreResponse struct {
 }
 
 var (
-	ErrSnapshotNotFound  = errors.New("snapshot not found")
-	ErrSHA256Mismatch    = errors.New("sha256 mismatch")
+	ErrSnapshotNotFound      = errors.New("snapshot not found")
+	ErrSHA256Mismatch        = errors.New("sha256 mismatch")
 	ErrPresetDeleteForbidden = errors.New("cannot delete preset")
-	ErrStorageFailed     = errors.New("storage operation failed")
+	ErrStorageFailed         = errors.New("storage operation failed")
 )

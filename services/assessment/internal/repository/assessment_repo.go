@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
 
@@ -25,13 +26,22 @@ func (r *AssessmentRepo) GetBySession(ctx context.Context, sessionID string) (do
 		SELECT session_id, reaction_times, penalties, critical_errors, total_score, verdict
 		FROM assessments WHERE session_id = $1`, sessionID).
 		Scan(&s.SessionID, &reactionJSON, &penaltiesJSON, &criticalJSON, &s.TotalScore, &s.Verdict)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return domain.Score{}, domain.ErrAssessmentNotFound
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Score{}, domain.ErrAssessmentNotFound
+		}
+		return domain.Score{}, err
 	}
-	json.Unmarshal(penaltiesJSON, &s.Penalties)
-	json.Unmarshal(criticalJSON, &s.CriticalErrors)
-	json.Unmarshal(reactionJSON, &s.ReactionTimes)
-	return s, err
+	if err := json.Unmarshal(penaltiesJSON, &s.Penalties); err != nil {
+		return domain.Score{}, fmt.Errorf("unmarshal penalties: %w", err)
+	}
+	if err := json.Unmarshal(criticalJSON, &s.CriticalErrors); err != nil {
+		return domain.Score{}, fmt.Errorf("unmarshal critical_errors: %w", err)
+	}
+	if err := json.Unmarshal(reactionJSON, &s.ReactionTimes); err != nil {
+		return domain.Score{}, fmt.Errorf("unmarshal reaction_times: %w", err)
+	}
+	return s, nil
 }
 
 func (r *AssessmentRepo) Upsert(ctx context.Context, s domain.Score) error {
@@ -85,7 +95,9 @@ func (r *AssessmentRepo) GetReplayData(ctx context.Context, sessionID string) (d
 			var t, target, action string
 			var valueJSON []byte
 			var mt float64
-			rows.Scan(&t, &target, &action, &valueJSON, &mt)
+			if err := rows.Scan(&t, &target, &action, &valueJSON, &mt); err != nil {
+				return domain.ReplayData{}, err
+			}
 			replay.Actions = append(replay.Actions, map[string]any{"type": t, "target": target, "action": action, "model_time": mt})
 		}
 	}
@@ -97,7 +109,9 @@ func (r *AssessmentRepo) GetReplayData(ctx context.Context, sessionID string) (d
 		for rows2.Next() {
 			var tagID, priority string
 			var mt float64
-			rows2.Scan(&tagID, &priority, &mt)
+			if err := rows2.Scan(&tagID, &priority, &mt); err != nil {
+				return domain.ReplayData{}, err
+			}
 			replay.Alarms = append(replay.Alarms, map[string]any{"tag_id": tagID, "priority": priority, "model_time": mt})
 		}
 	}
@@ -109,7 +123,9 @@ func (r *AssessmentRepo) GetReplayData(ctx context.Context, sessionID string) (d
 		for rows3.Next() {
 			var faultID, compID string
 			var mt float64
-			rows3.Scan(&faultID, &compID, &mt)
+			if err := rows3.Scan(&faultID, &compID, &mt); err != nil {
+				return domain.ReplayData{}, err
+			}
 			replay.Faults = append(replay.Faults, map[string]any{"fault_id": faultID, "component": compID, "model_time": mt})
 		}
 	}

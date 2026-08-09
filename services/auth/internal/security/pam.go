@@ -25,8 +25,8 @@ func NewPAMClient(cfg config.PAMConfig) *PAMClient {
 }
 
 type PAMVerifyRequest struct {
-	UserID   string `json:"user_id"`
-	Token    string `json:"token"`
+	UserID string `json:"user_id"`
+	Token  string `json:"token"`
 }
 
 type PAMVerifyResponse struct {

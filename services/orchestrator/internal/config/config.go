@@ -9,11 +9,11 @@ import (
 )
 
 type Config struct {
-	HTTP     HTTPConfig     `toml:"http"`
-	DB       DBConfig       `toml:"db"`
-	Redis    RedisConfig    `toml:"redis"`
-	NATS     NATSConfig     `toml:"nats"`
-	Clients  ClientsConfig  `toml:"clients"`
+	HTTP      HTTPConfig      `toml:"http"`
+	DB        DBConfig        `toml:"db"`
+	Redis     RedisConfig     `toml:"redis"`
+	NATS      NATSConfig      `toml:"nats"`
+	Clients   ClientsConfig   `toml:"clients"`
 	Telemetry TelemetryConfig `toml:"telemetry"`
 }
 
@@ -51,7 +51,7 @@ type ClientsConfig struct {
 }
 
 type TelemetryConfig struct {
-	Hz          float64 `toml:"hz"`
+	Hz          float64  `toml:"hz"`
 	TickTimeout Duration `toml:"tick_timeout"`
 }
 

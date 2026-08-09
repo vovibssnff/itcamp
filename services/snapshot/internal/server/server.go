@@ -31,7 +31,7 @@ func New(d Deps) *Server {
 	h = logMW(d.Log)(h)
 	srv := &http.Server{
 		Addr: d.Cfg.HTTP.Addr, Handler: h,
-		ReadTimeout: d.Cfg.HTTP.ReadTimeout.Std(),
+		ReadTimeout:  d.Cfg.HTTP.ReadTimeout.Std(),
 		WriteTimeout: d.Cfg.HTTP.WriteTimeout.Std(),
 	}
 	return &Server{cfg: d.Cfg, log: d.Log, server: srv}

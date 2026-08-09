@@ -40,28 +40,28 @@ type ReactionTime struct {
 }
 
 type Score struct {
-	SessionID       string          `json:"session_id"`
-	ReactionTimes   []ReactionTime  `json:"reaction_times"`
-	Penalties       []Penalty       `json:"penalties"`
-	CriticalErrors  []CriticalError `json:"critical_errors"`
-	TotalScore      int             `json:"total_score"`
-	Verdict         Verdict         `json:"verdict"`
+	SessionID      string          `json:"session_id"`
+	ReactionTimes  []ReactionTime  `json:"reaction_times"`
+	Penalties      []Penalty       `json:"penalties"`
+	CriticalErrors []CriticalError `json:"critical_errors"`
+	TotalScore     int             `json:"total_score"`
+	Verdict        Verdict         `json:"verdict"`
 }
 
 type Override struct {
-	SessionID string `json:"session_id"`
-	NewScore  int    `json:"new_score"`
+	SessionID string  `json:"session_id"`
+	NewScore  int     `json:"new_score"`
 	Verdict   Verdict `json:"verdict"`
-	Comment   string `json:"comment"`
-	ByUserID  string `json:"by_user_id"`
+	Comment   string  `json:"comment"`
+	ByUserID  string  `json:"by_user_id"`
 }
 
 type ReferenceAction struct {
-	Step            int             `json:"step"`
-	Description     string          `json:"description"`
-	Expected        ExpectedAction  `json:"expected"`
-	DeadlineSeconds int             `json:"deadline_seconds"`
-	Mandatory       bool            `json:"mandatory"`
+	Step            int            `json:"step"`
+	Description     string         `json:"description"`
+	Expected        ExpectedAction `json:"expected"`
+	DeadlineSeconds int            `json:"deadline_seconds"`
+	Mandatory       bool           `json:"mandatory"`
 }
 
 type ExpectedAction struct {

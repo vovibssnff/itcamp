@@ -1,9 +1,10 @@
 import unittest
 
 import context  # noqa: F401
-from ai_service.validation.tag_guard import TagGuard
+
 from ai_service.validation.explain_format import ExplainFormatError, parse_explain
 from ai_service.validation.pdn import PdnViolation, assert_no_pdn_fields, scrub
+from ai_service.validation.tag_guard import TagGuard
 
 KNOWN = ["PRSA 204", "FRC 408", "TRC 2", "PRC 221", "LRCA 602"]
 

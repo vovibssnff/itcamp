@@ -36,14 +36,14 @@ const (
 )
 
 type Parameter struct {
-	ID      string         `json:"id"`
-	Name    string         `json:"name"`
-	Unit    string         `json:"unit"`
-	Type    ParameterType  `json:"type"`
-	Default any            `json:"default"`
-	Min     *float64       `json:"min,omitempty"`
-	Max     *float64       `json:"max,omitempty"`
-	Options []string       `json:"options,omitempty"`
+	ID      string        `json:"id"`
+	Name    string        `json:"name"`
+	Unit    string        `json:"unit"`
+	Type    ParameterType `json:"type"`
+	Default any           `json:"default"`
+	Min     *float64      `json:"min,omitempty"`
+	Max     *float64      `json:"max,omitempty"`
+	Options []string      `json:"options,omitempty"`
 }
 
 type Category string
@@ -56,13 +56,13 @@ const (
 )
 
 type ComponentType struct {
-	ID           string      `json:"id"`
-	Name         string      `json:"name"`
-	Category     Category    `json:"category"`
-	Description  string      `json:"description"`
-	Ports        []Port      `json:"ports"`
-	Parameters   []Parameter `json:"parameters"`
-	ModelCode    string      `json:"model_code"`
-	IconS3Key    string      `json:"icon_s3_key"`
-	Documentation string     `json:"documentation"`
+	ID            string      `json:"id"`
+	Name          string      `json:"name"`
+	Category      Category    `json:"category"`
+	Description   string      `json:"description"`
+	Ports         []Port      `json:"ports"`
+	Parameters    []Parameter `json:"parameters"`
+	ModelCode     string      `json:"model_code"`
+	IconS3Key     string      `json:"icon_s3_key"`
+	Documentation string      `json:"documentation"`
 }

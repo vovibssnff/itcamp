@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
 
@@ -87,9 +88,9 @@ func (r *ReportRepo) SetReady(ctx context.Context, id, canonicalJSON, storageKey
 }
 
 type ScoreData struct {
-	TotalScore     int                  `json:"total_score"`
-	Verdict        string               `json:"verdict"`
-	Penalties      []domain.PenaltyData `json:"penalties"`
+	TotalScore     int                   `json:"total_score"`
+	Verdict        string                `json:"verdict"`
+	Penalties      []domain.PenaltyData  `json:"penalties"`
 	CriticalErrors []domain.CriticalData `json:"critical_errors"`
 }
 
@@ -101,8 +102,12 @@ func (r *ReportRepo) GetScore(ctx context.Context, sessionID string) (ScoreData,
 	if err != nil {
 		return ScoreData{}, err
 	}
-	json.Unmarshal(penaltiesJSON, &s.Penalties)
-	json.Unmarshal(criticalJSON, &s.CriticalErrors)
+	if err := json.Unmarshal(penaltiesJSON, &s.Penalties); err != nil {
+		return ScoreData{}, fmt.Errorf("unmarshal penalties: %w", err)
+	}
+	if err := json.Unmarshal(criticalJSON, &s.CriticalErrors); err != nil {
+		return ScoreData{}, fmt.Errorf("unmarshal critical_errors: %w", err)
+	}
 	return s, nil
 }
 
@@ -115,10 +120,12 @@ func (r *ReportRepo) GetActions(ctx context.Context, sessionID string) ([]domain
 	var actions []domain.ActionData
 	for rows.Next() {
 		var a domain.ActionData
-		rows.Scan(&a.Target, &a.Action, &a.ModelTime)
+		if err := rows.Scan(&a.Target, &a.Action, &a.ModelTime); err != nil {
+			return nil, err
+		}
 		actions = append(actions, a)
 	}
-	return actions, nil
+	return actions, rows.Err()
 }
 
 func (r *ReportRepo) GetAlarms(ctx context.Context, sessionID string) ([]domain.AlarmData, error) {
@@ -130,10 +137,12 @@ func (r *ReportRepo) GetAlarms(ctx context.Context, sessionID string) ([]domain.
 	var alarms []domain.AlarmData
 	for rows.Next() {
 		var a domain.AlarmData
-		rows.Scan(&a.TagID, &a.Priority, &a.ModelTime)
+		if err := rows.Scan(&a.TagID, &a.Priority, &a.ModelTime); err != nil {
+			return nil, err
+		}
 		alarms = append(alarms, a)
 	}
-	return alarms, nil
+	return alarms, rows.Err()
 }
 
 func (r *ReportRepo) GetFaults(ctx context.Context, sessionID string) ([]domain.FaultData, error) {
@@ -145,8 +154,10 @@ func (r *ReportRepo) GetFaults(ctx context.Context, sessionID string) ([]domain.
 	var faults []domain.FaultData
 	for rows.Next() {
 		var f domain.FaultData
-		rows.Scan(&f.FaultID, &f.ModelTime)
+		if err := rows.Scan(&f.FaultID, &f.ModelTime); err != nil {
+			return nil, err
+		}
 		faults = append(faults, f)
 	}
-	return faults, nil
+	return faults, rows.Err()
 }

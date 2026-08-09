@@ -30,7 +30,7 @@ func New(ctx context.Context, cfg config.RedisConfig) (*Cache, error) {
 
 func (c *Cache) Close() {
 	if c.rdb != nil {
-		c.rdb.Close()
+		_ = c.rdb.Close()
 	}
 }
 
@@ -46,7 +46,9 @@ func (c *Cache) GetTelemetry(ctx context.Context, sessionID string) (domain.Tele
 		return domain.Telemetry{}, err
 	}
 	var t domain.Telemetry
-	json.Unmarshal(data, &t)
+	if err := json.Unmarshal(data, &t); err != nil {
+		return domain.Telemetry{}, fmt.Errorf("unmarshal telemetry: %w", err)
+	}
 	return t, nil
 }
 
@@ -62,7 +64,9 @@ func (c *Cache) GetSessionState(ctx context.Context, sessionID string) (domain.S
 		return domain.Session{}, err
 	}
 	var s domain.Session
-	json.Unmarshal(data, &s)
+	if err := json.Unmarshal(data, &s); err != nil {
+		return domain.Session{}, fmt.Errorf("unmarshal session: %w", err)
+	}
 	return s, nil
 }
 

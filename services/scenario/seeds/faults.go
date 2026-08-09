@@ -5,8 +5,8 @@ import "github.com/itcamp/ktc/services/scenario/internal/domain"
 func FaultsCatalog() []domain.Fault {
 	return []domain.Fault{
 		{
-			FaultID: "level_drop_dehydrator",
-			Name:    "Падение уровня раздела фаз в электродегидраторе",
+			FaultID:                  "level_drop_dehydrator",
+			Name:                     "Падение уровня раздела фаз в электродегидраторе",
 			ApplicableComponentTypes: []string{"electro_dehydrator"},
 			Description:              "Снижение уровня ниже 3500 мм → блокировка HV",
 			AffectedTags:             []string{"LRCA-639", "LRCA-640", "LRCA-641", "LRCA-642", "LRCA-643", "LRCA-644"},
@@ -14,8 +14,8 @@ func FaultsCatalog() []domain.Fault {
 			DamagePerSec:             0.5,
 		},
 		{
-			FaultID: "pressure_rise_dehydrator",
-			Name:    "Рост давления в электродегидраторах / Е-15",
+			FaultID:                  "pressure_rise_dehydrator",
+			Name:                     "Рост давления в электродегидраторах / Е-15",
 			ApplicableComponentTypes: []string{"electro_dehydrator", "vessel"},
 			Description:              "Рост давления выше расчётного (Е-15: 5,3 кгс/см², Э: 16 кгс/см²)",
 			AffectedTags:             []string{"PRA-351", "PRA-312", "PRC-313"},
@@ -23,8 +23,8 @@ func FaultsCatalog() []domain.Fault {
 			DamagePerSec:             0.3,
 		},
 		{
-			FaultID: "feed_flow_drop",
-			Name:    "Падение расхода сырой нефти",
+			FaultID:                  "feed_flow_drop",
+			Name:                     "Падение расхода сырой нефти",
 			ApplicableComponentTypes: []string{"centrifugal_pump", "furnace"},
 			Description:              "Снижение суммарного расхода нефти при работающих печах",
 			AffectedTags:             []string{"FRC-404", "FRC-405", "FRC-406", "FYQR-117"},
@@ -32,8 +32,8 @@ func FaultsCatalog() []domain.Fault {
 			DamagePerSec:             1.0,
 		},
 		{
-			FaultID: "cot_rise_furnace",
-			Name:    "Рост температуры на выходе змеевика печи (COT)",
+			FaultID:                  "cot_rise_furnace",
+			Name:                     "Рост температуры на выходе змеевика печи (COT)",
 			ApplicableComponentTypes: []string{"furnace"},
 			Description:              "Рост COT выше 340°C (П-3)",
 			AffectedTags:             []string{"TR-55-9", "TR-55-10", "TR-55-11", "TRC-3", "TRC-5"},
@@ -41,8 +41,8 @@ func FaultsCatalog() []domain.Fault {
 			DamagePerSec:             0.8,
 		},
 		{
-			FaultID: "pressure_rise_K1",
-			Name:    "Рост давления верха колонны К-1",
+			FaultID:                  "pressure_rise_K1",
+			Name:                     "Рост давления верха колонны К-1",
 			ApplicableComponentTypes: []string{"distillation_column"},
 			Description:              "Рост давления до блокировки ПАЗ (4,8 кгс/см²)",
 			AffectedTags:             []string{"PRSA-204", "TRC-2", "FRC-408", "PRC-221"},
@@ -50,8 +50,8 @@ func FaultsCatalog() []domain.Fault {
 			DamagePerSec:             1.5,
 		},
 		{
-			FaultID: "level_drop_K1",
-			Name:    "Падение уровня жидкости в кубе К-1",
+			FaultID:                  "level_drop_K1",
+			Name:                     "Падение уровня жидкости в кубе К-1",
 			ApplicableComponentTypes: []string{"distillation_column"},
 			Description:              "Падение уровня ниже допустимого → риск сухого хода насосов",
 			AffectedTags:             []string{"LRCA-602", "FRCA-411", "FRCA-412", "FRC-458"},
@@ -59,8 +59,8 @@ func FaultsCatalog() []domain.Fault {
 			DamagePerSec:             0.7,
 		},
 		{
-			FaultID: "vacuum_loss_K2",
-			Name:    "Потеря вакуума в колонне К-2",
+			FaultID:                  "vacuum_loss_K2",
+			Name:                     "Потеря вакуума в колонне К-2",
 			ApplicableComponentTypes: []string{"distillation_column"},
 			Description:              "Рост давления до 1,0 кгс/см² → блокировка ПАЗ при 1,5",
 			AffectedTags:             []string{"PRSA-213", "FRC-418", "FRC-421", "TRC-50"},
@@ -68,8 +68,8 @@ func FaultsCatalog() []domain.Fault {
 			DamagePerSec:             1.2,
 		},
 		{
-			FaultID: "level_drop_K3_1",
-			Name:    "Падение уровня в стриппинге К-3/1",
+			FaultID:                  "level_drop_K3_1",
+			Name:                     "Падение уровня в стриппинге К-3/1",
 			ApplicableComponentTypes: []string{"stripping_column"},
 			Description:              "Падение уровня ниже 15% → останов насосов Н-14/Н-67А",
 			AffectedTags:             []string{"LRCA-606", "FRC-422", "TR-17-33"},
@@ -77,8 +77,8 @@ func FaultsCatalog() []domain.Fault {
 			DamagePerSec:             0.6,
 		},
 		{
-			FaultID: "pressure_rise_K4",
-			Name:    "Рост давления в колонне стабилизации К-4",
+			FaultID:                  "pressure_rise_K4",
+			Name:                     "Рост давления в колонне стабилизации К-4",
 			ApplicableComponentTypes: []string{"stabilization_column"},
 			Description:              "Рост давления выше рабочего диапазона 6–11 кгс/см²",
 			AffectedTags:             []string{"PRCA-220", "PRCA-223", "TRC-5", "FR-415"},
@@ -86,8 +86,8 @@ func FaultsCatalog() []domain.Fault {
 			DamagePerSec:             0.5,
 		},
 		{
-			FaultID: "instrument_air_loss",
-			Name:    "Падение давления воздуха КИП",
+			FaultID:                  "instrument_air_loss",
+			Name:                     "Падение давления воздуха КИП",
 			ApplicableComponentTypes: []string{"kip_sensor", "control_valve", "gate_valve"},
 			Description:              "Падение давления воздуха КИП → отказ регуляторов",
 			AffectedTags:             []string{"PRA-700"},

@@ -2,14 +2,12 @@ package service
 
 import (
 	"encoding/json"
-	"sync"
 )
 
 type WSClient struct {
 	send   chan []byte
 	role   string
 	userID string
-	mu     sync.Mutex
 }
 
 func NewWSClient(role, userID string) *WSClient {
@@ -35,7 +33,7 @@ func (c *WSClient) SendChan() <-chan []byte {
 	return c.send
 }
 
-func (c *WSClient) Role() string  { return c.role }
+func (c *WSClient) Role() string   { return c.role }
 func (c *WSClient) UserID() string { return c.userID }
 
 func (c *WSClient) Close() {

@@ -38,10 +38,10 @@ func (e *Exporter) Export(graph domain.Graph) (map[string]any, error) {
 
 		state := e.initState(ct)
 		node := map[string]any{
-			"instance_id":      n.ID,
-			"model_code":       ct.ModelCode,
-			"parameters":       params,
-			"state":            state,
+			"instance_id": n.ID,
+			"model_code":  ct.ModelCode,
+			"parameters":  params,
+			"state":       state,
 		}
 		nodes = append(nodes, node)
 	}

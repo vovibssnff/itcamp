@@ -1,8 +1,9 @@
 import unittest
 
 import context  # noqa: F401
-from ai_service.domain.models import AlarmEvent, OperatorAction
+
 from ai_service.analysis.reaction_time import evaluate_reaction_times
+from ai_service.domain.models import AlarmEvent, OperatorAction
 
 
 def action(t, type_, target, **kw):

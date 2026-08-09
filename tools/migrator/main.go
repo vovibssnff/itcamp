@@ -47,7 +47,7 @@ func main() {
 	name := fs.String("name", "", "имя миграции (create)")
 	service := fs.String("service", "", "сервис (create)")
 	migrationsPath := fs.String("migrations", defaultMigrationsPath(), "путь к миграциям")
-	fs.Parse(os.Args[2:])
+	_ = fs.Parse(os.Args[2:])
 
 	switch cmd {
 	case "up":

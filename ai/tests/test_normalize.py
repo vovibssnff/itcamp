@@ -1,6 +1,7 @@
 import unittest
 
 import context  # noqa: F401
+
 from ai_service.analysis.normalize import normalize_tag, same_target
 
 

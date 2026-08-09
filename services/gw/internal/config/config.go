@@ -9,11 +9,11 @@ import (
 )
 
 type Config struct {
-	HTTP      HTTPConfig      `toml:"http"`
-	Auth      AuthClientConfig `toml:"auth_client"`
+	HTTP      HTTPConfig                `toml:"http"`
+	Auth      AuthClientConfig          `toml:"auth_client"`
 	Upstreams map[string]UpstreamConfig `toml:"upstreams"`
-	Routes    []RouteConfig   `toml:"routes"`
-	Security  GWSecurityConfig `toml:"security"`
+	Routes    []RouteConfig             `toml:"routes"`
+	Security  GWSecurityConfig          `toml:"security"`
 }
 
 type HTTPConfig struct {

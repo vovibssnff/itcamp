@@ -12,6 +12,7 @@ import (
 	"github.com/itcamp/ktc/services/orchestrator/internal/domain"
 	"github.com/itcamp/ktc/services/orchestrator/internal/events"
 	"github.com/itcamp/ktc/services/orchestrator/internal/repository"
+	"github.com/itcamp/ktc/shared/go/audit"
 )
 
 type SessionService struct {
@@ -78,6 +79,7 @@ func (s *SessionService) Create(ctx context.Context, instructorID string, in Cre
 	if err := s.repo.Create(ctx, sess); err != nil {
 		return domain.Session{}, err
 	}
+	audit.Emit(ctx, s.log, "session.created", "id", sess.ID, "instructor_id", instructorID, "mode", sess.Mode)
 	return sess, nil
 }
 
@@ -124,6 +126,7 @@ func (s *SessionService) Start(ctx context.Context, id string) (domain.Session, 
 
 	sess.Status = domain.StatusRunning
 	s.publisher.PublishSessionEvent(ctx, id, "started", nil)
+	audit.Emit(ctx, s.log, "session.started", "id", id)
 	return sess, nil
 }
 
@@ -138,6 +141,7 @@ func (s *SessionService) Pause(ctx context.Context, id string) (domain.Session, 
 		return domain.Session{}, err
 	}
 	s.publisher.PublishSessionEvent(ctx, id, "paused", nil)
+	audit.Emit(ctx, s.log, "session.paused", "id", id)
 	return s.repo.GetByID(ctx, id)
 }
 
@@ -163,6 +167,7 @@ func (s *SessionService) Stop(ctx context.Context, id string) (domain.Session, e
 		return domain.Session{}, err
 	}
 	s.publisher.PublishSessionEvent(ctx, id, "stopped", nil)
+	audit.Emit(ctx, s.log, "session.stopped", "id", id, "model_time", modelTime)
 	return s.repo.GetByID(ctx, id)
 }
 
@@ -174,6 +179,7 @@ func (s *SessionService) SetSpeed(ctx context.Context, id string, speed float64)
 		return domain.Session{}, err
 	}
 	_ = s.sim.SetSpeed(ctx, id, speed)
+	audit.Emit(ctx, s.log, "session.speed_changed", "id", id, "speed", speed)
 	return s.repo.GetByID(ctx, id)
 }
 
@@ -183,7 +189,11 @@ func (s *SessionService) Checkpoint(ctx context.Context, id, name string) (strin
 		return "", err
 	}
 	snapID, _, err := s.snapshot.Save(ctx, id, name, false, state)
-	return snapID, err
+	if err != nil {
+		return "", err
+	}
+	audit.Emit(ctx, s.log, "session.checkpoint_created", "id", id, "snapshot_id", snapID)
+	return snapID, nil
 }
 
 func (s *SessionService) Restore(ctx context.Context, id, snapshotID, userID string) (domain.Session, error) {
@@ -205,6 +215,7 @@ func (s *SessionService) Restore(ctx context.Context, id, snapshotID, userID str
 	if err := s.sim.SetState(ctx, id, state); err != nil {
 		return domain.Session{}, err
 	}
+	audit.Emit(ctx, s.log, "session.restored", "id", id, "snapshot_id", snapshotID)
 	return s.repo.GetByID(ctx, id)
 }
 

@@ -4,11 +4,14 @@ go 1.22
 
 require (
 	github.com/BurntSushi/toml v1.4.0
+	github.com/itcamp/ktc/shared/go v0.0.0
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/nats-io/nats.go v1.36.0
 	github.com/redis/go-redis/v9 v9.6.1
 	nhooyr.io/websocket v1.8.11
 )
+
+replace github.com/itcamp/ktc/shared/go => ../../shared/go
 
 require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect

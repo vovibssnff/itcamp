@@ -2,17 +2,26 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
+	"github.com/itcamp/ktc/shared/go/audit"
 	"github.com/itcamp/ktc/services/constructor/internal/domain"
 	"github.com/itcamp/ktc/services/constructor/internal/repository"
 )
 
 type ComponentService struct {
 	repo *repository.ComponentRepo
+	log  *slog.Logger
 }
 
 func NewComponentService(repo *repository.ComponentRepo) *ComponentService {
 	return &ComponentService{repo: repo}
+}
+
+// WithAudit задаёт логгер для записи событий аудита.
+func (s *ComponentService) WithAudit(log *slog.Logger) *ComponentService {
+	s.log = log
+	return s
 }
 
 func (s *ComponentService) Get(ctx context.Context, id string) (domain.ComponentType, error) {
@@ -33,6 +42,7 @@ func (s *ComponentService) Create(ctx context.Context, c domain.ComponentType) (
 	if err := s.repo.Create(ctx, c); err != nil {
 		return domain.ComponentType{}, err
 	}
+	audit.Emit(ctx, s.log, "component.created", "id", c.ID)
 	return c, nil
 }
 
@@ -40,6 +50,7 @@ func (s *ComponentService) Update(ctx context.Context, c domain.ComponentType) (
 	if err := s.repo.Update(ctx, c); err != nil {
 		return domain.ComponentType{}, err
 	}
+	audit.Emit(ctx, s.log, "component.updated", "id", c.ID)
 	return c, nil
 }
 
@@ -51,7 +62,11 @@ func (s *ComponentService) Delete(ctx context.Context, id string) error {
 	if inUse {
 		return domain.ErrComponentInUse
 	}
-	return s.repo.Delete(ctx, id)
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return err
+	}
+	audit.Emit(ctx, s.log, "component.deleted", "id", id)
+	return nil
 }
 
 func (s *ComponentService) Seed(ctx context.Context, components []domain.ComponentType) error {

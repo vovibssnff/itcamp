@@ -42,11 +42,11 @@ func main() {
 	componentRepo := repository.NewComponentRepo(pg)
 	templateRepo := repository.NewTemplateRepo(pg)
 
-	componentSvc := service.NewComponentService(componentRepo)
+	componentSvc := service.NewComponentService(componentRepo).WithAudit(log)
 
 	validator := service.NewValidator(componentRepo.GetByIDSync)
 	exporter := service.NewExporter(componentRepo.GetByIDSync)
-	templateSvc := service.NewTemplateService(templateRepo, validator, exporter)
+	templateSvc := service.NewTemplateService(templateRepo, validator, exporter).WithAudit(log)
 
 	if cfg.Seed.Enabled {
 		log.Info("seeding component library")

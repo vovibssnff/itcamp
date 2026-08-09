@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
+	"github.com/itcamp/ktc/shared/go/audit"
 	"github.com/itcamp/ktc/services/scenario/internal/domain"
 )
 
@@ -20,10 +22,17 @@ type ScenarioStore interface {
 type ScenarioService struct {
 	repo      ScenarioStore
 	validator *TriggerValidator
+	log       *slog.Logger
 }
 
 func NewScenarioService(repo ScenarioStore, validator *TriggerValidator) *ScenarioService {
 	return &ScenarioService{repo: repo, validator: validator}
+}
+
+// WithAudit задаёт логгер для записи событий аудита.
+func (s *ScenarioService) WithAudit(log *slog.Logger) *ScenarioService {
+	s.log = log
+	return s
 }
 
 func (s *ScenarioService) Get(ctx context.Context, id string) (domain.Scenario, error) {
@@ -54,6 +63,7 @@ func (s *ScenarioService) Create(ctx context.Context, sc domain.Scenario) (domai
 	if err := s.repo.Create(ctx, sc); err != nil {
 		return domain.Scenario{}, err
 	}
+	audit.Emit(ctx, s.log, "scenario.created", "id", sc.ID, "type", sc.Type)
 	return sc, nil
 }
 
@@ -64,15 +74,25 @@ func (s *ScenarioService) Update(ctx context.Context, sc domain.Scenario) (domai
 	if err := s.repo.Update(ctx, sc); err != nil {
 		return domain.Scenario{}, err
 	}
+	audit.Emit(ctx, s.log, "scenario.updated", "id", sc.ID)
 	return s.repo.GetByID(ctx, sc.ID)
 }
 
 func (s *ScenarioService) Delete(ctx context.Context, id string) error {
-	return s.repo.Delete(ctx, id)
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return err
+	}
+	audit.Emit(ctx, s.log, "scenario.deleted", "id", id)
+	return nil
 }
 
 func (s *ScenarioService) Clone(ctx context.Context, id, newTemplateID string) (domain.Scenario, error) {
-	return s.repo.Clone(ctx, id, newTemplateID)
+	clone, err := s.repo.Clone(ctx, id, newTemplateID)
+	if err != nil {
+		return domain.Scenario{}, err
+	}
+	audit.Emit(ctx, s.log, "scenario.cloned", "source_id", id, "new_id", clone.ID, "template_id", newTemplateID)
+	return clone, nil
 }
 
 func (s *ScenarioService) GetRandomExam(ctx context.Context, templateID string) (domain.Scenario, error) {

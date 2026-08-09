@@ -4,9 +4,12 @@ go 1.22
 
 require (
 	github.com/BurntSushi/toml v1.4.0
+	github.com/itcamp/ktc/shared/go v0.0.0
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/minio/minio-go/v7 v7.0.74
 )
+
+replace github.com/itcamp/ktc/shared/go => ../../shared/go
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect

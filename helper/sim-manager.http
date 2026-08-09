@@ -1,0 +1,31 @@
+### ============================================================
+### sim-manager — Диспетчер Simulation Engine (сервис sim-manager)
+### Базовый URL. Скорректируйте порт под конфигурацию вашего сервиса.
+### ============================================================
+
+@host = http://localhost
+@port = 8080
+@base = {{host}}:{{port}}
+@sessionId = sess_123
+
+### Проверка живости сервиса
+GET {{base}}/healthz
+
+### Создать инстанс sim-worker под сессию (1 сессия = 1 инстанс)
+POST {{base}}/sessions
+Content-Type: application/json
+
+{
+  "session_id": "{{sessionId}}",
+  "image": "sim-worker:latest",
+  "init_state_ref": "snap_123"
+}
+
+### Список инстансов и квота
+GET {{base}}/sessions
+
+### Статус инстанса сессии
+GET {{base}}/sessions/{{sessionId}}
+
+### Остановить (удалить) инстанс сессии
+DELETE {{base}}/sessions/{{sessionId}}

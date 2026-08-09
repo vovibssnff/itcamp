@@ -43,7 +43,7 @@ func main() {
 	faultRepo := repository.NewFaultRepo(pg)
 
 	triggerValidator := service.NewTriggerValidator()
-	scenarioSvc := service.NewScenarioService(scenarioRepo, triggerValidator)
+	scenarioSvc := service.NewScenarioService(scenarioRepo, triggerValidator).WithAudit(log)
 	faultSvc := service.NewFaultService(faultRepo)
 
 	if cfg.Seed.Enabled {

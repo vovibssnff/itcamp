@@ -3,8 +3,8 @@ package config
 import (
 	"fmt"
 	"os"
-	"time"
 
+sharedcfg "github.com/itcamp/ktc/shared/go/config"
 	"github.com/BurntSushi/toml"
 )
 
@@ -48,19 +48,7 @@ type GWSecurityConfig struct {
 	RateLimitPerMin int `toml:"rate_limit_per_min"`
 }
 
-type Duration time.Duration
-
-func (d *Duration) UnmarshalText(text []byte) error {
-	s := string(text)
-	v, err := time.ParseDuration(s)
-	if err != nil {
-		return fmt.Errorf("invalid duration %q: %w", s, err)
-	}
-	*d = Duration(v)
-	return nil
-}
-
-func (d Duration) Std() time.Duration { return time.Duration(d) }
+type Duration = sharedcfg.Duration
 
 func Load(path string) (Config, error) {
 	var c Config

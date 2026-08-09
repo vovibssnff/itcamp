@@ -1,0 +1,107 @@
+openapi: 3.1.0
+info:
+  title: KTC Simulation Manager Service API
+  version: 1.0.0
+  description: |
+    Диспетчер (control-plane) Simulation Engine: жизненный цикл инстансов sim-worker.
+    Создание/остановка инстансов, статус, квота (≤50), self-healing. SRD §3.13.
+servers:
+  - url: https://sim-manager.ktc-app.svc.cluster.local
+    description: Внутренний (mTLS через Istio)
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+
+  schemas:
+    CreateSessionRequest:
+      type: object
+      required: [session_id]
+      properties:
+        session_id:     { type: string }
+        image:          { type: string }
+        init_state_ref: { type: string }
+
+    InstanceStatus:
+      type: object
+      required: [session_id, phase]
+      properties:
+        session_id: { type: string }
+        phase:      { type: string, enum: [created, pending, ready, failed, stopped] }
+        endpoint:   { type: string }
+        error:      { type: string }
+
+    InstanceSpec:
+      type: object
+      required: [session_id, image]
+      properties:
+        session_id:     { type: string }
+        image:          { type: string }
+        init_state_ref: { type: string }
+        cpu_request:    { type: string }
+        mem_request:    { type: string }
+
+    ListSessionsResponse:
+      type: object
+      properties:
+        instances:
+          type: array
+          items: { $ref: '#/components/schemas/InstanceStatus' }
+        total:        { type: integer }
+        max_instances: { type: integer }
+
+    Error:
+      $ref: https://ktc.itcamp/schemas/error.json
+
+paths:
+  /sessions:
+    post:
+      summary: Создать инстанс sim-worker под сессию (1 сессия = 1 инстанс)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSessionRequest' }
+      responses:
+        '201':
+          description: Инстанс создан
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InstanceStatus' }
+        '409': { description: already_exists }
+        '429': { description: quota_exceeded }
+        '400': { description: invalid_spec }
+
+    get:
+      summary: Список инстансов и квота
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListSessionsResponse' }
+
+  /sessions/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      summary: Статус инстанса сессии
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InstanceStatus' }
+        '404': { description: session_not_found }
+    delete:
+      summary: Остановить (удалить) инстанс сессии
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: No Content }
+        '404': { description: session_not_found }
+
+  /healthz:
+    get:
+      responses:
+        '200': { description: OK }

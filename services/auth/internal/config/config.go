@@ -3,9 +3,8 @@ package config
 import (
 	"fmt"
 	"os"
-	"strings"
-	"time"
 
+sharedcfg "github.com/itcamp/ktc/shared/go/config"
 	"github.com/BurntSushi/toml"
 )
 
@@ -83,21 +82,7 @@ type SecurityConfig struct {
 	RateLimitWindow  Duration `toml:"rate_limit_window"`
 }
 
-// Duration — обёртка над time.Duration для TOML-декодера.
-// Поддерживает форматы: "15s", "10m", "24h", "500ms".
-type Duration time.Duration
-
-func (d *Duration) UnmarshalText(text []byte) error {
-	s := strings.TrimSpace(string(text))
-	v, err := time.ParseDuration(s)
-	if err != nil {
-		return fmt.Errorf("invalid duration %q: %w", s, err)
-	}
-	*d = Duration(v)
-	return nil
-}
-
-func (d Duration) Std() time.Duration { return time.Duration(d) }
+type Duration = sharedcfg.Duration
 
 // Load читает TOML-файл по пути path и применяет env-override для секретов.
 // Секреты (dsn, signing_key, bind_password) можно передать через env,

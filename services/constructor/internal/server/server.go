@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
+	"github.com/itcamp/ktc/shared/go/audit"
 	"github.com/itcamp/ktc/services/constructor/internal/config"
 	"github.com/itcamp/ktc/services/constructor/internal/service"
 	"github.com/itcamp/ktc/services/constructor/internal/transport/http/handler"
@@ -31,6 +32,7 @@ func New(d Deps) *Server {
 
 	h := recoverMiddleware(d.Log)(mux)
 	h = requestLogger(d.Log)(h)
+	h = actorMiddleware(h)
 
 	srv := &http.Server{
 		Addr:         d.Cfg.HTTP.Addr,
@@ -89,6 +91,14 @@ func requestLogger(log *slog.Logger) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// actorMiddleware кладёт идентификатор актора из заголовка X-User-ID в контекст
+// для фиксации его в событиях аудита.
+func actorMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(audit.WithActor(r.Context(), r.Header.Get("X-User-ID"))))
+	})
 }
 
 func (s *Server) Run() error {

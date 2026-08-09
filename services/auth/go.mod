@@ -6,9 +6,12 @@ require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/go-ldap/ldap/v3 v3.4.8
 	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/itcamp/ktc/shared/go v0.0.0
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/pquerna/otp v1.4.0
 )
+
+replace github.com/itcamp/ktc/shared/go => ../../shared/go
 
 require (
 	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 // indirect

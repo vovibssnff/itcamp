@@ -1,6 +1,6 @@
 # Shared golangci-lint config for all Go modules in this monorepo.
-# Run from a module root: golangci-lint run --config ../../.golangci.yml
-# (depth varies: services/<name> → ../.. ; tools/migrator → ../..)
+# Run from a module root: golangci-lint run --config ../../../.golangci.yml
+# (depth varies: services/go/<name> → ../../.. ; tools/migrator → ../..)
 
 run:
   timeout: 5m

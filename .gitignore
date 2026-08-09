@@ -101,5 +101,6 @@ temp/
 *.tmp
 .direnv/
 
-# Go
-tools/migrator/migrator
+# Go binaries
+**/migrator/migrator
+*.dtmp

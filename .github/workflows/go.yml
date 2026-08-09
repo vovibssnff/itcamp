@@ -4,14 +4,14 @@ on:
   push:
     branches: [master]
     paths:
-      - 'services/**'
+      - 'services/go/**'
       - 'tools/migrator/**'
       - '.golangci.yml'
       - '.github/workflows/go.yml'
   pull_request:
     branches: [master]
     paths:
-      - 'services/**'
+      - 'services/go/**'
       - 'tools/migrator/**'
       - '.golangci.yml'
       - '.github/workflows/go.yml'
@@ -25,21 +25,25 @@ jobs:
       matrix:
         include:
           - module: auth
-            workdir: services/auth
+            workdir: services/go/auth
           - module: constructor
-            workdir: services/constructor
+            workdir: services/go/constructor
           - module: scenario
-            workdir: services/scenario
+            workdir: services/go/scenario
           - module: orchestrator
-            workdir: services/orchestrator
+            workdir: services/go/orchestrator
           - module: assessment
-            workdir: services/assessment
+            workdir: services/go/assessment
           - module: snapshot
-            workdir: services/snapshot
+            workdir: services/go/snapshot
           - module: report
-            workdir: services/report
+            workdir: services/go/report
           - module: gw
-            workdir: services/gw
+            workdir: services/go/gw
+          - module: sim-manager
+            workdir: services/go/sim-manager
+          - module: shared
+            workdir: services/go/shared
           - module: migrator
             workdir: tools/migrator
 

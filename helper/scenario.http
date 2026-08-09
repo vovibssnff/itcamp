@@ -1,0 +1,77 @@
+### ============================================================
+### scenario — Сценарии, неисправности (сервис scenario)
+### Базовый URL. Скорректируйте порт под конфигурацию вашего сервиса.
+### ============================================================
+
+@host = http://localhost
+@port = 8084
+@base = {{host}}:{{port}}
+@templateId = tmpl_123
+@scenarioId = scen_123
+@faultId = fault_123
+
+### Проверка живости сервиса
+GET {{base}}/healthz
+
+### Список сценариев
+GET {{base}}/scenarios?template_id=&type=&q=&limit=50&offset=0
+
+### Создать сценарий
+POST {{base}}/scenarios
+Content-Type: application/json
+
+{
+  "template_id": "{{templateId}}",
+  "name": "Обучающий сценарий",
+  "description": "Описание сценария",
+  "type": "training",
+  "start_preset_id": "preset_1",
+  "faults": [],
+  "reference_actions": [],
+  "criteria": {}
+}
+
+### Получить сценарий по ID
+GET {{base}}/scenarios/{{scenarioId}}
+
+### Обновить сценарий
+PUT {{base}}/scenarios/{{scenarioId}}
+Content-Type: application/json
+
+{
+  "template_id": "{{templateId}}",
+  "name": "Обновленный сценарий",
+  "description": "Обновленное описание",
+  "type": "training",
+  "start_preset_id": "preset_1",
+  "faults": [],
+  "reference_actions": [],
+  "criteria": {}
+}
+
+### Удалить сценарий
+DELETE {{base}}/scenarios/{{scenarioId}}
+
+### Клонировать сценарий
+POST {{base}}/scenarios/{{scenarioId}}/clone
+Content-Type: application/json
+
+{
+  "template_id": "{{templateId}}"
+}
+
+### Полный сценарий (со всеми подресурсами)
+GET {{base}}/scenarios/{{scenarioId}}/full
+
+### Экзаменационный сценарий по шаблону
+GET {{base}}/scenarios/exam?template_id={{templateId}}
+
+###
+# ─── Неисправности ───
+###
+
+### Список моделей неисправностей
+GET {{base}}/faults?component_type=&severity=
+
+### Получить модель неисправности по ID
+GET {{base}}/faults/{{faultId}}

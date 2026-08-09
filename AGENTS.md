@@ -28,8 +28,11 @@
 
 ### Структура сервиса
 
+Микросервисы сгруппированы по языку: Go — `services/go/<name>/`, Python — `services/python/<name>/`.
+
+**Go-сервис:**
 ```
-services/<name>/
+services/go/<name>/
   cmd/<name>/main.go
   internal/
     config/          — TOML-конфиг + env-override
@@ -56,9 +59,13 @@ services/<name>/
 - Диапазоны: auth 0001-0099, constructor 0100-0199, scenario 0200-0299, ...
 - Применяются через `tools/migrator`
 
+### Общий код
+Общие Go-пакеты (audit, uid, config `Duration`, db) живут в модуле `services/go/shared`
+и подключаются через `replace` в `services/go/<name>/go.mod`.
+
 ### Сборка и проверка перед коммитом
 ```bash
-cd services/<name>
+cd services/go/<name>
 go mod tidy
 go build ./...
 go vet ./...

@@ -1,0 +1,101 @@
+### ============================================================
+### auth — Аутентификация и пользователи (сервис auth)
+### Базовый URL. Скорректируйте порт под конфигурацию вашего сервиса.
+### ============================================================
+
+@host = http://localhost
+@port = 8082
+@base = {{host}}:{{port}}
+@login = user@example.ru
+@password = secure_password_123
+@userId = user_123
+
+### Проверка живости сервиса
+GET {{base}}/healthz
+
+### Вход в систему (Basic + MFA)
+POST {{base}}/login
+Content-Type: application/json
+
+{
+  "login": "{{login}}",
+  "password": "{{password}}",
+  "mfa_code": "123456"
+}
+
+> {%
+    client.global.set("access_token", response.body.access_token);
+    client.global.set("refresh_token", response.body.refresh_token);
+%}
+
+### Обновить access-токен
+POST {{base}}/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "{{refresh_token}}"
+}
+
+### Выход из системы
+POST {{base}}/logout
+Content-Type: application/json
+
+{
+  "refresh_token": "{{refresh_token}}"
+}
+
+### Текущий пользователь
+GET {{base}}/me
+Authorization: Bearer {{access_token}}
+
+### Интроспекция токена
+POST {{base}}/introspect
+Content-Type: application/json
+
+{
+  "token": "{{access_token}}"
+}
+
+### Список пользователей
+GET {{base}}/users?limit=50&offset=0
+
+### Создать пользователя
+POST {{base}}/users
+Content-Type: application/json
+
+{
+  "login": "new_user",
+  "full_name": "Новый Пользователь",
+  "ldap_dn": "CN=new_user,OU=Users,DC=corp,DC=example,DC=ru",
+  "roles": ["operator"]
+}
+
+### Получить пользователя по ID
+GET {{base}}/users/{{userId}}
+
+### Обновить пользователя
+PUT {{base}}/users/{{userId}}
+Content-Type: application/json
+
+{
+  "full_name": "Обновленное Имя",
+  "status": "active",
+  "roles": ["instructor", "admin"]
+}
+
+### Удалить пользователя
+DELETE {{base}}/users/{{userId}}
+
+### Настроить MFA для пользователя (получить secret/QR)
+POST {{base}}/users/{{userId}}/mfa/setup
+
+### Включить MFA по коду
+POST {{base}}/users/{{userId}}/mfa/enable
+Content-Type: application/json
+
+{
+  "code": "123456"
+}
+
+### Статус MFA пользователя
+GET {{base}}/users/{{userId}}/mfa

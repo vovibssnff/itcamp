@@ -27,6 +27,10 @@ jobs:
             workdir: services/python/ai
             lint: make lint
             test: make test
+          - package: sim-engine
+            workdir: services/python/sim-engine
+            lint: make lint
+            test: make test
 
     defaults:
       run:

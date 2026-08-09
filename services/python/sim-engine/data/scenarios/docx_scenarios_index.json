@@ -1,0 +1,95 @@
+{
+  "source": "Сценарии для КТК (1).docx",
+  "regulation": [
+    "razdel_3_tehprocess",
+    "razdel_5_1_analiticheskiy_kontrol",
+    "razdel_7_7_mery_bezopasnosti",
+    "razdel_7_21_siz",
+    "razdel_9_1_oborudovanie",
+    "razdel_9_1_3_nasosy",
+    "razdel_9_1_4_teploobmen",
+    "razdel_9_1_6_ventilyaciya"
+  ],
+  "scenarios": [
+    {
+      "docx_ref": "1.1",
+      "fault_id": "FLT-ELOU-INTERFACE-LOW",
+      "title": "Уровень раздела фаз нефть–вода в Э-1…Э-6 — критический низкий",
+      "block": "ЭЛОУ",
+      "key_tags": ["LRCA 641", "LRCA 640", "LRCA 639", "FR 495A"],
+      "interlock": "уровень < 3500 мм → снятие напряжения ИПМ"
+    },
+    {
+      "docx_ref": "1.2",
+      "fault_id": "FLT-ELOU-PRESSURE-HIGH",
+      "title": "Давление в электродегидраторах / Е-15 — критически высокое",
+      "block": "ЭЛОУ",
+      "key_tags": ["PRA 351", "PRA 312", "FRC 404", "FRC 405", "FRC 406"],
+      "interlock": "Е-15 ≥ 5,3 кгс/см2 → открытие ППК"
+    },
+    {
+      "docx_ref": "2.1",
+      "fault_id": "FLT-FEED-FLOW-LOW",
+      "title": "Расход загрузки сырой нефти — критический минимум при работающих печах",
+      "block": "Загрузка / нагрев",
+      "key_tags": ["FYQR 117", "FRC 404", "FRC 405", "FRC 406", "TR 55-1"],
+      "interlock": "при невозможности восстановить поток — аварийный останов П-1…П-3"
+    },
+    {
+      "docx_ref": "3.1",
+      "fault_id": "FLT-P3-COT-HIGH",
+      "title": "COT печи П-3 — критически высокая",
+      "block": "Печи",
+      "key_tags": ["TR 55-9", "TRC 3", "TRC 5", "FRCA 416"],
+      "interlock": "COT > 340 °C — подготовка к контролируемому останову"
+    },
+    {
+      "docx_ref": "4.1",
+      "fault_id": "FLT-K1-PRESSURE-HIGH",
+      "title": "Давление верха колонны К-1 — критически высокое",
+      "block": "К-1",
+      "key_tags": ["PRSA 204", "FRC 408", "AVZ3_SPEED", "COOLING_WATER_K1"],
+      "interlock": "4,5 H → 4,8 ПАЗ (отсечка топлива, пар К-2/К-3/1, Т-1К)"
+    },
+    {
+      "docx_ref": "4.2",
+      "fault_id": "FLT-K1-LEVEL-LOW",
+      "title": "Уровень жидкости в кубе К-1 — критически низкий",
+      "block": "К-1",
+      "key_tags": ["LRCA 602", "FRCA 411", "FRC 458"],
+      "interlock": "риск сухого хода Н-2/Н-3"
+    },
+    {
+      "docx_ref": "5.1",
+      "fault_id": "FLT-K2-VACUUM-LOSS",
+      "title": "Потеря вакуума в К-2",
+      "block": "К-2",
+      "key_tags": ["PRSA 213", "AVZ45_SPEED", "FRC 418", "FRC 421"],
+      "interlock": "1,0 H → 1,5 ПАЗ"
+    },
+    {
+      "docx_ref": "5.2",
+      "fault_id": "FLT-K31-LEVEL-LOW",
+      "title": "Уровень в стриппинге К-3/1 — критически низкий",
+      "block": "К-3/1",
+      "key_tags": ["LRCA 606", "FRC 422", "TR 17-33"],
+      "interlock": "< 15 % → запрет пуска / останов Н-14, Н-67А"
+    },
+    {
+      "docx_ref": "6.1",
+      "fault_id": "FLT-K4-PRESSURE-HIGH",
+      "title": "Давление в колонне стабилизации К-4 — критически высокое",
+      "block": "К-4",
+      "key_tags": ["PRCA 220", "PRCA 223", "FR 415", "X4_COOLING"],
+      "interlock": "открытие ППК / снижение подачи тепла"
+    },
+    {
+      "docx_ref": "7.1",
+      "fault_id": "FLT-IA-PRESSURE-LOW",
+      "title": "Давление воздуха КИП — критически низкое",
+      "block": "Общезаводские",
+      "key_tags": ["PRA 700"],
+      "interlock": "исчерпание часового запаса А-6 → fail-safe отсечка топлива"
+    }
+  ]
+}

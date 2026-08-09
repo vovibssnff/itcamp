@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package ktk.sim.v1;
+
+option go_package = "github.com/ktk/sim/v1;simv1";
+
+// Model API сервиса sim-worker Конструктора КТК (§6.7, §7 ARCHITECTURE).
+// Транспорт: gRPC поверх mTLS (Istio). Единственный потребитель — orchestrator.
+// Жизненный цикл инстанса (create/stop) — Control API sim-manager, не этот контракт.
+service ModelApi {
+  // Жизненный цикл сессии (per-session isolation, ARCH-08).
+  rpc CreateSession (CreateSessionRequest) returns (ProcessStateMsg);
+  rpc DestroySession (DestroySessionRequest) returns (DestroySessionResponse);
+
+  // Горячий контур.
+  rpc Step (StepRequest) returns (StepResponse);
+  rpc GetState (GetStateRequest) returns (ProcessStateMsg);
+  rpc SetState (SetStateRequest) returns (ProcessStateMsg);
+  rpc InjectFault (InjectFaultRequest) returns (FaultInstanceMsg);
+  rpc ClearFault (ClearFaultRequest) returns (ClearFaultResponse);
+  rpc SetSpeed (SetSpeedRequest) returns (SetSpeedResponse);
+
+  // Команды оператора (через orchestrator).
+  rpc Command (CommandRequest) returns (CommandResponse);
+
+  // Справочные.
+  rpc ListFaults (ListFaultsRequest) returns (ListFaultsResponse);
+  rpc Health (HealthRequest) returns (HealthResponse);
+}
+
+// ----------------------------------------------------------------- состояние
+
+message ProcessStateMsg {
+  string session_id = 1;
+  double model_time_s = 2;
+  map<string, double> tag_values = 3;
+  map<string, string> equipment_states = 4;
+  map<string, string> controller_modes = 5;
+  repeated AlarmEventMsg active_alarms = 6;
+  repeated string active_faults = 7;
+  repeated string tripped_interlocks = 8;
+  double speed = 9;
+}
+
+message AlarmEventMsg {
+  string tag_id = 1;
+  string priority = 2;   // L | LL | H | HH
+  double raised_at_s = 3;
+  double value = 4;
+  double limit = 5;
+  double ack_at_s = 6;
+  bool   has_ack = 7;
+  string alarm_id = 8;
+}
+
+message InterlockEventMsg {
+  string code = 1;
+  string tag_id = 2;
+  double at_s = 3;
+  string description = 4;
+  repeated string effects = 5;
+}
+
+message FaultInstanceMsg {
+  string fault_id = 1;
+  double injected_at_s = 2;
+  double magnitude = 3;
+  bool   active = 4;
+  string title = 5;
+  string docx_ref = 6;
+}
+
+message FaultDefMsg {
+  string fault_id = 1;
+  string docx_ref = 2;
+  string group = 3;
+  string title = 4;
+  repeated string equipment = 5;
+  string early_signs = 6;
+  string stabilization_hint = 7;
+  repeated string regulation_refs = 8;
+}
+
+// ----------------------------------------------------------------- запросы
+
+message CreateSessionRequest {
+  string session_id = 1;
+  int32  seed = 2;
+}
+
+message DestroySessionRequest {
+  string session_id = 1;
+}
+
+message DestroySessionResponse {
+  bool ok = 1;
+}
+
+message StepRequest {
+  string session_id = 1;
+  double real_dt_s = 2;  // реальное время тика; модельное = real_dt_s * speed
+}
+
+message StepResponse {
+  ProcessStateMsg state = 1;
+  repeated AlarmEventMsg new_alarms = 2;
+  repeated AlarmEventMsg cleared_alarms = 3;
+  repeated InterlockEventMsg new_interlocks = 4;
+}
+
+message GetStateRequest {
+  string session_id = 1;
+}
+
+message SetStateRequest {
+  string session_id = 1;
+  map<string, double> tag_overrides = 2;
+  bytes  internal_state_json = 3;  // полный снимок Network.export_internal
+  double model_time_s = 4;
+  bool   has_model_time = 5;
+}
+
+message InjectFaultRequest {
+  string session_id = 1;
+  string fault_id = 2;
+  double magnitude = 3;  // по умолчанию 1.0
+}
+
+message ClearFaultRequest {
+  string session_id = 1;
+  string fault_id = 2;
+}
+
+message ClearFaultResponse {
+  bool cleared = 1;
+}
+
+message SetSpeedRequest {
+  string session_id = 1;
+  double multiplier = 2;  // 0.1 … 10.0
+}
+
+message SetSpeedResponse {
+  double speed = 1;
+}
+
+message CommandRequest {
+  string session_id = 1;
+  // SET_SP | SET_MODE | SET_OUT | ACK_ALARM | START | STOP | OPEN | CLOSE | ESD
+  string type = 2;
+  string target = 3;
+  double value_from = 4;
+  double value_to = 5;
+  bool   has_value_from = 6;
+  bool   has_value_to = 7;
+  double model_time_s = 8;
+  string action_id = 9;
+}
+
+message CommandResponse {
+  bool ok = 1;
+  string reject_reason = 2;
+}
+
+message ListFaultsRequest {}
+
+message ListFaultsResponse {
+  repeated FaultDefMsg faults = 1;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  bool   ready = 1;
+  string template = 2;
+  string template_id = 3;
+  int32  tags_loaded = 4;
+  int32  faults_loaded = 5;
+  int32  active_sessions = 6;
+}

@@ -1,0 +1,19 @@
+# Локальный запуск sim-worker (runtime ЦД). Соответствует node pool `sim`
+# из §7.9 SRD (CPU-intensive, guaranteed QoS), но без Kubernetes /
+# sim-manager — для разработки и демонстрации.
+#
+# Порты сознательно отличаются от ai-service (8080/50051), чтобы оба
+# сервиса Конструктора КТК можно было поднять на одной машине одновременно.
+services:
+  sim-worker:
+    build: .
+    ports:
+      - "8081:8081"
+      - "50061:50061"
+    environment:
+      KTC_SIM_DATA_DIR: /app/data
+      KTC_SIM_TEMPLATE_FILE: template_atm_demo.json
+      KTC_SIM_FAULTS_FILE: faults_catalog.json
+      KTC_SIM_TICK_HZ: "1.0"
+      KTC_SIM_DEFAULT_SEED: "42"
+    restart: unless-stopped

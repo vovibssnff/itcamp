@@ -73,15 +73,14 @@ export default function ReportListScreen() {
     <div className="wrap">
       {/* Header */}
       <div className="rise" style={{ marginBottom: 28 }}>
-        <div className="kick" style={{ marginBottom: 6 }}>
-          База данных · Отчёты
-        </div>
+        <div className="sec">База данных · Отчёты</div>
         <div
           style={{
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'space-between',
             gap: 16,
+            marginTop: 12,
           }}
         >
           <h1 className="h1">Журнал отчётов</h1>

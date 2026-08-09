@@ -57,7 +57,7 @@ export default function ReportScreen() {
   }
 
   return (
-    <div className="wrap">
+    <div className="wrap-n">
       {/* Header */}
       <div
         style={{
@@ -69,11 +69,11 @@ export default function ReportScreen() {
         className="rise"
       >
         <div>
-          <div className="kick" style={{ marginBottom: 6 }}>
-            Отчёт · {report.sessionId}
-          </div>
-          <h1 className="h1">Результаты обучения</h1>
-          <p className="note" style={{ marginTop: 6 }}>
+          <div className="sec">Отчёт · {report.sessionId}</div>
+          <h1 className="h1" style={{ marginTop: 12 }}>
+            Результаты обучения
+          </h1>
+          <p className="mono" style={{ marginTop: 10, fontSize: 12, color: 'var(--tx3)' }}>
             {new Date(report.completedAt).toLocaleString('ru-RU')}
           </p>
         </div>

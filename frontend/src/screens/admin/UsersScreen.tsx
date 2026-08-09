@@ -123,10 +123,10 @@ export default function UsersScreen() {
         className="rise"
       >
         <div>
-          <div className="kick" style={{ marginBottom: 6 }}>
-            Администрирование
-          </div>
-          <h1 className="h1">Пользователи</h1>
+          <div className="sec">Администрирование</div>
+          <h1 className="h1" style={{ marginTop: 12 }}>
+            Пользователи
+          </h1>
         </div>
         <button className="btn btn-acc" onClick={() => openEdit(null)}>
           <PlusOutlined /> Новый пользователь

@@ -6,23 +6,9 @@ import { authApi } from '@/api/auth'
 import { useTranslation } from 'react-i18next'
 import { useUIStore } from '@/store/ui'
 
-type RoleTab = 'operator' | 'instructor'
-
-const ROLE_DESCRIPTIONS: Record<RoleTab, string> = {
-  operator:
-    'Тренировка на мнемосхеме установки, отработка аварийных ситуаций и разбор действий по регламенту.',
-  instructor:
-    'Управление сессиями, конструктор сценариев и шаблонов, наблюдение за обучаемыми и оценка.',
-}
-
-type AuthMode = 'login' | 'register'
-
 export default function LoginScreen() {
-  const [roleTab, setRoleTab] = useState<RoleTab>('operator')
-  const [mode, setMode] = useState<AuthMode>('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [displayName, setDisplayName] = useState('')
   const [loading, setLoading] = useState(false)
   const { setTokens, setUser } = useAuthStore()
   const { theme, setTheme } = useUIStore()
@@ -33,23 +19,12 @@ export default function LoginScreen() {
     if (!username || !password) return
     setLoading(true)
     try {
-      const result =
-        mode === 'register'
-          ? await authApi.register({ username, password, displayName, role: roleTab })
-          : await authApi.login(username, password)
+      const result = await authApi.login(username, password)
       setTokens(result.access_token, result.refresh_token)
       setUser(result.user)
       void navigate('/', { replace: true })
-    } catch (err) {
-      if (mode === 'register') {
-        const msg =
-          err instanceof Error && err.message.includes('already exists')
-            ? t('auth.userExists')
-            : t('auth.registerError')
-        void message.error(msg)
-      } else {
-        void message.error(t('auth.loginError'))
-      }
+    } catch {
+      void message.error(t('auth.loginError'))
     } finally {
       setLoading(false)
     }
@@ -146,49 +121,15 @@ export default function LoginScreen() {
       <div className="auth-r">
         <div style={{ width: '100%', maxWidth: 360 }}>
           <div className="sec rise" style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>{mode === 'register' ? 'Регистрация' : 'Вход в систему'}</span>
+            <span>Вход в систему</span>
             <span>02 / 02</span>
           </div>
           <h2 className="h1 rise d1" style={{ marginTop: 12 }}>
-            {mode === 'register' ? 'Создать учётную запись' : 'Авторизация'}
+            Авторизация
           </h2>
 
-          {/* Role */}
-          <div className="rise d2" style={{ marginTop: 32 }}>
-            <div className="sec" style={{ marginBottom: 9 }}>
-              Роль
-            </div>
-            <div className="seg" style={{ width: '100%' }}>
-              <button
-                style={{
-                  flex: 1,
-                  background: roleTab === 'operator' ? 'var(--acc)' : undefined,
-                  color: roleTab === 'operator' ? 'var(--acc-ink)' : undefined,
-                  fontWeight: roleTab === 'operator' ? 600 : undefined,
-                }}
-                onClick={() => setRoleTab('operator')}
-              >
-                Обучаемый
-              </button>
-              <button
-                style={{
-                  flex: 1,
-                  background: roleTab === 'instructor' ? 'var(--acc)' : undefined,
-                  color: roleTab === 'instructor' ? 'var(--acc-ink)' : undefined,
-                  fontWeight: roleTab === 'instructor' ? 600 : undefined,
-                }}
-                onClick={() => setRoleTab('instructor')}
-              >
-                Инструктор
-              </button>
-            </div>
-            <div className="note" style={{ marginTop: 10 }}>
-              {ROLE_DESCRIPTIONS[roleTab]}
-            </div>
-          </div>
-
           {/* Username */}
-          <div className="rise d3" style={{ marginTop: 30 }}>
+          <div className="rise d3" style={{ marginTop: 32 }}>
             <label className="fld-lbl">{t('auth.username')}</label>
             <input
               className="fld"
@@ -201,20 +142,6 @@ export default function LoginScreen() {
             />
           </div>
 
-          {mode === 'register' && (
-            <div className="rise d3" style={{ marginTop: 22 }}>
-              <label className="fld-lbl">{t('auth.displayName')}</label>
-              <input
-                className="fld"
-                placeholder="Иванов Иван Иванович"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                onKeyDown={handleKeyDown}
-                autoComplete="name"
-              />
-            </div>
-          )}
-
           {/* Password */}
           <div className="rise d4" style={{ marginTop: 22 }}>
             <label className="fld-lbl">{t('auth.password')}</label>
@@ -224,7 +151,7 @@ export default function LoginScreen() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={handleKeyDown}
-              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+              autoComplete="current-password"
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -245,18 +172,9 @@ export default function LoginScreen() {
               onClick={() => void handleSubmit()}
               disabled={loading || !username || !password}
             >
-              {loading ? '...' : mode === 'register' ? t('auth.register') : 'Войти в тренажёр'}
+              {loading ? '...' : 'Войти в тренажёр'}
             </button>
           </div>
-
-          <button
-            type="button"
-            className="btn btn-ghost btn-w btn-sm"
-            style={{ marginTop: 12 }}
-            onClick={() => setMode((m) => (m === 'login' ? 'register' : 'login'))}
-          >
-            {mode === 'login' ? t('auth.noAccount') : t('auth.haveAccount')}
-          </button>
 
           <div className="note rise d6" style={{ marginTop: 18, fontSize: 11 }}>
             Доступ фиксируется в журнале безопасности. Учётные данные — корпоративные.

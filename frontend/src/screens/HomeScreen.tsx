@@ -75,33 +75,31 @@ export default function HomeScreen() {
   return (
     <div className="wrap-n">
       <div style={{ marginBottom: 32 }} className="rise">
-        <div className="kick" style={{ marginBottom: 8 }}>
-          {roleLabel[role] ?? role}
-        </div>
-        <h1 className="h1">Добро пожаловать{user?.displayName ? `, ${user.displayName}` : ''}</h1>
-        <p className="lede" style={{ marginTop: 8 }}>
+        <div className="sec">{roleLabel[role] ?? role}</div>
+        <h1 className="h1" style={{ marginTop: 12 }}>
+          Добро пожаловать{user?.displayName ? `, ${user.displayName}` : ''}
+        </h1>
+        <p className="lede" style={{ marginTop: 12 }}>
           Платформа подготовки операторов нефтеперерабатывающих установок КТК.
         </p>
       </div>
 
-      <div className="cell rise d2" style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="rows">
-          {cards.map((card, i) => (
-            <div
-              key={card.path}
-              className="row"
-              style={{ animationDelay: `${0.05 + i * 0.04}s` }}
-              onClick={() => void navigate(card.path)}
-            >
-              <span className="row-num">{card.num}</span>
-              <div className="row-body">
-                <div className="row-title">{card.title}</div>
-                <div className="row-desc">{card.desc}</div>
-              </div>
-              <span className="row-arrow">→</span>
+      <div className="rows rise d2" style={{ marginTop: 44 }}>
+        {cards.map((card, i) => (
+          <div
+            key={card.path}
+            className="row"
+            style={{ animationDelay: `${0.05 + i * 0.04}s` }}
+            onClick={() => void navigate(card.path)}
+          >
+            <span className="row-num">{card.num}</span>
+            <div className="row-body">
+              <div className="row-title">{card.title}</div>
+              <div className="row-desc">{card.desc}</div>
             </div>
-          ))}
-        </div>
+            <span className="row-arrow">→</span>
+          </div>
+        ))}
       </div>
     </div>
   )

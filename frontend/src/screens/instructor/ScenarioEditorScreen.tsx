@@ -126,11 +126,11 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
         className="rise"
       >
         <div>
-          <div className="kick" style={{ marginBottom: 6 }}>
-            Инструктор
-          </div>
-          <h1 className="h1">Сценарии</h1>
-          <p className="note" style={{ marginTop: 6 }}>
+          <div className="sec">Инструктор</div>
+          <h1 className="h1" style={{ marginTop: 12 }}>
+            Сценарии
+          </h1>
+          <p className="note" style={{ marginTop: 12 }}>
             Управление сценариями обучения и аттестации
           </p>
         </div>

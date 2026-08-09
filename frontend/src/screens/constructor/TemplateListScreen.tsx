@@ -75,11 +75,11 @@ export default function TemplateListScreen() {
         className="rise"
       >
         <div>
-          <div className="kick" style={{ marginBottom: 6 }}>
-            Конструктор
-          </div>
-          <h1 className="h1">Шаблоны установок</h1>
-          <p className="note" style={{ marginTop: 6 }}>
+          <div className="sec">Конструктор</div>
+          <h1 className="h1" style={{ marginTop: 12 }}>
+            Шаблоны установок
+          </h1>
+          <p className="note" style={{ marginTop: 12 }}>
             Технологические схемы КТК для сценариев обучения
           </p>
         </div>

@@ -267,12 +267,6 @@ func (r *SessionRunner) pause() {
 	r.mu.Unlock()
 }
 
-func (r *SessionRunner) resume() {
-	r.mu.Lock()
-	r.paused = false
-	r.mu.Unlock()
-}
-
 func (r *SessionRunner) stop() {
 	r.mu.Lock()
 	r.stopped = true

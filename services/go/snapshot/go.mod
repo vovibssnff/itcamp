@@ -9,7 +9,7 @@ require (
 	github.com/minio/minio-go/v7 v7.0.74
 )
 
-replace github.com/itcamp/ktc/shared/go => ../../shared/go
+replace github.com/itcamp/ktc/shared/go => ../shared
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect

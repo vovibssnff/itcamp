@@ -27,7 +27,7 @@ services:
   # ── Auth (stub-режим; пользователи в конфиге) ─────────────
   auth:
     build:
-      context: ../services/auth
+      context: ../services/go/auth
       dockerfile: ../../dev/docker/auth.Dockerfile
     environment:
       AUTH_DB_DSN: ${DB_DSN}
@@ -43,7 +43,7 @@ services:
   # ── Constructor ────────────────────────────────────────────
   constructor:
     build:
-      context: ../services/constructor
+      context: ../services/go/constructor
       dockerfile: deploy/Dockerfile
     environment:
       CONSTRUCTOR_DB_DSN: ${DB_DSN}
@@ -57,7 +57,7 @@ services:
   # ── Scenario ───────────────────────────────────────────────
   scenario:
     build:
-      context: ../services/scenario
+      context: ../services/go/scenario
       dockerfile: deploy/Dockerfile
     environment:
       SCENARIO_DB_DSN: ${DB_DSN}
@@ -71,7 +71,7 @@ services:
   # ── Orchestrator ───────────────────────────────────────────
   orchestrator:
     build:
-      context: ../services/orchestrator
+      context: ../services/go/orchestrator
       dockerfile: deploy/Dockerfile
     environment:
       ORCHESTRATOR_DB_DSN: ${DB_DSN}
@@ -87,7 +87,7 @@ services:
   # ── Assessment ─────────────────────────────────────────────
   assessment:
     build:
-      context: ../services/assessment
+      context: ../services/go/assessment
       dockerfile: deploy/Dockerfile
     environment:
       ASSESSMENT_DB_DSN: ${DB_DSN}
@@ -101,7 +101,7 @@ services:
   # ── Snapshot ───────────────────────────────────────────────
   snapshot:
     build:
-      context: ../services/snapshot
+      context: ../services/go/snapshot
       dockerfile: deploy/Dockerfile
     environment:
       SNAPSHOT_DB_DSN: ${DB_DSN}
@@ -118,7 +118,7 @@ services:
   # ── Report ─────────────────────────────────────────────────
   report:
     build:
-      context: ../services/report
+      context: ../services/go/report
       dockerfile: deploy/Dockerfile
     environment:
       REPORT_DB_DSN: ${DB_DSN}
@@ -133,7 +133,7 @@ services:
   # ── Gateway (BFF, единая точка входа) ─────────────────────
   gw:
     build:
-      context: ../services/gw
+      context: ../services/go/gw
       dockerfile: deploy/Dockerfile
     environment:
       GW_AUTH_URL: http://auth:8080/introspect

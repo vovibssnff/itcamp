@@ -94,7 +94,7 @@ itcamp/
   frontend/         # React SPA (screens/, canvas/, ws/, store/, i18n/)
   seeds/            # библиотека КТС (24 типа) + demo-template + ≥5 сценариев + ≥3 пресета
 ```
-Каждый Go-сервис строится по образцу `services/auth`: `cmd/<svc>/main.go`, `internal/{config,domain,repository,security,service,transport,server}`, `api/openapi.yaml`, `deploy/`, `go.mod` (Go 1.22). Миграции — централизованно в `db/migrations/` (префикс `NNNN_<service>_*`), применяется через `tools/migrator`. Контейнеризация и monorepo покрывают `NFR-SCL-04`.
+Каждый Go-сервис строится по образцу `services/go/auth`: `cmd/<svc>/main.go`, `internal/{config,domain,repository,security,service,transport,server}`, `api/openapi.yaml`, `deploy/`, `go.mod` (Go 1.22). Миграции — централизованно в `db/migrations/` (префикс `NNNN_<service>_*`), применяется через `tools/migrator`. Контейнеризация и monorepo покрывают `NFR-SCL-04`.
 
 ## 3. Namespaces, node pools, потоки
 
@@ -236,13 +236,13 @@ flowchart TB
 
 **Назначение (архитектура):** идентификация и управление доступом. Аутентификация через **LDAP/AD** (FR-AUTH-01/02 v2.1). После успешной проверки выдаются JWT. 2FA (TOTP) для привилегированных ролей. Эмиссия и проверка JWT. Чувствителен к правам — изолированный сегмент, отдельное масштабирование.
 
-**Реализация:** Go 1.22 (готово, `services/auth/`); LDAP bind через `go-ldap/ldap/v3`; JWT HS256 (access TTL 15 мин, refresh TTL 24 ч, ротация refresh при использовании); RBAC 3 роли; 2FA TOTP (`pquerna/otp`, секреты шифруются AES-256-GCM); lockout после 5 неудачных попыток (FR-AUTH-05); аудит входов в лог (KUMA отложена). Локальных паролей **нет** — пароли хранит LDAP.
+**Реализация:** Go 1.22 (готово, `services/go/auth/`); LDAP bind через `go-ldap/ldap/v3`; JWT HS256 (access TTL 15 мин, refresh TTL 24 ч, ротация refresh при использовании); RBAC 3 роли; 2FA TOTP (`pquerna/otp`, секреты шифруются AES-256-GCM); lockout после 5 неудачных попыток (FR-AUTH-05); аудит входов в лог (KUMA отложена). Локальных паролей **нет** — пароли хранит LDAP.
 
 **Trust boundary (auth.md §6):** `gw` — единственная точка проверки JWT. При запросе `gw` вызывает `auth /introspect`, проверяет токен (подпись, срок, отзыв) и получает роли. Проверенный контекст `gw` передаёт downstream заголовками `X-User-ID` / `X-Roles`. **Внутренние сервисы токен не проверяют и ключ подписи не знают.** Запрос от `gw` считается авторизованным — доверие через mTLS + NetworkPolicy «accept only from gw». Сервисы обязаны стирать входящие `X-User-ID`/`X-Roles` от клиента.
 
-**Контракт:** `services/auth/api/openapi.yaml` (OpenAPI 3.1, актуализирован под LDAP+MFA+trust boundary).
+**Контракт:** `services/go/auth/api/openapi.yaml` (OpenAPI 3.1, актуализирован под LDAP+MFA+trust boundary).
 
-### 7.1 REST API `auth` (OpenAPI `services/auth/api/openapi.yaml`)
+### 7.1 REST API `auth` (OpenAPI `services/go/auth/api/openapi.yaml`)
 
 | Метод и путь | Роль | Назначение |
 |---|---|---|
@@ -319,7 +319,7 @@ flowchart TB
 
 **Реализация:** Go 1.22; Picodata (метаданные + граф/layout в JSONB); MinIO (иконки/SVG). Валидатор графа и экспортёр — отдельные модули. Копирование шаблона — атомарная транзакция (deep clone).
 
-**Контракт:** `services/constructor/api/openapi.yaml` (OpenAPI 3.1). Схемы: `schemas/component_type.json`, `schemas/template_graph.json`, `schemas/sim_state.json`.
+**Контракт:** `services/go/constructor/api/openapi.yaml` (OpenAPI 3.1). Схемы: `schemas/component_type.json`, `schemas/template_graph.json`, `schemas/sim_state.json`.
 
 ### 9.1 REST API `constructor`
 
@@ -547,7 +547,7 @@ message Ack { bool ok = 1; string message = 2; }
 
 **Реализация:** Go 1.22; метаданные/сценарии в Picodata; каталог неисправностей в Picodata. Экспорт «готового сценария с эталоном» оркестратору; экзаменационные — случайная выдача.
 
-**Контракт:** `services/scenario/api/openapi.yaml` (OpenAPI 3.1). Схема: `schemas/scenario.json`.
+**Контракт:** `services/go/scenario/api/openapi.yaml` (OpenAPI 3.1). Схема: `schemas/scenario.json`.
 
 ### 12.1 REST API `scenario`
 

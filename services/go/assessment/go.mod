@@ -8,7 +8,7 @@ require (
 	github.com/jackc/pgx/v5 v5.6.0
 )
 
-replace github.com/itcamp/ktc/shared/go => ../../shared/go
+replace github.com/itcamp/ktc/shared/go => ../shared
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect

@@ -7,4 +7,4 @@ require (
 	github.com/itcamp/ktc/shared/go v0.0.0
 )
 
-replace github.com/itcamp/ktc/shared/go => ../../shared/go
+replace github.com/itcamp/ktc/shared/go => ../shared

@@ -11,7 +11,7 @@ require (
 	github.com/pquerna/otp v1.4.0
 )
 
-replace github.com/itcamp/ktc/shared/go => ../../shared/go
+replace github.com/itcamp/ktc/shared/go => ../shared
 
 require (
 	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 // indirect

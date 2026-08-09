@@ -31,7 +31,7 @@ func (c *HTTPScenarioClient) GetScenario(ctx context.Context, scenarioID string)
 	if err != nil {
 		return domain.ScenarioData{}, fmt.Errorf("scenario client: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return domain.ScenarioData{}, fmt.Errorf("scenario client: status %d", resp.StatusCode)
 	}

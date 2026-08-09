@@ -137,9 +137,11 @@ func TestAssessmentService_Finalize(t *testing.T) {
 	svc, client := testAssessmentService()
 	client.data["sc-1"] = testScenarioData()
 
-	svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
+	if err := svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
 		SessionID: "sess-1", Type: "action", Target: "TRC-3", Action: "decrease", ModelTime: 110,
-	}, "sc-1")
+	}, "sc-1"); err != nil {
+		t.Fatalf("process event failed: %v", err)
+	}
 
 	score, err := svc.Finalize(context.Background(), "sess-1")
 	if err != nil {
@@ -162,9 +164,11 @@ func TestAssessmentService_AckAlarm(t *testing.T) {
 	svc, client := testAssessmentService()
 	client.data["sc-1"] = testScenarioData()
 
-	svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
+	if err := svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
 		SessionID: "sess-1", Type: "alarm", TagID: "PRSA-204", Priority: "H", ModelTime: 100,
-	}, "sc-1")
+	}, "sc-1"); err != nil {
+		t.Fatalf("process event failed: %v", err)
+	}
 
 	svc.AckAlarm(context.Background(), "sess-1", "PRSA-204", 108.5)
 
@@ -181,9 +185,11 @@ func TestAssessmentService_CheckMissedSteps(t *testing.T) {
 	svc, client := testAssessmentService()
 	client.data["sc-1"] = testScenarioData()
 
-	svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
+	if err := svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
 		SessionID: "sess-1", Type: "action", Target: "TRC-3", Action: "decrease", ModelTime: 110,
-	}, "sc-1")
+	}, "sc-1"); err != nil {
+		t.Fatalf("process event failed: %v", err)
+	}
 
 	svc.CheckMissedSteps(context.Background(), "sess-1", 200)
 

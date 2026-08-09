@@ -96,7 +96,9 @@ func TestDuration_UnmarshalText(t *testing.T) {
 
 func TestDuration_Std(t *testing.T) {
 	var d Duration
-	d.UnmarshalText([]byte("10s"))
+	if err := d.UnmarshalText([]byte("10s")); err != nil {
+		t.Fatalf("expected success, got %v", err)
+	}
 	if d.Std().String() != "10s" {
 		t.Errorf("expected 10s, got %v", d.Std())
 	}

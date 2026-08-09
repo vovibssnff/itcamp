@@ -7,7 +7,6 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 import { useSessionStore } from '@/store/session'
 import { COMPONENT_TYPES } from '@/mocks/fixtures/components'
 import { TEMPLATES } from '@/mocks/fixtures/templates'
-import { tokens } from '@/theme/tokens'
 
 export default function SessionObserveScreen() {
   const { id: sessionId } = useParams<{ id: string }>()
@@ -37,33 +36,21 @@ export default function SessionObserveScreen() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <AlarmBanner />
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-          padding: '4px 12px',
-          background: tokens.bg.elevated,
-          borderBottom: `1px solid ${tokens.border.subtle}`,
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ fontFamily: tokens.font.mono, fontSize: 11, color: tokens.accent.cyan }}>
-          НАБЛЮДЕНИЕ
-        </span>
-        <span style={{ fontFamily: tokens.font.mono, fontSize: 11, color: tokens.text.muted }}>
-          Сессия: {sessionId}
-        </span>
-        <span
-          style={{
-            fontFamily: tokens.font.mono,
-            fontSize: 11,
-            color: status === 'running' ? tokens.accent.cyan : tokens.accent.amber,
-          }}
-        >
-          {status.toUpperCase()}
-        </span>
-        <span style={{ fontFamily: tokens.font.mono, fontSize: 11, color: tokens.text.dim }}>
+      <div className="topbar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div className="mark">
+            <i />
+            Наблюдение
+          </div>
+          <span className="chip">Сессия {sessionId}</span>
+          <span
+            className="chip"
+            style={{ color: status === 'running' ? 'var(--acc-txt)' : 'var(--warn)' }}
+          >
+            {status.toUpperCase()}
+          </span>
+        </div>
+        <span className="mono" style={{ fontSize: 13, color: 'var(--tx2)' }}>
           Время: {modelTimeStr} · {speed}×
         </span>
       </div>
@@ -81,14 +68,7 @@ export default function SessionObserveScreen() {
           />
         </div>
 
-        <div
-          style={{
-            width: 320,
-            borderLeft: `1px solid ${tokens.border.subtle}`,
-            background: tokens.bg.surface,
-            padding: 8,
-          }}
-        >
+        <div className="side" style={{ width: 320 }}>
           <TrendPanel width={300} height={160} />
         </div>
       </div>

@@ -1,17 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { Button, Modal, Progress, message } from 'antd'
-import { StopOutlined } from '@ant-design/icons'
+import { Modal } from 'antd'
 import { HmiCanvas } from '@/canvas/hmi/HmiCanvas'
 import { Faceplate } from '@/canvas/hmi/Faceplate'
 import { AlarmBanner } from '@/components/alarms/AlarmBanner'
 import { FloatingAiChat } from '@/components/ai/FloatingAiChat'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useSessionStore } from '@/store/session'
+import { useUIStore } from '@/store/ui'
 import type { CanvasNode } from '@/store/constructor'
 import { COMPONENT_TYPES } from '@/mocks/fixtures/components'
 import { TEMPLATES } from '@/mocks/fixtures/templates'
-import { tokens } from '@/theme/tokens'
 
 const EXAM_DURATION_S = 3600
 
@@ -23,6 +22,8 @@ export default function ExamScreen() {
   const [selectedNode, setSelectedNode] = useState<CanvasNode | null>(null)
   const [faceplateOpen, setFaceplateOpen] = useState(false)
   const navigate = useNavigate()
+  const theme = useUIStore((s) => s.theme)
+  const setTheme = useUIStore((s) => s.setTheme)
 
   const { send } = useWebSocket({
     sessionId: sessionId ?? null,
@@ -41,8 +42,7 @@ export default function ExamScreen() {
 
   useEffect(() => {
     if (elapsed >= EXAM_DURATION_S) {
-      void message.info('Время экзамена истекло')
-      void navigate(`/reports/exam-${sessionId ?? 'test'}`)
+      void navigate(`/reports/${sessionId ?? 'sess-001'}`)
     }
   }, [elapsed, sessionId, navigate])
 
@@ -59,80 +59,87 @@ export default function ExamScreen() {
   const remainingStr = `${Math.floor(remaining / 60)
     .toString()
     .padStart(2, '0')}:${(remaining % 60).toString().padStart(2, '0')}`
-  const percentDone = (elapsed / EXAM_DURATION_S) * 100
   const isWarning = remaining < 300
+
+  function handleFinish() {
+    Modal.confirm({
+      title: 'Завершить экзамен досрочно?',
+      content: 'Текущий результат будет зафиксирован.',
+      okText: 'Завершить',
+      cancelText: 'Продолжить',
+      onOk: () => void navigate(`/reports/${sessionId ?? 'sess-001'}`),
+    })
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <AlarmBanner />
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '4px 12px',
-          background: tokens.bg.elevated,
-          borderBottom: `1px solid ${tokens.border.subtle}`,
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            fontFamily: tokens.font.mono,
-            fontSize: 12,
-            color: tokens.accent.amber,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-          }}
-        >
-          ЭКЗАМЕН
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-          <Progress
-            percent={percentDone}
-            showInfo={false}
-            strokeColor={isWarning ? tokens.accent.red : tokens.accent.amber}
-            trailColor={tokens.border.subtle}
-            style={{ flex: 1 }}
-          />
-          <span
+      <div className="topbar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+          <div className="mark">
+            <i />
+          </div>
+          <div className="h3">Квалификационный экзамен</div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1, maxWidth: 420 }}>
+          <div
             style={{
-              fontFamily: tokens.font.mono,
+              flex: 1,
+              height: 4,
+              background: 'var(--srf3)',
+              borderRadius: 'var(--r)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                height: '100%',
+                width: `${(elapsed / EXAM_DURATION_S) * 100}%`,
+                background: isWarning ? 'var(--alarm)' : 'var(--warn)',
+                transition: 'width 1s linear',
+              }}
+            />
+          </div>
+          <span
+            className={`mono${isWarning ? ' alarm-pulse' : ''}`}
+            style={{
               fontSize: 14,
-              color: isWarning ? tokens.accent.red : tokens.accent.amber,
               fontWeight: 600,
+              color: isWarning ? 'var(--alarm)' : 'var(--warn)',
               minWidth: 50,
             }}
-            className={isWarning ? 'alarm-pulse' : undefined}
           >
             {remainingStr}
           </span>
         </div>
-        <Button
-          size="small"
-          type="text"
-          style={{ color: tokens.text.muted, fontSize: 11 }}
-          onClick={() => {
-            Modal.confirm({
-              title: 'Завершить экзамен досрочно?',
-              content: 'Текущий результат будет зафиксирован.',
-              okText: 'Завершить',
-              cancelText: 'Продолжить',
-              onOk: () => void navigate(`/reports/exam-${sessionId ?? 'test'}`),
-            })
-          }}
-        >
-          Завершить
-        </Button>
-        <Button
-          size="small"
-          danger
-          icon={<StopOutlined />}
-          onClick={() => send({ type: 'actuator', tag: 'ESD', value: 1 })}
-        >
-          ESD
-        </Button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+          <div className="seg seg-mono">
+            <div
+              onClick={() => setTheme('dark')}
+              style={{
+                background: theme === 'dark' ? 'var(--acc)' : undefined,
+                color: theme === 'dark' ? 'var(--acc-ink)' : undefined,
+              }}
+            >
+              Тёмная
+            </div>
+            <div
+              onClick={() => setTheme('light')}
+              style={{
+                background: theme === 'light' ? 'var(--acc)' : undefined,
+                color: theme === 'light' ? 'var(--acc-ink)' : undefined,
+              }}
+            >
+              Светлая
+            </div>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={handleFinish}>
+            Завершить
+          </button>
+        </div>
       </div>
 
       <div ref={containerRef} style={{ flex: 1, overflow: 'hidden' }}>

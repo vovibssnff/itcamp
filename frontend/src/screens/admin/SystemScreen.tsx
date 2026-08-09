@@ -43,11 +43,11 @@ export default function SystemScreen() {
   return (
     <div className="wrap">
       <div style={{ marginBottom: 28 }} className="rise">
-        <div className="kick" style={{ marginBottom: 6 }}>
-          Администрирование
-        </div>
-        <h1 className="h1">Система</h1>
-        <p className="note" style={{ marginTop: 6 }}>
+        <div className="sec">Администрирование</div>
+        <h1 className="h1" style={{ marginTop: 12 }}>
+          Система
+        </h1>
+        <p className="note" style={{ marginTop: 12 }}>
           Метрики сервера и инфраструктуры
         </p>
       </div>

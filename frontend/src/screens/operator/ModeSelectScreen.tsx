@@ -5,7 +5,7 @@ const MODES = [
     key: 'operator',
     num: '01',
     icon: '📗',
-    label: 'Тренировка',
+    label: 'Самостоятельная тренировка',
     desc: 'Изучение технологического процесса с подсказками ИИ и неограниченным временем',
     route: 'operator',
   },
@@ -34,36 +34,34 @@ export default function ModeSelectScreen() {
   return (
     <div className="wrap-n">
       <div style={{ marginBottom: 32 }} className="rise">
-        <div className="kick" style={{ marginBottom: 8 }}>
-          Сессия {id}
-        </div>
-        <h1 className="h1">Выберите режим</h1>
-        <p className="lede" style={{ marginTop: 8 }}>
+        <div className="sec">Сессия {id}</div>
+        <h1 className="h1" style={{ marginTop: 12, fontSize: 34 }}>
+          Выберите режим
+        </h1>
+        <p className="lede" style={{ marginTop: 12 }}>
           Тренировка доступна в любое время. Экзамен назначается инструктором.
         </p>
       </div>
 
-      <div className="cell rise d2" style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="rows">
-          {MODES.map((mode) => (
-            <div
-              key={mode.key}
-              className="row"
-              onClick={() =>
-                void navigate(
-                  mode.route === 'knowledge' ? '/knowledge' : `/sessions/${id}/${mode.route}`,
-                )
-              }
-            >
-              <span className="row-num">{mode.num}</span>
-              <div className="row-body">
-                <div className="row-title">{mode.label}</div>
-                <div className="row-desc">{mode.desc}</div>
-              </div>
-              <span className="row-arrow">→</span>
+      <div className="rows rise d2" style={{ marginTop: 44 }}>
+        {MODES.map((mode) => (
+          <div
+            key={mode.key}
+            className="row"
+            onClick={() =>
+              void navigate(
+                mode.route === 'knowledge' ? '/knowledge' : `/sessions/${id}/${mode.route}`,
+              )
+            }
+          >
+            <span className="row-num">{mode.num}</span>
+            <div className="row-body">
+              <div className="row-title">{mode.label}</div>
+              <div className="row-desc">{mode.desc}</div>
             </div>
-          ))}
-        </div>
+            <span className="row-arrow">→</span>
+          </div>
+        ))}
       </div>
     </div>
   )

@@ -1,10 +1,6 @@
-import { Modal, Button, Typography, Space, Divider, Tag } from 'antd'
 import { useTranslation } from 'react-i18next'
 import type { CanvasNode } from '@/store/constructor'
 import type { TagValue, RegulatorState } from '@/store/session'
-import { tokens } from '@/theme/tokens'
-
-const { Text } = Typography
 
 interface FaceplateProps {
   node: CanvasNode | null
@@ -25,155 +21,150 @@ export function Faceplate({
 }: FaceplateProps) {
   const { t } = useTranslation()
 
-  if (!node) return null
+  if (!open || !node) return null
 
   const nodeTag = node.label
   const regulator = regulators[nodeTag]
-  const tagValues = Object.values(telemetry).filter((t) =>
-    t.tag.startsWith(nodeTag.split('-')[0] ?? ''),
+  const tagValues = Object.values(telemetry).filter((tv) =>
+    tv.tag.startsWith(nodeTag.split('-')[0] ?? ''),
   )
 
   return (
-    <Modal
-      title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontFamily: tokens.font.mono, color: tokens.accent.cyan }}>
-            {node.label}
-          </span>
-          <span style={{ fontSize: 12, color: tokens.text.muted }}>Фейсплейт</span>
+    <div className="scrim" onClick={onClose}>
+      <div className="sheet" style={{ width: 420 }} onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-hd">
+          <div>
+            <div className="sec">Узел установки</div>
+            <div className="h2" style={{ marginTop: 5 }}>
+              {node.label}
+            </div>
+          </div>
+          <button className="x" onClick={onClose}>
+            ×
+          </button>
         </div>
-      }
-      open={open}
-      onCancel={onClose}
-      footer={null}
-      width={420}
-      styles={{ body: { background: tokens.bg.surface, padding: '16px' } }}
-    >
-      {/* PV/SP/OUT display */}
-      {regulator && (
-        <>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr',
-              gap: 8,
-              marginBottom: 16,
-            }}
-          >
-            {(['pv', 'sp', 'out'] as const).map((key) => (
+
+        <div className="sheet-bd">
+          {regulator && (
+            <>
               <div
-                key={key}
                 style={{
-                  background: tokens.bg.elevated,
-                  border: `1px solid ${tokens.border.subtle}`,
-                  borderRadius: tokens.radius.md,
-                  padding: '10px 8px',
-                  textAlign: 'center',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: 8,
+                  marginBottom: 16,
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: tokens.text.muted,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                  }}
-                >
-                  {t(`faceplate.${key}`)}
-                </div>
-                <div
-                  style={{
-                    fontFamily: tokens.font.mono,
-                    fontSize: 24,
-                    color: key === 'pv' ? tokens.text.primary : tokens.accent.cyan,
-                    lineHeight: 1.2,
-                  }}
-                >
-                  {regulator[key].toFixed(1)}
-                </div>
+                {(['pv', 'sp', 'out'] as const).map((key) => (
+                  <div key={key} className="box-mute" style={{ textAlign: 'center' }}>
+                    <div
+                      className="mono"
+                      style={{
+                        fontSize: 10,
+                        color: 'var(--tx3)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                      }}
+                    >
+                      {t(`faceplate.${key}`)}
+                    </div>
+                    <div
+                      className="mono"
+                      style={{
+                        fontSize: 22,
+                        marginTop: 4,
+                        color: key === 'pv' ? 'var(--tx)' : 'var(--acc-txt)',
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {regulator[key].toFixed(1)}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Mode toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <Text style={{ color: tokens.text.secondary, fontSize: 12 }}>Режим:</Text>
-            <Button
-              size="small"
-              type={regulator.mode === 'auto' ? 'primary' : 'default'}
-              onClick={() =>
-                onSendCommand('regulator_mode', nodeTag, regulator.mode === 'auto' ? 0 : 1)
-              }
-            >
-              {regulator.mode === 'auto' ? t('faceplate.auto') : t('faceplate.manual')}
-            </Button>
-          </div>
-        </>
-      )}
-
-      {/* Tag values */}
-      {tagValues.length > 0 && (
-        <>
-          <Divider style={{ borderColor: tokens.border.subtle, margin: '8px 0' }} />
-          <div style={{ marginBottom: 12 }}>
-            {tagValues.map((tv) => (
               <div
-                key={tv.tag}
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  padding: '4px 0',
-                  borderBottom: `1px solid ${tokens.border.subtle}`,
+                  gap: 14,
+                  paddingTop: 4,
+                  paddingBottom: 16,
+                  borderBottom: '1px solid var(--ln2)',
                 }}
               >
-                <Text
-                  style={{
-                    fontFamily: tokens.font.mono,
-                    fontSize: 11,
-                    color: tokens.text.secondary,
-                  }}
+                <span style={{ fontSize: 13, color: 'var(--tx2)' }}>Режим:</span>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() =>
+                    onSendCommand('regulator_mode', nodeTag, regulator.mode === 'auto' ? 0 : 1)
+                  }
                 >
-                  {tv.tag}
-                </Text>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Text
-                    style={{
-                      fontFamily: tokens.font.mono,
-                      fontSize: 14,
-                      color: tv.alarmState !== 'normal' ? tokens.accent.red : tokens.text.primary,
-                    }}
-                  >
-                    {tv.value.toFixed(2)}
-                  </Text>
-                  <Text style={{ fontSize: 10, color: tokens.text.dim }}>{tv.unit}</Text>
-                  {tv.alarmState !== 'normal' && (
-                    <Tag
-                      color={tv.alarmState === 'HH' || tv.alarmState === 'LL' ? 'error' : 'warning'}
-                    >
-                      {tv.alarmState}
-                    </Tag>
-                  )}
-                </div>
+                  {regulator.mode === 'auto' ? t('faceplate.auto') : t('faceplate.manual')}
+                </button>
               </div>
-            ))}
-          </div>
-        </>
-      )}
+            </>
+          )}
 
-      {/* Control buttons */}
-      <Space>
-        <Button size="small" onClick={() => onSendCommand('actuator', `${nodeTag}_OPEN`, 100)}>
-          {t('faceplate.open')}
-        </Button>
-        <Button
-          size="small"
-          danger
-          onClick={() => onSendCommand('actuator', `${nodeTag}_CLOSE`, 0)}
-        >
-          {t('faceplate.close')}
-        </Button>
-      </Space>
-    </Modal>
+          {tagValues.length > 0 && (
+            <div style={{ marginTop: regulator ? 16 : 0 }}>
+              {tagValues.map((tv) => (
+                <div key={tv.tag} className="dr">
+                  <span className="mono" style={{ fontSize: 11, color: 'var(--tx2)' }}>
+                    {tv.tag}
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span
+                      className="mono"
+                      style={{
+                        fontSize: 14,
+                        color: tv.alarmState !== 'normal' ? 'var(--alarm)' : 'var(--tx)',
+                      }}
+                    >
+                      {tv.value.toFixed(2)}
+                    </span>
+                    <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{tv.unit}</span>
+                    {tv.alarmState !== 'normal' && (
+                      <span
+                        className="pill"
+                        style={{
+                          background:
+                            tv.alarmState === 'HH' || tv.alarmState === 'LL'
+                              ? 'rgba(255,74,74,0.12)'
+                              : 'rgba(224,164,88,0.15)',
+                          color:
+                            tv.alarmState === 'HH' || tv.alarmState === 'LL'
+                              ? 'var(--alarm)'
+                              : 'var(--warn)',
+                        }}
+                      >
+                        {tv.alarmState}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => onSendCommand('actuator', `${nodeTag}_OPEN`, 100)}
+            >
+              {t('faceplate.open')}
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ borderColor: 'rgba(255,74,74,0.35)', color: 'var(--alarm)' }}
+              onClick={() => onSendCommand('actuator', `${nodeTag}_CLOSE`, 0)}
+            >
+              {t('faceplate.close')}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

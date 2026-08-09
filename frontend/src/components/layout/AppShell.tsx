@@ -1,25 +1,12 @@
 import { Outlet, Navigate, useLocation, useNavigate } from 'react-router'
-import { Layout, Menu, Dropdown } from 'antd'
-import {
-  AppstoreOutlined,
-  ApartmentOutlined,
-  ThunderboltOutlined,
-  PlayCircleOutlined,
-  RobotOutlined,
-  FileTextOutlined,
-  SettingOutlined,
-  UserOutlined,
-  LogoutOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  CaretDownOutlined,
-} from '@ant-design/icons'
+import { Layout, Dropdown } from 'antd'
+import { UserOutlined, LogoutOutlined, CaretDownOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/store/auth'
 import { useUIStore } from '@/store/ui'
 import { useTranslation } from 'react-i18next'
 import styles from './AppShell.module.css'
 
-const { Sider, Content } = Layout
+const { Content } = Layout
 
 const ROUTE_LABELS: Record<string, string> = {
   '/home': 'Главная',
@@ -52,8 +39,8 @@ export function AppShell() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
-  const { locale, setLocale, theme, setTheme, sidebarCollapsed, toggleSidebar } = useUIStore()
-  const { t, i18n } = useTranslation()
+  const { theme, setTheme } = useUIStore()
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const breadcrumbs = useBreadcrumbs(location.pathname)
@@ -62,70 +49,18 @@ export function AppShell() {
     return <Navigate to="/login" replace />
   }
 
-  const role = user?.role
+  // The training/exam HMI is a full-screen immersive experience (matches the
+  // ktk.html reference) — it renders its own topbar, so the admin/instructor
+  // chrome (nav sider + app topbar) would otherwise double up on top of it.
+  const isImmersive = /^\/sessions\/[^/]+\/(operator|exam)$/.test(location.pathname)
+  if (isImmersive) {
+    return <Outlet />
+  }
 
-  const menuItems = [
-    ...(role === 'instructor' || role === 'admin'
-      ? [
-          {
-            key: '/templates',
-            icon: <ApartmentOutlined />,
-            label: t('nav.templates'),
-          },
-          {
-            key: '/components',
-            icon: <AppstoreOutlined />,
-            label: t('nav.components'),
-          },
-          {
-            key: '/scenarios',
-            icon: <ThunderboltOutlined />,
-            label: t('nav.scenarios'),
-          },
-          {
-            key: '/sessions',
-            icon: <PlayCircleOutlined />,
-            label: t('nav.sessions'),
-          },
-        ]
-      : []),
-    {
-      key: '/knowledge',
-      icon: <RobotOutlined />,
-      label: t('nav.knowledge'),
-    },
-    {
-      key: '/reports',
-      icon: <FileTextOutlined />,
-      label: t('nav.reports'),
-    },
-    ...(role === 'admin'
-      ? [
-          {
-            key: 'admin-group',
-            icon: <SettingOutlined />,
-            label: t('nav.admin'),
-            children: [
-              { key: '/admin/users', label: t('nav.users') },
-              { key: '/admin/system', label: t('nav.system') },
-            ],
-          },
-        ]
-      : []),
-  ]
+  const role = user?.role
 
   const userMenu = {
     items: [
-      {
-        key: 'lang',
-        label: locale === 'ru' ? 'English' : 'Русский',
-        onClick: () => {
-          const next = locale === 'ru' ? 'en' : 'ru'
-          setLocale(next)
-          void i18n.changeLanguage(next)
-        },
-      },
-      { type: 'divider' as const },
       {
         key: 'logout',
         icon: <LogoutOutlined />,
@@ -138,12 +73,6 @@ export function AppShell() {
       },
     ],
   }
-
-  const allItems = menuItems.flatMap((item) =>
-    'children' in item && item.children ? item.children : [item],
-  )
-  const selectedKey =
-    allItems.find((item) => location.pathname.startsWith(item.key as string))?.key?.toString() ?? ''
 
   const roleLabel: Record<string, string> = {
     admin: 'Администратор',
@@ -162,10 +91,6 @@ export function AppShell() {
       {/* ── Glass topbar ── */}
       <div className={styles.topbar}>
         <div className={styles.topbarLeft}>
-          <button className={styles.collapseBtn} onClick={toggleSidebar} aria-label="Свернуть меню">
-            {sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-          </button>
-
           <a
             className={styles.mark}
             onClick={() => {
@@ -195,23 +120,6 @@ export function AppShell() {
             </button>
           </div>
 
-          {/* Language */}
-          <button
-            className={styles.themeSegBtn}
-            style={{
-              border: '1px solid var(--ln2)',
-              borderRadius: 'var(--r)',
-              padding: '5px 11px',
-            }}
-            onClick={() => {
-              const next = locale === 'ru' ? 'en' : 'ru'
-              setLocale(next)
-              void i18n.changeLanguage(next)
-            }}
-          >
-            {locale.toUpperCase()}
-          </button>
-
           {/* User */}
           <Dropdown menu={userMenu} trigger={['click']}>
             <div className={styles.userChip}>
@@ -226,25 +134,8 @@ export function AppShell() {
         </div>
       </div>
 
-      {/* ── Sidebar + Content ── */}
+      {/* ── Content ── */}
       <Layout className={styles.layout}>
-        <Sider
-          width={220}
-          collapsedWidth={48}
-          collapsed={sidebarCollapsed}
-          className={styles.sider}
-        >
-          <Menu
-            theme="dark"
-            mode="inline"
-            selectedKeys={[selectedKey]}
-            defaultOpenKeys={['admin-group']}
-            items={menuItems}
-            onClick={({ key }) => void navigate(key)}
-            className={styles.menu}
-          />
-        </Sider>
-
         <Content className={styles.content}>
           {/* Breadcrumb bar */}
           {breadcrumbs.length > 0 && (

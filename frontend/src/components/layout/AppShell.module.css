@@ -1,0 +1,249 @@
+.root {
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ─── Glass Topbar ──────────────────────────────────────────────────────────── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 20px 0 0;
+  border-bottom: 1px solid var(--ln);
+  background: color-mix(in srgb, var(--ink) 85%, transparent);
+  backdrop-filter: saturate(140%) blur(10px);
+  -webkit-backdrop-filter: saturate(140%) blur(10px);
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+.topbarRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ─── Collapse toggle ───────────────────────────────────────────────────────── */
+.collapseBtn {
+  width: 48px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--tx3);
+  font-size: 16px;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  transition:
+    color 0.18s,
+    background 0.18s;
+  border-right: 1px solid var(--ln);
+}
+
+.collapseBtn:hover {
+  color: var(--tx);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ─── Brand mark ────────────────────────────────────────────────────────────── */
+.mark {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tx2);
+  cursor: pointer;
+  text-decoration: none;
+  padding: 0 20px;
+  height: 100%;
+  flex-shrink: 0;
+  transition: color 0.18s;
+}
+
+.mark:hover {
+  color: var(--tx);
+}
+
+.markDot {
+  width: 7px;
+  height: 7px;
+  background: var(--acc);
+  border-radius: 1px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.markTitle {
+  display: flex;
+  flex-direction: column;
+}
+
+.markMain {
+  color: var(--tx);
+}
+
+.markSub {
+  color: var(--tx3);
+}
+
+/* ─── Theme segmented ───────────────────────────────────────────────────────── */
+.themeSeg {
+  display: inline-flex;
+  border: 1px solid var(--ln2);
+  border-radius: var(--r);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.themeSegBtn {
+  padding: 5px 11px;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: none;
+  border-left: 1px solid var(--ln2);
+  transition:
+    background 0.15s,
+    color 0.15s;
+  color: var(--tx3);
+  background: transparent;
+  white-space: nowrap;
+}
+
+.themeSegBtn:first-child {
+  border-left: none;
+}
+
+.themeSegBtnActive {
+  background: var(--acc);
+  color: var(--acc-ink);
+}
+
+/* ─── User area ─────────────────────────────────────────────────────────────── */
+.userChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: var(--r);
+  border: 1px solid var(--ln2);
+  transition:
+    border-color 0.18s,
+    background 0.18s;
+}
+
+.userChip:hover {
+  border-color: var(--tx3);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.userName {
+  font-family: var(--ui);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tx);
+}
+
+.userRole {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tx3);
+}
+
+/* ─── Sidebar ───────────────────────────────────────────────────────────────── */
+.sider {
+  background: var(--srf) !important;
+  border-right: 1px solid var(--ln) !important;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: width 0.22s var(--ease) !important;
+}
+
+.menu {
+  background: transparent !important;
+  border-right: none !important;
+  padding: 8px 0;
+}
+
+/* ─── Breadcrumb bar ────────────────────────────────────────────────────────── */
+.breadcrumbBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 22px;
+  border-bottom: 1px solid var(--ln);
+  background: var(--srf);
+  flex-shrink: 0;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tx3);
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: var(--r);
+  border: 1px solid var(--ln);
+  background: none;
+  transition:
+    color 0.18s,
+    border-color 0.18s;
+  white-space: nowrap;
+}
+
+.backBtn:hover {
+  color: var(--tx);
+  border-color: var(--tx3);
+}
+
+/* ─── Content ───────────────────────────────────────────────────────────────── */
+.content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--ink);
+  position: relative;
+}
+
+/* Screens that need normal page scroll (reports list, settings, etc.)
+   wrap their content in .wrap / .wrap-n which handle their own overflow. */
+
+.layout {
+  height: calc(100vh - 56px);
+  min-height: 0;
+}

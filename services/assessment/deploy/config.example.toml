@@ -1,0 +1,15 @@
+[http]
+addr              = ":8080"
+read_timeout      = "10s"
+write_timeout     = "10s"
+shutdown_timeout  = "15s"
+
+[db]
+dsn               = "postgres://picodata:picodata@localhost:5432/ktc?sslmode=disable"
+max_conns         = 10
+min_conns         = 2
+conn_timeout      = "5s"
+query_timeout     = "5s"
+
+[clients]
+scenario_url      = "http://scenario.ktc-app.svc.cluster.local:8080"

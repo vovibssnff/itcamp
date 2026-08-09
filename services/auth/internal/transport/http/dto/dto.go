@@ -59,20 +59,6 @@ type UserResponse struct {
 	MFAEnabled bool     `json:"mfa_enabled"`
 }
 
-type CreateUserRequest struct {
-	Login    string   `json:"login"`
-	FullName string   `json:"full_name"`
-	LDAPDN   string   `json:"ldap_dn"`
-	Roles    []string `json:"roles"`
-}
-
-type UpdateUserRequest struct {
-	FullName string   `json:"full_name,omitempty"`
-	LDAPDN   string   `json:"ldap_dn,omitempty"`
-	Status   string   `json:"status,omitempty"`
-	Roles    []string `json:"roles,omitempty"`
-}
-
 type ErrorResponse struct {
 	Error string `json:"error"`
 	Code  string `json:"code,omitempty"`

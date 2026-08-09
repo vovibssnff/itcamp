@@ -1,0 +1,151 @@
+package seeds
+
+import "github.com/itcamp/ktc/services/constructor/internal/domain"
+
+func atmosphereComponents() []domain.ComponentType {
+	return []domain.ComponentType{
+		{
+			ID: "distillation_column", Name: "Ректификационная колонна", Category: domain.CategoryAtmosphere,
+			Description: "N тарелок, P верх/низ, T верх/низ, боковые отборы, подача пара",
+			Ports: []domain.Port{
+				{ID: "feed_in", Name: "Вход(ы) сырья", Type: domain.PortLiquid, Direction: domain.PortIn, Required: true},
+				{ID: "top_vapor", Name: "Верх (пары)", Type: domain.PortGas, Direction: domain.PortOut, Required: true},
+				{ID: "bottom_out", Name: "Низ (продукт)", Type: domain.PortLiquid, Direction: domain.PortOut, Required: true},
+				{ID: "steam_in", Name: "Вход пара", Type: domain.PortSteam, Direction: domain.PortIn, Required: false},
+				{ID: "side_draw_1", Name: "Бок. отбор 1", Type: domain.PortLiquid, Direction: domain.PortOut, Required: false},
+				{ID: "side_draw_2", Name: "Бок. отбор 2", Type: domain.PortLiquid, Direction: domain.PortOut, Required: false},
+				{ID: "side_draw_3", Name: "Бок. отбор 3", Type: domain.PortLiquid, Direction: domain.PortOut, Required: false},
+				{ID: "circ_reflux_1", Name: "Цирк. орошение 1 (в)", Type: domain.PortLiquid, Direction: domain.PortIn, Required: false},
+				{ID: "circ_reflux_1_out", Name: "Цирк. орошение 1 (из)", Type: domain.PortLiquid, Direction: domain.PortOut, Required: false},
+			},
+			Parameters: []domain.Parameter{
+				{ID: "N_trays", Name: "Число тарелок", Type: domain.ParamInt, Default: float64(28), Min: pFloat(1), Max: pFloat(100)},
+				{ID: "tray_type", Name: "Тип тарелок", Type: domain.ParamSelect, Default: "valve", Options: []string{"valve", "sieve", "bubble_cap"}},
+				{ID: "P_top", Name: "Давление верха", Unit: "кгс/см2", Type: domain.ParamFloat, Default: float64(1.5), Min: pFloat(0.1), Max: pFloat(10)},
+				{ID: "P_bottom", Name: "Давление низа", Unit: "кгс/см2", Type: domain.ParamFloat, Default: float64(2.5), Min: pFloat(0.1), Max: pFloat(10)},
+				{ID: "T_top", Name: "T верха", Unit: "°C", Type: domain.ParamFloat, Default: float64(150), Min: pFloat(0), Max: pFloat(300)},
+				{ID: "T_bottom", Name: "T низа", Unit: "°C", Type: domain.ParamFloat, Default: float64(280), Min: pFloat(0), Max: pFloat(400)},
+				{ID: "D", Name: "Диаметр", Unit: "мм", Type: domain.ParamFloat, Default: float64(4500)},
+				{ID: "H", Name: "Высота", Unit: "мм", Type: domain.ParamFloat, Default: float64(23300)},
+				{ID: "V", Name: "Объём", Unit: "м3", Type: domain.ParamFloat, Default: float64(418)},
+				{ID: "P_calc", Name: "Расч. давление", Unit: "кгс/см2", Type: domain.ParamFloat, Default: float64(6)},
+				{ID: "T_calc", Name: "Расч. температура", Unit: "°C", Type: domain.ParamFloat, Default: float64(300)},
+			},
+			ModelCode: "distillation_column",
+		},
+		{
+			ID: "stripping_column", Name: "Стриппинг (отпарная колонна)", Category: domain.CategoryAtmosphere,
+			Description: "N тарелок, расход пара, отпарка боковых погонов",
+			Ports: []domain.Port{
+				{ID: "side_feed", Name: "Вход (бок. погон)", Type: domain.PortLiquid, Direction: domain.PortIn, Required: true},
+				{ID: "product_out", Name: "Выход продукта", Type: domain.PortLiquid, Direction: domain.PortOut, Required: true},
+				{ID: "steam_in", Name: "Вход пара", Type: domain.PortSteam, Direction: domain.PortIn, Required: true},
+				{ID: "vapor_out", Name: "Выход паров (возврат)", Type: domain.PortGas, Direction: domain.PortOut, Required: true},
+			},
+			Parameters: []domain.Parameter{
+				{ID: "N_trays", Name: "Число тарелок", Type: domain.ParamInt, Default: float64(10), Min: pFloat(1), Max: pFloat(30)},
+				{ID: "P_work", Name: "Раб. давление", Unit: "кгс/см2", Type: domain.ParamFloat, Default: float64(2), Min: pFloat(0.1), Max: pFloat(10)},
+				{ID: "T_work", Name: "Раб. температура", Unit: "°C", Type: domain.ParamFloat, Default: float64(200), Min: pFloat(0), Max: pFloat(350)},
+				{ID: "D", Name: "Диаметр", Unit: "мм", Type: domain.ParamFloat, Default: float64(2000)},
+				{ID: "H", Name: "Высота", Unit: "мм", Type: domain.ParamFloat, Default: float64(33350)},
+			},
+			ModelCode: "stripping_column",
+		},
+		{
+			ID: "furnace", Name: "Печь трубчатая (многопоточная)", Category: domain.CategoryAtmosphere,
+			Description: "До 6 потоков, инерция τ=30–60 с, T выход ≤365°C, блокировки ПАЗ",
+			Ports: []domain.Port{
+				{ID: "feed_1", Name: "Вход потока 1", Type: domain.PortLiquid, Direction: domain.PortIn, Required: true},
+				{ID: "feed_2", Name: "Вход потока 2", Type: domain.PortLiquid, Direction: domain.PortIn, Required: false},
+				{ID: "feed_3", Name: "Вход потока 3", Type: domain.PortLiquid, Direction: domain.PortIn, Required: false},
+				{ID: "feed_4", Name: "Вход потока 4", Type: domain.PortLiquid, Direction: domain.PortIn, Required: false},
+				{ID: "feed_5", Name: "Вход потока 5", Type: domain.PortLiquid, Direction: domain.PortIn, Required: false},
+				{ID: "feed_6", Name: "Вход потока 6", Type: domain.PortLiquid, Direction: domain.PortIn, Required: false},
+				{ID: "out_1", Name: "Выход потока 1", Type: domain.PortLiquid, Direction: domain.PortOut, Required: true},
+				{ID: "out_2", Name: "Выход потока 2", Type: domain.PortLiquid, Direction: domain.PortOut, Required: false},
+				{ID: "out_3", Name: "Выход потока 3", Type: domain.PortLiquid, Direction: domain.PortOut, Required: false},
+				{ID: "out_4", Name: "Выход потока 4", Type: domain.PortLiquid, Direction: domain.PortOut, Required: false},
+				{ID: "out_5", Name: "Выход потока 5", Type: domain.PortLiquid, Direction: domain.PortOut, Required: false},
+				{ID: "out_6", Name: "Выход потока 6", Type: domain.PortLiquid, Direction: domain.PortOut, Required: false},
+				{ID: "fuel_in", Name: "Вход топлива (газ+мазут)", Type: domain.PortGas, Direction: domain.PortIn, Required: true},
+				{ID: "air_in", Name: "Вход воздуха", Type: domain.PortGas, Direction: domain.PortIn, Required: true},
+				{ID: "flue_gas_out", Name: "Дымовые газы", Type: domain.PortGas, Direction: domain.PortOut, Required: true},
+			},
+			Parameters: []domain.Parameter{
+				{ID: "N_streams", Name: "Число потоков", Type: domain.ParamInt, Default: float64(4), Min: pFloat(1), Max: pFloat(6)},
+				{ID: "T_max_wall", Name: "Макс. T стенки", Unit: "°C", Type: domain.ParamFloat, Default: float64(700), Min: pFloat(0), Max: pFloat(1000)},
+				{ID: "T_out", Name: "T выхода нефти", Unit: "°C", Type: domain.ParamFloat, Default: float64(365), Min: pFloat(0), Max: pFloat(500)},
+				{ID: "efficiency", Name: "КПД", Unit: "%", Type: domain.ParamFloat, Default: float64(75), Min: pFloat(0), Max: pFloat(100)},
+				{ID: "inertia", Name: "Инерционность", Unit: "с", Type: domain.ParamFloat, Default: float64(45), Min: pFloat(0), Max: pFloat(120)},
+				{ID: "P_calc", Name: "Расч. давление", Unit: "кгс/см2", Type: domain.ParamFloat, Default: float64(30)},
+			},
+			ModelCode: "furnace",
+		},
+		{
+			ID: "air_cooler", Name: "АВО (аппарат воздушного охлаждения)", Category: domain.CategoryAtmosphere,
+			Description: "F, производительность, T входа/выхода",
+			Ports: []domain.Port{
+				{ID: "hot_in", Name: "Вход (горячий поток)", Type: domain.PortLiquid, Direction: domain.PortIn, Required: true},
+				{ID: "cold_out", Name: "Выход (охлаждённый)", Type: domain.PortLiquid, Direction: domain.PortOut, Required: true},
+			},
+			Parameters: []domain.Parameter{
+				{ID: "F", Name: "Поверхность теплообмена", Unit: "м2", Type: domain.ParamFloat, Default: float64(9250), Min: pFloat(0), Max: pFloat(50000)},
+				{ID: "N_tubes", Name: "Кол-во трубок", Type: domain.ParamInt, Default: float64(984), Min: pFloat(0), Max: pFloat(10000)},
+				{ID: "T_in", Name: "T входа", Unit: "°C", Type: domain.ParamFloat, Default: float64(150)},
+				{ID: "T_out", Name: "T выхода", Unit: "°C", Type: domain.ParamFloat, Default: float64(80)},
+				{ID: "P_calc", Name: "Расч. давление", Unit: "кгс/см2", Type: domain.ParamFloat, Default: float64(16)},
+			},
+			ModelCode: "air_cooler",
+		},
+		{
+			ID: "condenser_chiller", Name: "Конденсатор-холодильник", Category: domain.CategoryAtmosphere,
+			Description: "F, T конденсации, охл. вода",
+			Ports: []domain.Port{
+				{ID: "vapor_in", Name: "Вход (пар/газ)", Type: domain.PortGas, Direction: domain.PortIn, Required: true},
+				{ID: "liquid_out", Name: "Выход (жидкость)", Type: domain.PortLiquid, Direction: domain.PortOut, Required: true},
+				{ID: "cw_in", Name: "Вход охл. воды", Type: domain.PortLiquid, Direction: domain.PortIn, Required: true},
+				{ID: "cw_out", Name: "Выход охл. воды", Type: domain.PortLiquid, Direction: domain.PortOut, Required: true},
+			},
+			Parameters: []domain.Parameter{
+				{ID: "F", Name: "Поверхность теплообмена", Unit: "м2", Type: domain.ParamFloat, Default: float64(560), Min: pFloat(0), Max: pFloat(5000)},
+				{ID: "T_cond", Name: "T конденсации", Unit: "°C", Type: domain.ParamFloat, Default: float64(100)},
+				{ID: "P_calc", Name: "Расч. давление", Unit: "кгс/см2", Type: domain.ParamFloat, Default: float64(6)},
+			},
+			ModelCode: "condenser_chiller",
+		},
+		{
+			ID: "gas_separator", Name: "Газосепаратор", Category: domain.CategoryAtmosphere,
+			Description: "P раб, V, уровень",
+			Ports: []domain.Port{
+				{ID: "mixture_in", Name: "Вход (газожидкостная смесь)", Type: domain.PortGas, Direction: domain.PortIn, Required: true},
+				{ID: "gas_out", Name: "Выход газа", Type: domain.PortGas, Direction: domain.PortOut, Required: true},
+				{ID: "liquid_out", Name: "Выход жидкости", Type: domain.PortLiquid, Direction: domain.PortOut, Required: true},
+			},
+			Parameters: []domain.Parameter{
+				{ID: "P_work", Name: "Раб. давление", Unit: "кгс/см2", Type: domain.ParamFloat, Default: float64(3), Min: pFloat(0.1), Max: pFloat(10)},
+				{ID: "V", Name: "Объём", Unit: "м3", Type: domain.ParamFloat, Default: float64(81.5)},
+				{ID: "D", Name: "Диаметр", Unit: "мм", Type: domain.ParamFloat, Default: float64(2000)},
+				{ID: "H", Name: "Высота", Unit: "мм", Type: domain.ParamFloat, Default: float64(34500)},
+			},
+			ModelCode: "gas_separator",
+		},
+		{
+			ID: "stabilization_column", Name: "Колонна стабилизации", Category: domain.CategoryAtmosphere,
+			Description: "Аналогично ректификационной, меньше тарелок",
+			Ports: []domain.Port{
+				{ID: "feed_in", Name: "Вход(ы)", Type: domain.PortLiquid, Direction: domain.PortIn, Required: true},
+				{ID: "top_vapor", Name: "Верх", Type: domain.PortGas, Direction: domain.PortOut, Required: true},
+				{ID: "bottom_out", Name: "Низ", Type: domain.PortLiquid, Direction: domain.PortOut, Required: true},
+				{ID: "reflux_in", Name: "Орошение", Type: domain.PortLiquid, Direction: domain.PortIn, Required: false},
+			},
+			Parameters: []domain.Parameter{
+				{ID: "N_trays", Name: "Число тарелок", Type: domain.ParamInt, Default: float64(34), Min: pFloat(1), Max: pFloat(60)},
+				{ID: "P_work", Name: "Раб. давление", Unit: "кгс/см2", Type: domain.ParamFloat, Default: float64(13), Min: pFloat(0.1), Max: pFloat(20)},
+				{ID: "T_top", Name: "T верха", Unit: "°C", Type: domain.ParamFloat, Default: float64(180)},
+				{ID: "D", Name: "Диаметр", Unit: "мм", Type: domain.ParamFloat, Default: float64(2400)},
+				{ID: "H", Name: "Высота", Unit: "мм", Type: domain.ParamFloat, Default: float64(29650)},
+			},
+			ModelCode: "stabilization_column",
+		},
+	}
+}

@@ -13,6 +13,7 @@ import { PortConnection } from './PortConnection'
 import { ValidationOverlay } from './ValidationOverlay'
 import { type CanvasTokens } from '@/theme/tokens'
 import { useCanvasTokens } from '@/theme/useCanvasTokens'
+import { renderNodeShape } from './NodeShape'
 
 const GRID_SIZE = 20
 const DOT_SPACING = GRID_SIZE
@@ -128,6 +129,12 @@ export function ConstructorCanvas({
     startMY: number
   } | null>(null)
   const lastPos = useRef<{ x: number; y: number } | null>(null)
+  // Ref mirrors resizingNode state so mousemove handler always has the latest value
+  const resizingNodeRef = useRef<typeof resizingNode>(null)
+  // Set to true only when the Stage background itself was the mousedown target
+  const stageWasClicked = useRef(false)
+  // Set to true once the mouse actually moves during a stage-background drag
+  const hasMoved = useRef(false)
 
   // Dot grid background
   const dotGrid = useCallback(() => {
@@ -188,25 +195,23 @@ export function ConstructorCanvas({
     [zoom, panX, panY, setZoom, setPan],
   )
 
-  // Stage pan (alt+drag / middle button)
-  const handleStageMouseDown = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (e.target !== e.target.getStage()) return
-      if (e.evt.button === 1 || (e.evt.button === 0 && e.evt.altKey)) {
-        setIsDraggingStage(true)
-        lastPos.current = { x: e.evt.clientX, y: e.evt.clientY }
-        e.evt.preventDefault()
-      } else {
-        selectNode(null)
-        selectEdge(null)
-      }
-    },
-    [selectNode, selectEdge],
-  )
+  // Stage pan — left/middle click on the empty canvas background pans.
+  // Only fires when the stage background itself is the click target (not a node/port).
+  const handleStageMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (e.target !== e.target.getStage()) return
+    if (e.evt.button === 0 || e.evt.button === 1) {
+      stageWasClicked.current = true
+      hasMoved.current = false
+      setIsDraggingStage(true)
+      lastPos.current = { x: e.evt.clientX, y: e.evt.clientY }
+      e.evt.preventDefault()
+    }
+  }, [])
 
   const handleStageMouseMove = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       if (isDraggingStage && lastPos.current) {
+        hasMoved.current = true
         const dx = (e.evt.clientX - lastPos.current.x) / zoom
         const dy = (e.evt.clientY - lastPos.current.y) / zoom
         setPan(panX + dx, panY + dy)
@@ -220,57 +225,59 @@ export function ConstructorCanvas({
           setDraftEdge((d) => (d ? { ...d, x2: worldX, y2: worldY } : null))
         }
       }
-      if (resizingNode && stageRef.current) {
+      // Use ref so we always have the latest resizingNode even across re-renders
+      const rn = resizingNodeRef.current
+      if (rn && stageRef.current) {
         const pos = stageRef.current.getPointerPosition()
         if (pos) {
           const worldX = pos.x / zoom - panX
           const worldY = pos.y / zoom - panY
-          const dx = worldX - resizingNode.startMX
-          const dy = worldY - resizingNode.startMY
-          const newW = snapToGrid(Math.max(GRID_SIZE * 4, resizingNode.startW + dx))
-          const newH = snapToGrid(Math.max(GRID_SIZE * 3, resizingNode.startH + dy))
-          liveUpdateNodePosition(
-            resizingNode.nodeId,
-            nodes.find((n) => n.id === resizingNode.nodeId)?.x ?? 0,
-            nodes.find((n) => n.id === resizingNode.nodeId)?.y ?? 0,
-          )
-          // Update width/height live
+          const dx = worldX - rn.startMX
+          const dy = worldY - rn.startMY
+          const newW = snapToGrid(Math.max(GRID_SIZE * 4, rn.startW + dx))
+          const newH = snapToGrid(Math.max(GRID_SIZE * 3, rn.startH + dy))
           useConstructorStore.setState((s) => ({
             nodes: s.nodes.map((n) =>
-              n.id === resizingNode.nodeId ? { ...n, width: newW, height: newH } : n,
+              n.id === rn.nodeId ? { ...n, width: newW, height: newH } : n,
             ),
           }))
         }
       }
     },
-    [
-      isDraggingStage,
-      zoom,
-      panX,
-      panY,
-      setPan,
-      draftEdge,
-      resizingNode,
-      liveUpdateNodePosition,
-      nodes,
-    ],
+    [isDraggingStage, zoom, panX, panY, setPan, draftEdge],
   )
 
   const handleStageMouseUp = useCallback(() => {
+    const wasStage = stageWasClicked.current
+    const moved = hasMoved.current
+    stageWasClicked.current = false
+    hasMoved.current = false
     setIsDraggingStage(false)
     lastPos.current = null
+
+    // Only deselect when the stage background was clicked and the mouse didn't move (bare click)
+    if (wasStage && !moved) {
+      selectNode(null)
+      selectEdge(null)
+    }
+
     if (draftEdge && !hoveredPort) {
       setDraftEdge(null)
     }
-    if (resizingNode) {
+
+    const rn = resizingNodeRef.current
+    if (rn) {
       // Persist final size to undo stack
-      const node = nodes.find((n) => n.id === resizingNode.nodeId)
+      const node = nodes.find((n) => n.id === rn.nodeId)
       if (node) {
-        updateNode(resizingNode.nodeId, { width: node.width, height: node.height })
+        updateNode(rn.nodeId, { width: node.width, height: node.height })
       }
+      resizingNodeRef.current = null
       setResizingNode(null)
+      // Reset cursor
+      if (containerRef.current) containerRef.current.style.cursor = 'default'
     }
-  }, [draftEdge, hoveredPort, resizingNode, nodes, updateNode])
+  }, [draftEdge, hoveredPort, nodes, updateNode, selectNode, selectEdge])
 
   function handlePortMouseDown(
     e: Konva.KonvaEventObject<MouseEvent>,
@@ -344,7 +351,7 @@ export function ConstructorCanvas({
         width,
         height,
         background: canvasTokens.bg.canvas,
-        cursor: isDraggingStage ? 'grab' : 'default',
+        cursor: isDraggingStage ? 'grabbing' : 'default',
         position: 'relative',
       }}
       onDragOver={handleDragOver}
@@ -455,19 +462,49 @@ export function ConstructorCanvas({
                   />
                 )}
 
-                {/* Node body */}
+                {/* Node background — must listen so the whole body selects & drags */}
                 <Rect
                   x={0}
                   y={0}
                   width={nodeW}
                   height={nodeH}
-                  fill={isSelected ? canvasTokens.selTint : canvasTokens.bg.surface}
+                  fill={canvasTokens.bg.surface}
                   stroke={isSelected ? canvasTokens.accent : canvasTokens.border.subtle}
                   strokeWidth={1}
                   cornerRadius={2}
+                  onMouseEnter={() => {
+                    if (!resizingNodeRef.current && containerRef.current)
+                      containerRef.current.style.cursor = 'move'
+                  }}
+                  onMouseLeave={() => {
+                    if (!resizingNodeRef.current && containerRef.current)
+                      containerRef.current.style.cursor = 'default'
+                  }}
                 />
+                {/* Selection tint overlay */}
+                {isSelected && (
+                  <Rect
+                    x={0}
+                    y={0}
+                    width={nodeW}
+                    height={nodeH}
+                    fill={canvasTokens.selTint}
+                    cornerRadius={2}
+                    listening={false}
+                  />
+                )}
 
-                {/* Category stripe (left) */}
+                {/* Process-engineering shape (rendered inside top portion of the node) */}
+                <Group x={6} y={5} listening={false}>
+                  {renderNodeShape(ct.shape, {
+                    w: nodeW - 12,
+                    h: nodeH - 26,
+                    color: shapeColor,
+                    tk: canvasTokens,
+                  })}
+                </Group>
+
+                {/* Category stripe (left edge) */}
                 <Rect
                   x={0}
                   y={0}
@@ -475,18 +512,6 @@ export function ConstructorCanvas({
                   height={nodeH}
                   fill={shapeColor}
                   cornerRadius={[2, 0, 0, 2]}
-                />
-
-                {/* Icon letter */}
-                <Text
-                  x={7}
-                  y={7}
-                  text={ct.name.charAt(0).toUpperCase()}
-                  fontSize={Math.round(nodeH * 0.35)}
-                  fill={shapeColor}
-                  fontStyle="bold"
-                  opacity={0.3}
-                  fontFamily={MONO}
                   listening={false}
                 />
 
@@ -560,13 +585,19 @@ export function ConstructorCanvas({
                 {/* Resize handle (bottom-right corner) — only on selected */}
                 {isSelected && (
                   <Rect
-                    x={nodeW - 8}
-                    y={nodeH - 8}
-                    width={8}
-                    height={8}
+                    x={nodeW - 10}
+                    y={nodeH - 10}
+                    width={10}
+                    height={10}
                     fill={canvasTokens.accent}
                     cornerRadius={1}
-                    opacity={0.85}
+                    opacity={0.9}
+                    onMouseEnter={() => {
+                      if (containerRef.current) containerRef.current.style.cursor = 'nwse-resize'
+                    }}
+                    onMouseLeave={() => {
+                      if (containerRef.current) containerRef.current.style.cursor = 'default'
+                    }}
                     onMouseDown={(e) => {
                       e.cancelBubble = true
                       const stage = stageRef.current
@@ -575,15 +606,17 @@ export function ConstructorCanvas({
                       if (!pos) return
                       const worldX = pos.x / zoom - panX
                       const worldY = pos.y / zoom - panY
-                      setResizingNode({
+                      const rn = {
                         nodeId: node.id,
                         startW: nodeW,
                         startH: nodeH,
                         startMX: worldX,
                         startMY: worldY,
-                      })
+                      }
+                      resizingNodeRef.current = rn
+                      setResizingNode(rn)
+                      if (containerRef.current) containerRef.current.style.cursor = 'nwse-resize'
                     }}
-                    style={{ cursor: 'nwse-resize' }}
                   />
                 )}
               </Group>

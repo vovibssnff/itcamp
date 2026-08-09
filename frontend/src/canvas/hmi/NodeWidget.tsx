@@ -156,6 +156,8 @@ export function ValveWidget({
   onClick,
   interactive,
 }: NodeWidgetProps) {
+  const canvasTokens = useCanvasTokens()
+  const MONO = canvasTokens.font.mono
   const tag = Object.values(telemetry).find((t) => t.tag.includes(node.label))
   const isOpen = tag ? tag.value > 50 : true
 

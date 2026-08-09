@@ -63,7 +63,47 @@ export type Tokens = typeof tokens
  * `useCanvasTokens()` (or `getCanvasTokens(theme)` outside React).
  * Reference: ktk.html zone colors for the industrial HMI.
  */
-export const canvasTokensDark = {
+export interface CanvasTokens {
+  bg: {
+    base: string
+    surface: string
+    elevated: string
+    canvas: string
+  }
+  zone: {
+    elou: string
+    atm: string
+    gdm: string
+    k1: string
+    stab: string
+    benz: string
+    raw: string
+  }
+  alarm: string
+  warn: string
+  ok: string
+  accent: string
+  text: {
+    primary: string
+    secondary: string
+    muted: string
+    dim: string
+  }
+  border: {
+    subtle: string
+    medium: string
+  }
+  gridDot: string
+  selTint: string
+  font: {
+    mono: string
+  }
+  readout: string
+  valveOpen: string
+  valveClosed: string
+}
+
+export const canvasTokensDark: CanvasTokens = {
   bg: {
     base: '#0b0c0d',
     surface: '#111315',
@@ -101,9 +141,7 @@ export const canvasTokensDark = {
   readout: '#08090a',
   valveOpen: '#7fd18f',
   valveClosed: '#ff4a4a',
-} as const
-
-export type CanvasTokens = typeof canvasTokensDark
+}
 
 /** Light-theme mirror of the canvas palette (derived from html[data-theme="light"]). */
 export const canvasTokensLight: CanvasTokens = {

@@ -1,10 +1,10 @@
-import { useRef, useState, useCallback } from 'react'
+import React, { useRef, useState, useCallback } from 'react'
 import { Stage, Layer, Rect, Text, Line } from 'react-konva'
 import type Konva from 'konva'
 import type { CanvasNode, CanvasEdge } from '@/store/constructor'
 import type { TagValue } from '@/store/session'
 import { NodeWidget, ValveWidget } from './NodeWidget'
-import { tokens } from '@/theme/tokens'
+import { useCanvasTokens } from '@/theme/useCanvasTokens'
 import type { ComponentType } from '@/mocks/fixtures/components'
 
 interface HmiCanvasProps {
@@ -18,12 +18,6 @@ interface HmiCanvasProps {
   onNodeClick?: (node: CanvasNode) => void
 }
 
-const ZONE_AREAS = [
-  { id: 'elou', label: 'ПАРК И ПОДГОТОВКА СЫРЬЯ / ЭЛОУ', color: tokens.zone.elou, x1: 0, x2: 0.3 },
-  { id: 'atm', label: 'АТМОСФЕРНЫЙ БЛОК', color: tokens.zone.atm, x1: 0.3, x2: 0.65 },
-  { id: 'gdm', label: 'БЛОК ГДМ', color: tokens.zone.gdm, x1: 0.65, x2: 1.0 },
-]
-
 export function HmiCanvas({
   nodes,
   edges,
@@ -34,6 +28,20 @@ export function HmiCanvas({
   interactive = true,
   onNodeClick,
 }: HmiCanvasProps) {
+  const canvasTokens = useCanvasTokens()
+
+  const ZONE_AREAS = [
+    {
+      id: 'elou',
+      label: 'ПАРК И ПОДГОТОВКА СЫРЬЯ / ЭЛОУ',
+      color: canvasTokens.zone.elou,
+      x1: 0,
+      x2: 0.3,
+    },
+    { id: 'atm', label: 'АТМОСФЕРНЫЙ БЛОК', color: canvasTokens.zone.atm, x1: 0.3, x2: 0.65 },
+    { id: 'gdm', label: 'БЛОК ГДМ', color: canvasTokens.zone.gdm, x1: 0.65, x2: 1.0 },
+  ]
+
   const stageRef = useRef<Konva.Stage>(null)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
@@ -61,9 +69,11 @@ export function HmiCanvas({
 
   const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     if (e.target !== e.target.getStage()) return
-    if (e.evt.button === 1 || e.evt.altKey) {
+    // Left button, middle button, or Alt+drag all pan the canvas
+    if (e.evt.button === 0 || e.evt.button === 1 || e.evt.altKey) {
       isDragging.current = true
       lastPos.current = { x: e.evt.clientX, y: e.evt.clientY }
+      e.evt.preventDefault()
     }
   }, [])
 
@@ -103,6 +113,7 @@ export function HmiCanvas({
       scaleY={zoom}
       x={pan.x * zoom}
       y={pan.y * zoom}
+      style={{ cursor: isDragging.current ? 'grabbing' : 'grab' }}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -115,7 +126,7 @@ export function HmiCanvas({
           y={-pan.y}
           width={width / zoom}
           height={height / zoom}
-          fill={tokens.bg.base}
+          fill={canvasTokens.bg.canvas}
         />
 
         {/* Zone separators */}
@@ -124,20 +135,20 @@ export function HmiCanvas({
           const zoneWidth = (zone.x2 - zone.x1) * (width / zoom)
           return (
             <React.Fragment key={zone.id}>
-              <Rect x={x} y={-pan.y} width={zoneWidth} height={24} fill={`${zone.color}18`} />
+              <Rect x={x} y={-pan.y} width={zoneWidth} height={24} fill={zone.color + '1a'} />
               <Text
                 x={x + 8}
                 y={-pan.y + 6}
                 text={zone.label}
                 fontSize={9}
                 fill={zone.color}
-                fontFamily="'IBM Plex Mono', monospace"
+                fontFamily={canvasTokens.font.mono}
                 letterSpacing={1}
               />
               {i > 0 && (
                 <Line
                   points={[x, -pan.y, x, height / zoom - pan.y]}
-                  stroke={`${zone.color}30`}
+                  stroke={zone.color + '40'}
                   strokeWidth={1}
                   dash={[4, 4]}
                 />
@@ -162,7 +173,7 @@ export function HmiCanvas({
             <Line
               key={edge.id}
               points={[x1, y1, cpx, y1, cpx, y2, x2, y2]}
-              stroke="rgba(255,255,255,0.15)"
+              stroke={canvasTokens.border.medium}
               strokeWidth={2}
               tension={0}
             />
@@ -197,6 +208,3 @@ export function HmiCanvas({
     </Stage>
   )
 }
-
-// Need React for Fragment
-import React from 'react'

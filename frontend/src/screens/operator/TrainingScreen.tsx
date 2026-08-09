@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router'
-import { Button, Tabs, Tooltip, message } from 'antd'
-import { AlertOutlined, LineChartOutlined, StopOutlined } from '@ant-design/icons'
+import { Button, Tooltip, message } from 'antd'
+import { StopOutlined } from '@ant-design/icons'
 import { HmiCanvas } from '@/canvas/hmi/HmiCanvas'
 import { Faceplate } from '@/canvas/hmi/Faceplate'
 import { AlarmBanner } from '@/components/alarms/AlarmBanner'
@@ -18,7 +18,7 @@ export default function TrainingScreen() {
   const { id: sessionId } = useParams<{ id: string }>()
   const containerRef = useRef<HTMLDivElement>(null)
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 500 })
-  const [rightPanelTab, setRightPanelTab] = useState('alarms')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [selectedNode, setSelectedNode] = useState<CanvasNode | null>(null)
   const [faceplateOpen, setFaceplateOpen] = useState(false)
 
@@ -53,7 +53,7 @@ export default function TrainingScreen() {
     setFaceplateOpen(true)
   }
 
-  function handleSendCommand(type: string, tag: string, value: number) {
+  function handleSendCommand(_type: string, tag: string, value: number) {
     send({ type: 'actuator', tag, value })
   }
 
@@ -135,48 +135,53 @@ export default function TrainingScreen() {
           />
         </div>
 
-        {/* Right panel */}
-        <div
-          style={{
-            width: 320,
-            borderLeft: `1px solid ${tokens.border.subtle}`,
-            background: tokens.bg.surface,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          <Tabs
-            activeKey={rightPanelTab}
-            onChange={setRightPanelTab}
-            size="small"
-            tabBarStyle={{ padding: '0 8px', marginBottom: 0 }}
-            items={[
-              {
-                key: 'alarms',
-                label: (
-                  <span>
-                    <AlertOutlined /> Аварии
-                  </span>
-                ),
-                children: <AlarmList maxHeight={500} />,
-              },
-              {
-                key: 'trends',
-                label: (
-                  <span>
-                    <LineChartOutlined /> Тренды
-                  </span>
-                ),
-                children: (
-                  <div style={{ padding: 8 }}>
-                    <TrendPanel width={300} height={160} />
-                  </div>
-                ),
-              },
-            ]}
-          />
-        </div>
+        {/* Collapsed rail */}
+        {sidebarCollapsed && (
+          <div className="rail" onClick={() => setSidebarCollapsed(false)}>
+            <span>◂ Панель</span>
+          </div>
+        )}
+
+        {/* Right sidebar — matches reference `.side` layout */}
+        {!sidebarCollapsed && (
+          <div className="side" style={{ width: 340 }}>
+            {/* Sidebar header */}
+            <div
+              className="side-hd"
+              onClick={() => setSidebarCollapsed(true)}
+              style={{ borderBottom: '1px solid var(--ln)' }}
+            >
+              <span className="sec">Панель оператора</span>
+              <span className="sec">Свернуть ▸</span>
+            </div>
+
+            {/* 01 · Trends with sparklines */}
+            <TrendPanel height={240} />
+
+            {/* 02 · Alarms journal */}
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <div
+                className="side-hd"
+                style={{ borderBottom: '1px solid var(--ln)', cursor: 'default' }}
+              >
+                <span className="sec">
+                  <span style={{ color: 'var(--tx4)' }}>02</span>&nbsp;&nbsp;Журнал аварий
+                </span>
+              </div>
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                <AlarmList maxHeight={999} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <Faceplate

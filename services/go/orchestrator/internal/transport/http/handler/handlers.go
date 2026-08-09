@@ -218,7 +218,7 @@ func (h *SessionHandler) handleWS(w http.ResponseWriter, r *http.Request, sessio
 	if err != nil {
 		return
 	}
-	defer conn.Close(websocket.StatusNormalClosure, "")
+	defer func() { _ = conn.Close(websocket.StatusNormalClosure, "") }()
 
 	client := service.NewWSClient(role, userID)
 	h.hub.Register(sessionID, client)

@@ -17,12 +17,18 @@ func testService(maxInstances int) *ManagerService {
 	return NewManagerService(p, maxInstances, "sim-worker:latest", "1000m", "512Mi", testLog)
 }
 
+func mustCreate(t *testing.T, svc *ManagerService, sessionID string) domain.InstanceStatus {
+	t.Helper()
+	status, err := svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: sessionID})
+	if err != nil {
+		t.Fatalf("CreateSession(%s): %v", sessionID, err)
+	}
+	return status
+}
+
 func TestCreateSession_Success(t *testing.T) {
 	svc := testService(50)
-	status, err := svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-1"})
-	if err != nil {
-		t.Fatalf("expected success, got %v", err)
-	}
+	status := mustCreate(t, svc, "sess-1")
 	if status.SessionID != "sess-1" {
 		t.Errorf("expected sess-1, got %s", status.SessionID)
 	}
@@ -36,8 +42,8 @@ func TestCreateSession_Success(t *testing.T) {
 
 func TestCreateSession_Idempotent(t *testing.T) {
 	svc := testService(50)
-	status1, _ := svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-1"})
-	status2, _ := svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-1"})
+	status1 := mustCreate(t, svc, "sess-1")
+	status2 := mustCreate(t, svc, "sess-1")
 	if status1.Endpoint != status2.Endpoint {
 		t.Error("idempotent create should return same endpoint")
 	}
@@ -45,8 +51,8 @@ func TestCreateSession_Idempotent(t *testing.T) {
 
 func TestCreateSession_QuotaExceeded(t *testing.T) {
 	svc := testService(2)
-	svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-1"})
-	svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-2"})
+	mustCreate(t, svc, "sess-1")
+	mustCreate(t, svc, "sess-2")
 	_, err := svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-3"})
 	if err != domain.ErrQuotaExceeded {
 		t.Fatalf("expected quota exceeded, got %v", err)
@@ -63,7 +69,7 @@ func TestCreateSession_EmptySessionID(t *testing.T) {
 
 func TestStopSession_Success(t *testing.T) {
 	svc := testService(50)
-	svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-1"})
+	mustCreate(t, svc, "sess-1")
 	if err := svc.StopSession(context.Background(), "sess-1"); err != nil {
 		t.Fatalf("expected success, got %v", err)
 	}
@@ -83,8 +89,10 @@ func TestStopSession_NotFound(t *testing.T) {
 
 func TestStopSession_QuotaFreed(t *testing.T) {
 	svc := testService(1)
-	svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-1"})
-	svc.StopSession(context.Background(), "sess-1")
+	mustCreate(t, svc, "sess-1")
+	if err := svc.StopSession(context.Background(), "sess-1"); err != nil {
+		t.Fatalf("StopSession: %v", err)
+	}
 	_, err := svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-2"})
 	if err != nil {
 		t.Fatalf("expected success after freeing quota, got %v", err)
@@ -93,7 +101,7 @@ func TestStopSession_QuotaFreed(t *testing.T) {
 
 func TestGetStatus_Success(t *testing.T) {
 	svc := testService(50)
-	svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-1"})
+	mustCreate(t, svc, "sess-1")
 	status, err := svc.GetStatus(context.Background(), "sess-1")
 	if err != nil {
 		t.Fatalf("expected success, got %v", err)
@@ -127,9 +135,12 @@ func TestListSessions_Empty(t *testing.T) {
 
 func TestListSessions_AfterCreate(t *testing.T) {
 	svc := testService(50)
-	svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-1"})
-	svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-2"})
-	resp, _ := svc.ListSessions(context.Background())
+	mustCreate(t, svc, "sess-1")
+	mustCreate(t, svc, "sess-2")
+	resp, err := svc.ListSessions(context.Background())
+	if err != nil {
+		t.Fatalf("ListSessions: %v", err)
+	}
 	if resp.Total != 2 {
 		t.Errorf("expected 2 sessions, got %d", resp.Total)
 	}
@@ -137,10 +148,15 @@ func TestListSessions_AfterCreate(t *testing.T) {
 
 func TestListSessions_AfterStop(t *testing.T) {
 	svc := testService(50)
-	svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-1"})
-	svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-2"})
-	svc.StopSession(context.Background(), "sess-1")
-	resp, _ := svc.ListSessions(context.Background())
+	mustCreate(t, svc, "sess-1")
+	mustCreate(t, svc, "sess-2")
+	if err := svc.StopSession(context.Background(), "sess-1"); err != nil {
+		t.Fatalf("StopSession: %v", err)
+	}
+	resp, err := svc.ListSessions(context.Background())
+	if err != nil {
+		t.Fatalf("ListSessions: %v", err)
+	}
 	if resp.Total != 1 {
 		t.Errorf("expected 1 session after stop, got %d", resp.Total)
 	}

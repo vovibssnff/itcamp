@@ -1,0 +1,49 @@
+### ============================================================
+### assessment — Оценка действий оператора (сервис assessment)
+### Базовый URL. Скорректируйте порт под конфигурацию вашего сервиса.
+### ============================================================
+
+@host = http://localhost
+@port = 8081
+@base = {{host}}:{{port}}
+@sessionId = sess_123
+
+### Проверка живости сервиса
+GET {{base}}/healthz
+
+### Приём события действия оператора
+POST {{base}}/assessment/event
+Content-Type: application/json
+
+{
+  "session_id": "{{sessionId}}",
+  "type": "action",
+  "user_id": "user_456",
+  "target": "equipment_1",
+  "action": "valve_open",
+  "value": 1,
+  "tag_id": "tag_789",
+  "priority": "H",
+  "model_time": 1234.56,
+  "server_time": "2026-08-09T10:30:00Z"
+}
+
+### Получить оценку сессии
+GET {{base}}/assessment/session/{{sessionId}}/score
+
+### Сформировать финальный результат сессии
+POST {{base}}/assessment/session/{{sessionId}}/result
+
+### Переопределить оценку вручную (инструктор/админ)
+POST {{base}}/assessment/override
+Content-Type: application/json
+
+{
+  "session_id": "{{sessionId}}",
+  "new_score": 85,
+  "verdict": "pass",
+  "comment": "Performance improved"
+}
+
+### Получить данные для replay (восстановление сессии)
+GET {{base}}/assessment/session/{{sessionId}}/replay

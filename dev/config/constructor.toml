@@ -1,0 +1,26 @@
+# Локальный конфиг constructor-сервиса
+# Секреты перекрываются env: CONSTRUCTOR_DB_DSN, SNAPSHOT_S3_* не относятся сюда
+
+[http]
+addr              = ":8080"
+read_timeout      = "10s"
+write_timeout     = "10s"
+shutdown_timeout  = "15s"
+
+[db]
+dsn               = "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+max_conns         = 10
+min_conns         = 2
+conn_timeout      = "5s"
+query_timeout     = "5s"
+
+[s3]
+endpoint          = "minio:9000"
+bucket            = "component-icons"
+access_key        = "ktcminio"
+secret_key        = "ktcminio_secret"
+use_ssl           = false
+
+[seed]
+enabled           = true
+seed_file         = ""

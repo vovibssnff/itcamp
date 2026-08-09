@@ -139,6 +139,21 @@ services:
     networks: [ktc-data]
     restart: "no"
 
+  # Применение централизованных миграций БД (golang-migrate).
+  # Зависит от picodata после bootstrap; миграции монтируются из ../../db/migrations.
+  migrate:
+    build:
+      context: ../../tools/migrator
+      dockerfile: ../infra/local/migrator/Dockerfile
+    command: ["up", "-dsn", "postgres://admin:${PICODATA_ADMIN_PASSWORD:-T0psecret}@picodata:4327/postgres", "-migrations", "/migrations"]
+    volumes:
+      - ../../db/migrations:/migrations:ro
+    depends_on:
+      picodata-init:
+        condition: service_completed_successfully
+    networks: [ktc-data]
+    restart: "no"
+
   # React SPA (Angie). Default build uses in-browser mocks (MSW + mock WebSocket).
   frontend:
     build:

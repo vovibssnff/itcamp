@@ -1,0 +1,14 @@
+[http]
+addr              = ":8080"
+read_timeout      = "10s"
+write_timeout     = "10s"
+shutdown_timeout  = "15s"
+
+[provider]
+type              = "memory"
+docker_host       = "unix:///var/run/docker.sock"
+worker_image      = "sim-worker:latest"
+port_base         = 50060
+max_instances     = 50
+cpu_request       = "1000m"
+mem_request       = "512Mi"

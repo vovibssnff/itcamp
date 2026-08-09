@@ -1,0 +1,24 @@
+### ============================================================
+### snapshot — Снапшоты сессий (сервис snapshot)
+### Базовый URL. Скорректируйте порт под конфигурацию вашего сервиса.
+### ============================================================
+
+@host = http://localhost
+@port = 8086
+@base = {{host}}:{{port}}
+@sessionId = sess_123
+@snapshotId = snap_123
+
+### Проверка живости сервиса
+GET {{base}}/healthz
+
+### Список снапшотов (список метаданных)
+GET {{base}}/snapshots?session_id={{sessionId}}&is_preset=&limit=50&offset=0
+
+### Получить снапшот по ID
+# Примечание: сохранение/восстановление снапшота выполняется через
+# orchestrator (checkpoint/restore) либо напрямую внутренними сервисами.
+GET {{base}}/snapshots/{{snapshotId}}
+
+### Удалить снапшот (preset удалить нельзя)
+DELETE {{base}}/snapshots/{{snapshotId}}

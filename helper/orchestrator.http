@@ -1,0 +1,89 @@
+### ============================================================
+### orchestrator — Оркестрация сессий (сервис orchestrator)
+### Базовый URL. Скорректируйте порт под конфигурацию вашего сервиса.
+### ============================================================
+
+@host = http://localhost
+@port = 8085
+@base = {{host}}:{{port}}
+@templateId = tmpl_123
+@scenarioId = scen_456
+@sessionId = sess_123
+@snapshotId = snap_789
+@alarmId = alarm_456
+
+### Проверка живости сервиса
+GET {{base}}/healthz
+
+### Список сессий
+GET {{base}}/sessions?status=&operator_id=
+
+### Создать сессию
+POST {{base}}/sessions
+Content-Type: application/json
+
+{
+  "template_id": "{{templateId}}",
+  "scenario_id": "{{scenarioId}}",
+  "operator_ids": ["op_1", "op_2"],
+  "mode": "training",
+  "speed": 1.0
+}
+
+### Получить сессию по ID
+GET {{base}}/sessions/{{sessionId}}
+
+### Запустить сессию
+POST {{base}}/sessions/{{sessionId}}/start
+
+### Поставить сессию на паузу
+POST {{base}}/sessions/{{sessionId}}/pause
+
+### Остановить сессию
+POST {{base}}/sessions/{{sessionId}}/stop
+
+### Изменить скорость сессии
+PUT {{base}}/sessions/{{sessionId}}/speed
+Content-Type: application/json
+
+{
+  "factor": 2.0
+}
+
+### Сохранить контрольную точку (checkpoint)
+POST {{base}}/sessions/{{sessionId}}/checkpoint
+Content-Type: application/json
+
+{
+  "name": "Checkpoint 1"
+}
+
+### Восстановить сессию из снапшота
+POST {{base}}/sessions/{{sessionId}}/restore
+Content-Type: application/json
+
+{
+  "snapshot_id": "{{snapshotId}}"
+}
+
+### Управление исполнительным механизмом (actuator)
+POST {{base}}/sessions/{{sessionId}}/actuator
+Content-Type: application/json
+
+{
+  "tag": "VALVE_1",
+  "value": 1
+}
+
+### Подтвердить (acknowledge) аларм сессии
+POST {{base}}/sessions/{{sessionId}}/alarms/{{alarmId}}/ack
+
+###
+# ─── WebSocket (не выполняются обычным клиентом) ───
+###
+
+### WebSocket: операторская сессия (обновление 101)
+GET {{base}}/ws/sessions/{{sessionId}}/operator
+
+### WebSocket: наблюдение за сессией (обновление 101)
+GET {{base}}/ws/sessions/{{sessionId}}/observe

@@ -1,0 +1,202 @@
+/* ─── Design Tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --ink: #0b0c0d;
+  --srf: #111315;
+  --srf2: #17191c;
+  --srf3: #1e2125;
+  --ln: rgba(255, 255, 255, 0.07);
+  --ln2: rgba(255, 255, 255, 0.14);
+  --tx: #ecedee;
+  --tx2: #9ba1a7;
+  --tx3: #6a7076;
+  --tx4: #484e54;
+  --acc: #e9ff57;
+  --acc-hi: #f4ff9c;
+  --acc-ink: #0b0c0d;
+  --acc-dim: rgba(233, 255, 87, 0.1);
+  --acc-txt: var(--acc);
+  --alarm: #ff4a4a;
+  --warn: #e0a458;
+  --ok: #7fd18f;
+  --ui: 'Golos Text', 'Inter', 'Helvetica Neue', sans-serif;
+  --mono: 'JetBrains Mono', 'IBM Plex Mono', 'SFMono-Regular', monospace;
+  --r: 2px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+html[data-theme='light'] {
+  --ink: #f2f2f0;
+  --srf: #ffffff;
+  --srf2: #f6f6f4;
+  --srf3: #ecece9;
+  --ln: rgba(10, 12, 13, 0.09);
+  --ln2: rgba(10, 12, 13, 0.17);
+  --tx: #101214;
+  --tx2: #585e64;
+  --tx3: #82878d;
+  --tx4: #afb4b9;
+  --acc: #8faf6e;
+  --acc-hi: #a8c48a;
+  --acc-dim: rgba(143, 175, 110, 0.16);
+}
+
+/* ─── Reset & Base ─────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 1024px;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv01', 'ss01';
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--ink);
+  color: var(--tx);
+  font-family: var(--ui);
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #22262a;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2e3339;
+}
+html[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: #dededa;
+}
+html[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: #ccccc6;
+}
+
+::selection {
+  background: var(--acc);
+  color: var(--acc-ink);
+}
+
+/* ─── Typography base ───────────────────────────────────────────────────────── */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--ui);
+  font-weight: 600;
+  color: var(--tx);
+  margin: 0;
+}
+
+.display {
+  font-family: var(--ui);
+  font-size: clamp(32px, 5vw, 64px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: var(--tx);
+  line-height: 1.1;
+}
+
+.h1 {
+  font-size: 26px;
+  font-weight: 600;
+  font-family: var(--ui);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--tx);
+}
+
+/* ─── Keyframes ─────────────────────────────────────────────────────────────── */
+@keyframes pulseAlarm {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes beat {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.7;
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes blinkBanner {
+  0%,
+  100% {
+    background-color: rgba(255, 74, 74, 0.15);
+  }
+  50% {
+    background-color: rgba(255, 74, 74, 0.05);
+  }
+}

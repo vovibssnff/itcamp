@@ -35,7 +35,19 @@ services:
       restart_policy:
         condition: on-failure
 
+  frontend:
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 128M
+
 networks:
   ktc-data:
+    driver: overlay
+    attachable: true
+  ktc-app:
     driver: overlay
     attachable: true

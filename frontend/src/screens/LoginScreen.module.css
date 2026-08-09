@@ -1,0 +1,154 @@
+.root {
+  min-height: 100vh;
+  background: #0a0f14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.card {
+  width: 420px;
+  background: #11181f;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 36px;
+}
+
+.brand {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #00e5c7;
+  text-transform: uppercase;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #e6edf1;
+  margin-top: 6px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: #7c8a94;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.roleTabs {
+  display: flex;
+  background: #0d1319;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px;
+  margin-top: 28px;
+  gap: 4px;
+}
+
+.roleTab {
+  flex: 1;
+  text-align: center;
+  padding: 9px 0;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: #7c8a94;
+  transition:
+    background 0.15s,
+    color 0.15s;
+  font-family: 'Inter', sans-serif;
+}
+
+.roleTab:hover {
+  color: #e6edf1;
+}
+
+.roleTabActive {
+  background: rgba(0, 229, 199, 0.12);
+  color: #00e5c7;
+}
+
+.roleDesc {
+  font-size: 12px;
+  color: #7c8a94;
+  margin-top: 10px;
+  line-height: 1.5;
+  min-height: 36px;
+}
+
+.label {
+  display: block;
+  margin-top: 22px;
+  font-size: 12px;
+  color: #7c8a94;
+}
+
+.input {
+  width: 100%;
+  margin-top: 6px;
+  background: #0d1319 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #e6edf1 !important;
+  font-size: 14px !important;
+}
+
+.input:focus,
+.input:hover {
+  border-color: rgba(0, 229, 199, 0.4) !important;
+}
+
+.loginBtn {
+  width: 100%;
+  margin-top: 22px;
+  text-align: center;
+  padding: 12px;
+  background: #00e5c7;
+  color: #0a0f14;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  font-family: 'Inter', sans-serif;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
+}
+
+.loginBtn:hover:not(:disabled) {
+  background: #5eeadb;
+}
+
+.loginBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modeToggle {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  text-align: center;
+  background: transparent;
+  border: none;
+  color: #7c8a94;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: color 0.15s;
+}
+
+.modeToggle:hover {
+  color: #00e5c7;
+}
+
+.footer {
+  margin-top: 16px;
+  font-size: 11px;
+  color: #4d5a63;
+}

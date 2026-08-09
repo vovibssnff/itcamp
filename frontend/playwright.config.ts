@@ -16,7 +16,13 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // Local override: PLAYWRIGHT_CHANNEL=chrome uses the system browser.
+        ...(process.env.PLAYWRIGHT_CHANNEL
+          ? { channel: process.env.PLAYWRIGHT_CHANNEL as 'chrome' }
+          : {}),
+      },
     },
   ],
   webServer: {

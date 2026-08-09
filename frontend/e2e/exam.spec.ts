@@ -6,9 +6,9 @@ test.describe('TEST-06 / TEST-07: Exam flow', () => {
     await loginAs(page, 'operator')
   })
 
-  test('exam screen shows EXAM label and timer', async ({ page }) => {
+  test('exam screen shows title and timer', async ({ page }) => {
     await page.goto('/sessions/sess-001/exam')
-    await expect(page.getByText('ЭКЗАМЕН')).toBeVisible()
+    await expect(page.getByText('Квалификационный экзамен')).toBeVisible()
     // Timer format MM:SS
     await expect(
       page
@@ -18,20 +18,24 @@ test.describe('TEST-06 / TEST-07: Exam flow', () => {
     ).toBeVisible()
   })
 
-  test('exam shows ESD button', async ({ page }) => {
+  test('exam shows finish control', async ({ page }) => {
     await page.goto('/sessions/sess-001/exam')
-    await expect(page.getByRole('button', { name: 'ESD' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Завершить' })).toBeVisible()
   })
 
   test('exam has HMI canvas', async ({ page }) => {
     await page.goto('/sessions/sess-001/exam')
-    await expect(page.locator('canvas')).toBeVisible()
+    await expect(page.locator('canvas').first()).toBeVisible()
   })
 
   test('exam finish button triggers confirmation', async ({ page }) => {
     await page.goto('/sessions/sess-001/exam')
     await page.getByRole('button', { name: 'Завершить' }).click()
-    await expect(page.getByText('Завершить экзамен досрочно?')).toBeVisible()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('.ant-modal-confirm-title')).toHaveText(
+      'Завершить экзамен досрочно?',
+    )
   })
 })
 
@@ -42,7 +46,7 @@ test.describe('TEST-08 / TEST-09: Report and replay', () => {
 
   test('report screen shows score', async ({ page }) => {
     await page.goto('/reports/sess-002')
-    await expect(page.getByText('Отчёт об обучении')).toBeVisible()
+    await expect(page.getByText('Результаты обучения')).toBeVisible()
     // Score value visible
     await expect(
       page

@@ -1,0 +1,32 @@
+### ============================================================
+### report — Отчёты по сессии (сервис report)
+### Базовый URL. Скорректируйте порт под конфигурацию вашего сервиса.
+### Приём задачи через NATS (report.tasks); генерация PDF асинхронна.
+### ============================================================
+
+@host = http://localhost
+@port = 8087
+@base = {{host}}:{{port}}
+@sessionId = sess_123
+@reportId = report_123
+
+### Проверка живости сервиса
+GET {{base}}/healthz
+
+### Запросить отчёт (→ 202 Accepted, публикует задачу в NATS)
+POST {{base}}/reports
+Content-Type: application/json
+
+{
+  "session_id": "{{sessionId}}",
+  "type": "exam"
+}
+
+### Список отчётов
+GET {{base}}/reports?session_id={{sessionId}}
+
+### Получить отчёт по ID
+GET {{base}}/reports/{{reportId}}
+
+### Скачать отчёт (→ 302 redirect на storage)
+GET {{base}}/reports/{{reportId}}/download

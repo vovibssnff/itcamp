@@ -1,0 +1,373 @@
+### ============================================================
+### gw — API Gateway / BFF (сервис gw)
+### Агрегирует все сервисы под префиксом /api/v1
+### Базовый URL. Скорректируйте порт под конфигурацию вашего сервиса.
+### ============================================================
+
+@host = http://localhost
+@port = 8088
+@base = {{host}}:{{port}}
+@login = user@example.ru
+@password = secure_password_123
+@userId = user_123
+@templateId = tmpl_123
+@sessionId = sess_123
+@snapshotId = snap_123
+@reportId = report_123
+
+### Проверка живости сервиса
+GET {{base}}/healthz
+
+### Корневой эндпоинт
+GET {{base}}/
+
+###
+# ─── Auth (public) ───
+###
+
+### Вход через шлюз
+POST {{base}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "login": "{{login}}",
+  "password": "{{password}}",
+  "mfa_code": "123456"
+}
+
+> {%
+    client.global.set("access_token", response.body.access_token);
+    client.global.set("refresh_token", response.body.refresh_token);
+%}
+
+### Обновить токен через шлюз
+POST {{base}}/api/v1/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "{{refresh_token}}"
+}
+
+### Выход через шлюз (auth)
+POST {{base}}/api/v1/auth/logout
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "refresh_token": "{{refresh_token}}"
+}
+
+### Текущий пользователь (auth)
+GET {{base}}/api/v1/auth/me
+Authorization: Bearer {{access_token}}
+
+###
+# ─── Пользователи (admin) ───
+###
+
+### Список пользователей
+GET {{base}}/api/v1/users
+Authorization: Bearer {{access_token}}
+
+### Создать пользователя
+POST {{base}}/api/v1/users
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "login": "new_user",
+  "full_name": "Новый пользователь",
+  "ldap_dn": "CN=new_user,OU=Users,DC=corp,DC=example,DC=ru",
+  "roles": ["operator"]
+}
+
+### Получить пользователя
+GET {{base}}/api/v1/users/{{userId}}
+Authorization: Bearer {{access_token}}
+
+### Обновить пользователя
+PUT {{base}}/api/v1/users/{{userId}}
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "full_name": "Обновленное имя",
+  "status": "active",
+  "roles": ["instructor"]
+}
+
+### Удалить пользователя
+DELETE {{base}}/api/v1/users/{{userId}}
+Authorization: Bearer {{access_token}}
+
+###
+# ─── Компоненты (instructor/admin) ───
+###
+
+### Список компонентов
+GET {{base}}/api/v1/components
+Authorization: Bearer {{access_token}}
+
+### Создать компонент
+POST {{base}}/api/v1/components
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "id": "comp_123",
+  "name": "Датчик давления",
+  "category": "Атмосфера",
+  "ports": [],
+  "parameters": []
+}
+
+### Получить компонент
+GET {{base}}/api/v1/components/comp_123
+Authorization: Bearer {{access_token}}
+
+### Обновить компонент
+PUT {{base}}/api/v1/components/comp_123
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "id": "comp_123",
+  "name": "Обновленный датчик",
+  "category": "Атмосфера",
+  "ports": [],
+  "parameters": []
+}
+
+### Удалить компонент
+DELETE {{base}}/api/v1/components/comp_123
+Authorization: Bearer {{access_token}}
+
+###
+# ─── Шаблоны (instructor/admin) ───
+###
+
+### Список шаблонов
+GET {{base}}/api/v1/templates
+Authorization: Bearer {{access_token}}
+
+### Создать шаблон
+POST {{base}}/api/v1/templates
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "name": "Новый шаблон",
+  "description": "Описание шаблона",
+  "graph": {
+    "nodes": [],
+    "edges": []
+  }
+}
+
+### Получить шаблон
+GET {{base}}/api/v1/templates/{{templateId}}
+Authorization: Bearer {{access_token}}
+
+### Обновить шаблон
+PUT {{base}}/api/v1/templates/{{templateId}}
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "name": "Обновленный шаблон",
+  "description": "Обновленное описание",
+  "graph": {
+    "nodes": [],
+    "edges": []
+  }
+}
+
+### Удалить шаблон
+DELETE {{base}}/api/v1/templates/{{templateId}}
+Authorization: Bearer {{access_token}}
+
+### Копировать шаблон
+POST {{base}}/api/v1/templates/{{templateId}}/copy
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "new_name": "Клон шаблона"
+}
+
+### Валидация шаблона
+POST {{base}}/api/v1/templates/{{templateId}}/validate
+Authorization: Bearer {{access_token}}
+
+###
+# ─── Сценарии (instructor/admin) ───
+###
+
+### Список сценариев
+GET {{base}}/api/v1/scenarios
+Authorization: Bearer {{access_token}}
+
+### Создать сценарий
+POST {{base}}/api/v1/scenarios
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "template_id": "{{templateId}}",
+  "name": "Обучающий сценарий",
+  "type": "training",
+  "description": "Сценарий для тренировки",
+  "start_preset_id": "preset_1",
+  "faults": [],
+  "reference_actions": [],
+  "criteria": {}
+}
+
+### Получить сценарий
+GET {{base}}/api/v1/scenarios/scen_123
+Authorization: Bearer {{access_token}}
+
+### Обновить сценарий
+PUT {{base}}/api/v1/scenarios/scen_123
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "template_id": "{{templateId}}",
+  "name": "Обновленный сценарий",
+  "type": "training",
+  "description": "Обновленное описание",
+  "start_preset_id": "preset_1",
+  "faults": [],
+  "reference_actions": [],
+  "criteria": {}
+}
+
+### Удалить сценарий
+DELETE {{base}}/api/v1/scenarios/scen_123
+Authorization: Bearer {{access_token}}
+
+### Клонировать сценарий
+POST {{base}}/api/v1/scenarios/scen_123/clone
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "template_id": "{{templateId}}"
+}
+
+### Список моделей неисправностей
+GET {{base}}/api/v1/faults
+Authorization: Bearer {{access_token}}
+
+###
+# ─── Сессии (instructor/operator) ───
+###
+
+### Список сессий
+GET {{base}}/api/v1/sessions
+Authorization: Bearer {{access_token}}
+
+### Создать сессию
+POST {{base}}/api/v1/sessions
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "template_id": "{{templateId}}",
+  "scenario_id": "scen_456",
+  "operator_ids": ["op_1", "op_2"],
+  "mode": "training",
+  "speed": 1.0
+}
+
+### Получить сессию
+GET {{base}}/api/v1/sessions/{{sessionId}}
+Authorization: Bearer {{access_token}}
+
+### Управление сессией: start/pause/stop/checkpoint/restore/actuator
+POST {{base}}/api/v1/sessions/{{sessionId}}/start
+Authorization: Bearer {{access_token}}
+
+### Изменить скорость
+PUT {{base}}/api/v1/sessions/{{sessionId}}/speed
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "factor": 2.5
+}
+
+###
+# ─── Assessment (instructor/admin) ───
+###
+
+### Оценка сессии
+GET {{base}}/api/v1/assessment/session/{{sessionId}}/score
+Authorization: Bearer {{access_token}}
+
+### Переопределить оценку
+POST {{base}}/api/v1/assessment/override
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "session_id": "{{sessionId}}",
+  "new_score": 90,
+  "verdict": "pass",
+  "comment": "Отличная работа"
+}
+
+### Данные для replay
+GET {{base}}/api/v1/assessment/session/{{sessionId}}/replay
+Authorization: Bearer {{access_token}}
+
+###
+# ─── Snapshots (instructor/admin) ───
+###
+
+### Список снапшотов
+GET {{base}}/api/v1/snapshots
+Authorization: Bearer {{access_token}}
+
+### Снапшот по ID
+GET {{base}}/api/v1/snapshots/{{snapshotId}}
+Authorization: Bearer {{access_token}}
+
+###
+# ─── Reports (instructor/operator) ───
+###
+
+### Запросить отчёт
+POST {{base}}/api/v1/reports
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "session_id": "{{sessionId}}",
+  "type": "exam"
+}
+
+### Список отчётов
+GET {{base}}/api/v1/reports
+Authorization: Bearer {{access_token}}
+
+### Отчёт по ID
+GET {{base}}/api/v1/reports/{{reportId}}
+Authorization: Bearer {{access_token}}
+
+### Скачать отчёт (302 redirect)
+GET {{base}}/api/v1/reports/{{reportId}}/download
+Authorization: Bearer {{access_token}}
+
+###
+# ─── WebSocket (не выполняется обычным клиентом) ───
+###
+
+### WebSocket: оператор
+GET {{base}}/api/v1/ws/sessions/{{sessionId}}/operator
+Authorization: Bearer {{access_token}}
+
+### WebSocket: наблюдение
+GET {{base}}/api/v1/ws/sessions/{{sessionId}}/observe
+Authorization: Bearer {{access_token}}

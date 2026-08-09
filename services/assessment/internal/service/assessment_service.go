@@ -7,16 +7,23 @@ import (
 
 	"github.com/itcamp/ktc/services/assessment/internal/client"
 	"github.com/itcamp/ktc/services/assessment/internal/domain"
-	"github.com/itcamp/ktc/services/assessment/internal/repository"
 )
 
+type AssessmentStore interface {
+	GetBySession(ctx context.Context, sessionID string) (domain.Score, error)
+	Upsert(ctx context.Context, s domain.Score) error
+	SetVerdict(ctx context.Context, sessionID string, verdict domain.Verdict, score int) error
+	SetOverride(ctx context.Context, sessionID string, score int, verdict domain.Verdict, byUserID, comment string) error
+	GetReplayData(ctx context.Context, sessionID string) (domain.ReplayData, error)
+}
+
 type AssessmentService struct {
-	repo   *repository.AssessmentRepo
+	repo   AssessmentStore
 	client client.ScenarioClient
 	log    *slog.Logger
 
-	mu          sync.Mutex
-	sessions    map[string]*sessionState
+	mu       sync.Mutex
+	sessions map[string]*sessionState
 }
 
 type sessionState struct {
@@ -28,7 +35,7 @@ type sessionState struct {
 	alarmTimes    map[string]float64
 }
 
-func NewAssessmentService(repo *repository.AssessmentRepo, client client.ScenarioClient, log *slog.Logger) *AssessmentService {
+func NewAssessmentService(repo AssessmentStore, client client.ScenarioClient, log *slog.Logger) *AssessmentService {
 	return &AssessmentService{
 		repo: repo, client: client, log: log,
 		sessions: make(map[string]*sessionState),

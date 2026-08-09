@@ -4,15 +4,25 @@ import (
 	"context"
 
 	"github.com/itcamp/ktc/services/scenario/internal/domain"
-	"github.com/itcamp/ktc/services/scenario/internal/repository"
 )
 
+type ScenarioStore interface {
+	GetByID(ctx context.Context, id string) (domain.Scenario, error)
+	List(ctx context.Context, templateID, scenarioType, query string, limit, offset int) ([]domain.Scenario, error)
+	Create(ctx context.Context, s domain.Scenario) error
+	Upsert(ctx context.Context, s domain.Scenario) error
+	Update(ctx context.Context, s domain.Scenario) error
+	Delete(ctx context.Context, id string) error
+	GetRandomExam(ctx context.Context, templateID string) (domain.Scenario, error)
+	Clone(ctx context.Context, id, newTemplateID string) (domain.Scenario, error)
+}
+
 type ScenarioService struct {
-	repo     *repository.ScenarioRepo
+	repo      ScenarioStore
 	validator *TriggerValidator
 }
 
-func NewScenarioService(repo *repository.ScenarioRepo, validator *TriggerValidator) *ScenarioService {
+func NewScenarioService(repo ScenarioStore, validator *TriggerValidator) *ScenarioService {
 	return &ScenarioService{repo: repo, validator: validator}
 }
 

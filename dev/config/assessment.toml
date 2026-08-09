@@ -1,0 +1,18 @@
+# Локальный конфиг assessment-сервиса
+# Секреты перекрываются env: ASSESSMENT_DB_DSN
+
+[http]
+addr              = ":8080"
+read_timeout      = "10s"
+write_timeout     = "10s"
+shutdown_timeout  = "15s"
+
+[db]
+dsn               = "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+max_conns         = 10
+min_conns         = 2
+conn_timeout      = "5s"
+query_timeout     = "5s"
+
+[clients]
+scenario_url      = "http://scenario:8080"

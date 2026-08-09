@@ -13,7 +13,7 @@ from ..domain.models import FaultDef, FaultInstance, OperatorCommand, ProcessSta
 from ..faults.engine import FaultInjector
 from ..physics import interlocks
 from ..physics.interlocks import InterlockState
-from ..physics.network import Network, build_network
+from ..physics.network import build_network
 from . import integrator
 from .session import SimSession
 
@@ -161,7 +161,7 @@ class SimulationEngine:
             mode = ControllerMode.MANUAL if (cmd.value_to or 0.0) >= 0.5 else ControllerMode.AUTO
             network.set_mode(cmd.target, mode)
         elif kind == CommandType.ACK_ALARM:
-            for key, alarm in session.interlock_state.active_alarms.items():
+            for _key, alarm in session.interlock_state.active_alarms.items():
                 if alarm.tag_id == cmd.target and alarm.ack_at_s is None:
                     alarm.ack_at_s = cmd.model_time_s
         elif kind == CommandType.START:
@@ -173,7 +173,10 @@ class SimulationEngine:
         elif kind == CommandType.STOP:
             network.pump_by_tag(cmd.target).stop()
         elif kind in (CommandType.OPEN, CommandType.CLOSE):
-            value = cmd.value_to if cmd.value_to is not None else (100.0 if kind == CommandType.OPEN else 0.0)
+            if cmd.value_to is not None:
+                value = cmd.value_to
+            else:
+                value = 100.0 if kind == CommandType.OPEN else 0.0
             network.set_output(cmd.target, value)
         elif kind == CommandType.ESD:
             for f in network.furnaces.values():

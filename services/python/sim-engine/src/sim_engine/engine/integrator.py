@@ -9,8 +9,6 @@ stdlib, см. README ADR-СЕ-01). При ``set_speed`` до 10× шаг меж�
 """
 from __future__ import annotations
 
-from collections.abc import Callable
-
 import numpy as np
 
 from ..faults.engine import FaultInjector
@@ -40,5 +38,7 @@ def advance(
 
 
 def _tick(network: Network, fault_injector: FaultInjector, t: float, sub_dt: float) -> None:
-    apply_faults: Callable[[Network], None] = lambda net: fault_injector.apply(net, t)
+    def apply_faults(net: Network) -> None:
+        fault_injector.apply(net, t)
+
     network.step(sub_dt, apply_faults=apply_faults)

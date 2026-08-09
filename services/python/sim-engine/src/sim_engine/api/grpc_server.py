@@ -18,8 +18,8 @@ _STUBS_MISSING = (
 
 def _load_stubs():
     try:
-        from .generated.ktk.sim.v1 import model_api_pb2 as pb2  # type: ignore
-        from .generated.ktk.sim.v1 import model_api_pb2_grpc as pb2_grpc  # type: ignore
+        from .generated.ktk.sim.v1 import model_api_pb2 as pb2
+        from .generated.ktk.sim.v1 import model_api_pb2_grpc as pb2_grpc
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(_STUBS_MISSING) from exc
     return pb2, pb2_grpc

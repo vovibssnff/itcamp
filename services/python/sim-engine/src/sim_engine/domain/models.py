@@ -9,8 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .enums import CommandType, ControllerMode, EquipmentState, LimitType
-
+from .enums import CommandType, ControllerMode, LimitType
 
 # --------------------------------------------------------------------------
 # Статическое описание шаблона (из template_*.json)

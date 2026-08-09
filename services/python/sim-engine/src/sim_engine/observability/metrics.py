@@ -5,7 +5,7 @@ import threading
 from collections import defaultdict
 
 try:  # pragma: no cover
-    from prometheus_client import Counter, Histogram  # type: ignore
+    from prometheus_client import Counter, Histogram
 
     _HAS_PROMETHEUS = True
 except ImportError:  # pragma: no cover

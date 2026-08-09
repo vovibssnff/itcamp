@@ -4,6 +4,7 @@ from __future__ import annotations
 import unittest
 
 from context import make_engine
+
 from sim_engine.domain.models import OperatorCommand
 
 

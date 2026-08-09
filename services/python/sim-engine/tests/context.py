@@ -11,7 +11,7 @@ from sim_engine.bootstrap import build_application
 from sim_engine.config import Settings, reset_settings
 
 
-def make_app() -> "object":
+def make_app() -> object:
     reset_settings()
     settings = Settings(data_dir=str(ROOT / "data"))
     return build_application(settings)

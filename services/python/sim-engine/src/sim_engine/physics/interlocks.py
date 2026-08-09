@@ -210,7 +210,8 @@ def check_start_guard(pump_tag: str, values: dict[str, float]) -> str | None:
         return None
     blocked = value <= threshold if direction == "below" else value >= threshold
     if blocked:
-        return f"Пуск {pump_tag} запрещён: {tag_id} {'<=' if direction == 'below' else '>='} {threshold}"
+        op = "<=" if direction == "below" else ">="
+        return f"Пуск {pump_tag} запрещён: {tag_id} {op} {threshold}"
     return None
 
 

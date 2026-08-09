@@ -49,9 +49,14 @@ class FaultInjector:
                 key = (effect.node_id, effect.param)
                 baseline = self._baseline.setdefault(key, getattr(obj, effect.param))
                 if effect.mode == "SET":
-                    value = baseline + (effect.target_value - baseline) * progress * instance.magnitude
+                    value = (
+                        baseline
+                        + (effect.target_value - baseline) * progress * instance.magnitude
+                    )
                 elif effect.mode == "MULTIPLY":
-                    value = baseline * (1.0 + (effect.target_value - 1.0) * progress * instance.magnitude)
+                    value = baseline * (
+                        1.0 + (effect.target_value - 1.0) * progress * instance.magnitude
+                    )
                 elif effect.mode == "ADD":
                     value = baseline + effect.target_value * progress * instance.magnitude
                 else:

@@ -45,7 +45,7 @@ def _state_body(session_id: str, engine, state) -> dict[str, Any]:
     return body
 
 
-def create_app(application: Application | None = None) -> "FastAPI":
+def create_app(application: Application | None = None) -> FastAPI:
     app = FastAPI(title="КТК — sim-worker", version="1.0.0")
     state: dict[str, Application] = {}
 

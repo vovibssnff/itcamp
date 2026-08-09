@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import threading
 from collections import defaultdict
+from typing import Any
 
 try:  # pragma: no cover
     from prometheus_client import Counter, Histogram
@@ -37,13 +38,18 @@ class _InMemoryMetrics:
 
 registry = _InMemoryMetrics()
 
+# Typed as Any so the optional Prometheus branch stays mypy-clean when the
+# library is installed (CI) and when it is not (local stdlib-only runs).
+_steps: Any = None
+_faults: Any = None
+_commands: Any = None
+_duration: Any = None
+
 if _HAS_PROMETHEUS:  # pragma: no cover
     _steps = Counter("sim_steps_total", "Тики Model API", ["status"])
     _faults = Counter("sim_fault_injections_total", "Инъекции неисправностей", ["fault_id"])
     _commands = Counter("sim_commands_total", "Команды оператора", ["type", "status"])
     _duration = Histogram("sim_step_duration_seconds", "Длительность step()")
-else:  # pragma: no cover
-    _steps = _faults = _commands = _duration = None
 
 
 def step(status: str) -> None:

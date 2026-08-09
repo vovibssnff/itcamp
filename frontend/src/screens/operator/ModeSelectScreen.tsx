@@ -1,0 +1,68 @@
+import { useParams, useNavigate } from 'react-router'
+
+const MODES = [
+  {
+    key: 'operator',
+    num: '01',
+    icon: '📗',
+    label: 'Самостоятельная тренировка',
+    desc: 'Изучение технологического процесса с подсказками ИИ и неограниченным временем',
+    route: 'operator',
+  },
+  {
+    key: 'exam',
+    num: '02',
+    icon: '🏆',
+    label: 'Экзамен',
+    desc: 'Оценочное испытание без подсказок — результат фиксируется в журнале',
+    route: 'exam',
+  },
+  {
+    key: 'knowledge',
+    num: '03',
+    icon: '📘',
+    label: 'База знаний',
+    desc: 'Чат с ИИ-ассистентом по регламентам и технологии установки',
+    route: 'knowledge',
+  },
+]
+
+export default function ModeSelectScreen() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+
+  return (
+    <div className="wrap-n">
+      <div style={{ marginBottom: 32 }} className="rise">
+        <div className="sec">Сессия {id}</div>
+        <h1 className="h1" style={{ marginTop: 12, fontSize: 34 }}>
+          Выберите режим
+        </h1>
+        <p className="lede" style={{ marginTop: 12 }}>
+          Тренировка доступна в любое время. Экзамен назначается инструктором.
+        </p>
+      </div>
+
+      <div className="rows rise d2" style={{ marginTop: 44 }}>
+        {MODES.map((mode) => (
+          <div
+            key={mode.key}
+            className="row"
+            onClick={() =>
+              void navigate(
+                mode.route === 'knowledge' ? '/knowledge' : `/sessions/${id}/${mode.route}`,
+              )
+            }
+          >
+            <span className="row-num">{mode.num}</span>
+            <div className="row-body">
+              <div className="row-title">{mode.label}</div>
+              <div className="row-desc">{mode.desc}</div>
+            </div>
+            <span className="row-arrow">→</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

@@ -1,15 +1,21 @@
-.PHONY: pull up down ps logs smoke config reset-data help
+.PHONY: pull up down ps logs smoke config reset-data build build-frontend help
 
 COMPOSE := docker compose --env-file .env -f compose.yaml
 
 help:
-	@echo "Targets: pull | up | down | ps | logs | smoke | config | reset-data"
+	@echo "Targets: pull | build | build-frontend | up | down | ps | logs | smoke | config | reset-data"
 
 pull:
 	$(COMPOSE) pull
 
+build:
+	$(COMPOSE) build
+
+build-frontend:
+	$(COMPOSE) build frontend
+
 up:
-	$(COMPOSE) up -d
+	$(COMPOSE) up -d --build frontend
 	@$(COMPOSE) ps
 
 down:

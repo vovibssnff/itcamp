@@ -1,0 +1,73 @@
+name: Go CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'services/go/**'
+      - 'tools/migrator/**'
+      - '.golangci.yml'
+      - '.github/workflows/go.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'services/go/**'
+      - 'tools/migrator/**'
+      - '.golangci.yml'
+      - '.github/workflows/go.yml'
+
+jobs:
+  lint-test-build:
+    name: ${{ matrix.module }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - module: auth
+            workdir: services/go/auth
+          - module: constructor
+            workdir: services/go/constructor
+          - module: scenario
+            workdir: services/go/scenario
+          - module: orchestrator
+            workdir: services/go/orchestrator
+          - module: assessment
+            workdir: services/go/assessment
+          - module: snapshot
+            workdir: services/go/snapshot
+          - module: report
+            workdir: services/go/report
+          - module: gw
+            workdir: services/go/gw
+          - module: sim-manager
+            workdir: services/go/sim-manager
+          - module: shared
+            workdir: services/go/shared
+          - module: migrator
+            workdir: tools/migrator
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.workdir }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: ${{ matrix.workdir }}/go.sum
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64.8
+          working-directory: ${{ matrix.workdir }}
+          args: --config=${{ github.workspace }}/.golangci.yml
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build ./...

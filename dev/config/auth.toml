@@ -1,0 +1,72 @@
+# Локальный конфиг auth-сервиса (режим stub — без LDAP)
+# Секреты перекрываются env: AUTH_DB_DSN, AUTH_JWT_SIGNING_KEY, AUTH_LDAP_BIND_PASSWORD, AUTH_LDAP_URL, AUTH_TOTP_ENCRYPTION_KEY
+
+[http]
+addr              = ":8080"
+read_timeout      = "10s"
+write_timeout     = "10s"
+shutdown_timeout  = "15s"
+
+[db]
+dsn               = "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+max_conns         = 10
+min_conns         = 2
+conn_timeout      = "5s"
+query_timeout     = "5s"
+
+[jwt]
+signing_key       = "dev-only-signing-key-please-change-1234567890"
+signing_method    = "HS256"
+access_ttl        = "15m"
+refresh_ttl       = "24h"
+issuer            = "ktc-auth"
+
+# Локально работаем в stub-режиме (без LDAP-сервера)
+[auth]
+mode = "stub"
+
+# Пользователи для stub-режима (заводятся при авторизации на лету,
+# идентичны для auth и gw). Роли соответствуют RBAC-группам.
+[[auth.stub_users]]
+login     = "admin"
+password  = "admin123"
+full_name = "Администратор"
+roles     = ["admin"]
+
+[[auth.stub_users]]
+login     = "instructor"
+password  = "instructor123"
+full_name = "Инструктор"
+roles     = ["instructor"]
+
+[[auth.stub_users]]
+login     = "operator"
+password  = "operator123"
+full_name = "Оператор"
+roles     = ["operator"]
+
+[ldap]
+url               = "ldaps://dc01.corp.example.ru:636"
+bind_dn           = "CN=svc-ktc,OU=ServiceAccounts,DC=corp,DC=example,DC=ru"
+bind_password     = ""
+base_dn           = "DC=corp,DC=example,DC=ru"
+user_filter       = "(sAMAccountName=%s)"
+group_attr        = "memberOf"
+start_tls         = true
+skip_verify       = false
+timeout           = "5s"
+admin_group       = "CN=ktc-admins,OU=Groups,DC=corp,DC=example,DC=ru"
+instructor_group  = "CN=ktc-instructors,OU=Groups,DC=corp,DC=example,DC=ru"
+operator_group    = "CN=ktc-operators,OU=Groups,DC=corp,DC=example,DC=ru"
+
+[pam]
+enabled           = false
+endpoint          = "https://pam.ktc-app.svc.cluster.local"
+
+[security]
+password_min_len   = 8
+lockout_threshold  = 5
+lockout_window     = "15m"
+lockout_duration   = "30m"
+auth_rate_limit    = 10
+rate_limit_window  = "1m"

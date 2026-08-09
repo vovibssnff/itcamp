@@ -1,0 +1,2 @@
+#!/usr/bin/env sh
+cd frontend && PATH="$PATH:/tmp/npm-global/bin" node_modules/.bin/lint-staged

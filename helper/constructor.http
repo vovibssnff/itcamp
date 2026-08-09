@@ -1,0 +1,130 @@
+### ============================================================
+### constructor — Конструктор установки: компоненты и шаблоны
+### Базовый URL. Скорректируйте порт под конфигурацию вашего сервиса.
+### ============================================================
+
+@host = http://localhost
+@port = 8083
+@base = {{host}}:{{port}}
+@ComponentId = comp_123
+@TemplateId = tmpl_123
+
+### Проверка живости сервиса
+GET {{base}}/healthz
+
+###
+# ─── Компоненты ───
+###
+
+### Список компонентов
+GET {{base}}/components?category=&q=&limit=50&offset=0
+
+### Создать компонент
+POST {{base}}/components
+Content-Type: application/json
+
+{
+  "id": "{{ComponentId}}",
+  "name": "Вентиль",
+  "category": "ЭЛОУ",
+  "ports": [],
+  "parameters": []
+}
+
+### Получить компонент по ID
+GET {{base}}/components/{{ComponentId}}
+
+### Обновить компонент
+PUT {{base}}/components/{{ComponentId}}
+Content-Type: application/json
+
+{
+  "id": "{{ComponentId}}",
+  "name": "Обновленный вентиль",
+  "category": "ЭЛОУ",
+  "ports": [],
+  "parameters": []
+}
+
+### Удалить компонент
+DELETE {{base}}/components/{{ComponentId}}
+
+### Загрузить иконку компонента (multipart)
+POST {{base}}/components/{{ComponentId}}/icon
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="icon.png"
+Content-Type: image/png
+
+< ./icon.png
+--WebAppBoundary--
+
+###
+# ─── Шаблоны ───
+###
+
+### Список шаблонов
+GET {{base}}/templates?status=&q=&limit=50&offset=0
+
+### Создать шаблон
+POST {{base}}/templates
+Content-Type: application/json
+
+{
+  "name": "Шаблон установки",
+  "description": "Описание установки",
+  "graph": {
+    "nodes": [],
+    "edges": []
+  }
+}
+
+### Получить шаблон по ID
+GET {{base}}/templates/{{TemplateId}}
+
+### Обновить шаблон
+PUT {{base}}/templates/{{TemplateId}}
+Content-Type: application/json
+
+{
+  "name": "Обновленный шаблон",
+  "description": "Обновленное описание",
+  "graph": {
+    "nodes": [],
+    "edges": []
+  }
+}
+
+### Удалить шаблон
+DELETE {{base}}/templates/{{TemplateId}}?force=false
+
+### Копировать шаблон
+POST {{base}}/templates/{{TemplateId}}/copy
+Content-Type: application/json
+
+{
+  "new_name": "Клон шаблона"
+}
+
+### Валидация шаблона
+POST {{base}}/templates/{{TemplateId}}/validate
+
+### Экспорт (init-state для sim)
+GET {{base}}/templates/{{TemplateId}}/export
+
+### Экспорт файлом
+GET {{base}}/templates/{{TemplateId}}/export-file
+
+### Импорт шаблона
+POST {{base}}/templates/import
+Content-Type: application/json
+
+{
+  "name": "Импортированный шаблон",
+  "description": "Импорт",
+  "graph": {
+    "nodes": [],
+    "edges": []
+  }
+}

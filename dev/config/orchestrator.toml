@@ -1,0 +1,34 @@
+# Локальный конфиг orchestrator-сервиса
+# Секреты перекрываются env: ORCHESTRATOR_DB_DSN, ORCHESTRATOR_NATS_URL, ORCHESTRATOR_REDIS_ADDR
+
+[http]
+addr              = ":8080"
+read_timeout      = "10s"
+write_timeout     = "30s"
+shutdown_timeout  = "15s"
+
+[db]
+dsn               = "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+max_conns         = 10
+min_conns         = 2
+conn_timeout      = "5s"
+query_timeout     = "5s"
+
+[redis]
+addr              = "radix:7379"
+password          = ""
+db                = 0
+
+[nats]
+url               = "nats://nats:4222"
+
+[clients]
+constructor_url   = "http://constructor:8080"
+scenario_url      = "http://scenario:8080"
+sim_url           = "sim.ktc-sim.svc.cluster.local:50051"
+assessment_url    = "http://assessment:8080"
+snapshot_url      = "snapshot.ktc-app.svc.cluster.local:50052"
+
+[telemetry]
+hz                = 1.0
+tick_timeout      = "2s"

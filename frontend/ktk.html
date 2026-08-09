@@ -1008,34 +1008,16 @@
           </div>
 
           <div style="padding:14px 16px;border-bottom:1px solid var(--ln);">
-            <div class="sec" style="margin-bottom:10px;"><span style="color:var(--tx4);">02</span> &nbsp;Поддержка решений</div>
-            <div class="seg seg-mono" style="margin-bottom:12px;">
-              <div onClick="{{ setTabHint }}" style="background:{{ tabHintBg }};color:{{ tabHintColor }};">Подсказка ИИ</div>
-              <div onClick="{{ setTabSearch }}" style="background:{{ tabSearchBg }};color:{{ tabSearchColor }};">Регламент</div>
-            </div>
+            <div class="sec" style="margin-bottom:10px;"><span style="color:var(--tx4);">02</span> &nbsp;Подсказка ИИ</div>
 
-            <sc-if value="{{ aiTabIsHint }}" hint-placeholder-val="{{ true }}">
-              <sc-if value="{{ examLocked }}" hint-placeholder-val="{{ false }}">
-                <div class="note">Подсказки ИИ отключены — режим квалификационного экзамена.</div>
-              </sc-if>
-              <sc-if value="{{ showHintText }}" hint-placeholder-val="{{ false }}">
-                <div class="box-alarm">{{ hintText }}</div>
-              </sc-if>
-              <sc-if value="{{ showHintIdle }}" hint-placeholder-val="{{ false }}">
-                <div class="note">Наведите курсор на параметр в тревоге — здесь появится вероятная причина отклонения.</div>
-              </sc-if>
+            <sc-if value="{{ examLocked }}" hint-placeholder-val="{{ false }}">
+              <div class="note">Подсказки ИИ отключены — режим квалификационного экзамена.</div>
             </sc-if>
-
-            <sc-if value="{{ aiTabIsSearch }}" hint-placeholder-val="{{ false }}">
-              <input class="fld-box" value="{{ searchQuery }}" onChange="{{ setSearchInput }}" placeholder="например: температура печи">
-              <div style="max-height:180px;overflow-y:auto;margin-top:4px;">
-                <sc-for list="{{ regResults }}" as="r" hint-placeholder-count="6">
-                  <div style="padding:10px 0;border-top:1px solid var(--ln);">
-                    <div style="font-size:12.5px;color:var(--tx);">{{ r.q }}</div>
-                    <div class="note" style="margin-top:4px;">{{ r.a }}</div>
-                  </div>
-                </sc-for>
-              </div>
+            <sc-if value="{{ showHintText }}" hint-placeholder-val="{{ false }}">
+              <div class="box-alarm">{{ hintText }}</div>
+            </sc-if>
+            <sc-if value="{{ showHintIdle }}" hint-placeholder-val="{{ false }}">
+              <div class="note">Наведите курсор на параметр в тревоге — здесь появится вероятная причина отклонения.</div>
             </sc-if>
           </div>
 
@@ -1055,6 +1037,42 @@
         </sc-if>
       </div>
     </div>
+
+    <!-- плавающий чат ИИ-ассистента -->
+    <sc-if value="{{ trainingChatOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position:fixed;right:20px;bottom:20px;width:320px;max-height:440px;display:flex;flex-direction:column;background:var(--srf);border:1px solid var(--ln);border-radius:var(--r);box-shadow:0 12px 32px rgba(0,0,0,0.4);z-index:80;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--ln);flex-shrink:0;">
+          <span class="sec">ИИ-ассистент</span>
+          <div class="x" onClick="{{ toggleTrainingChat }}">×</div>
+        </div>
+        <div ref="{{ setChatScrollEl }}" style="flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;">
+          <sc-for list="{{ chatMessages }}" as="m" hint-placeholder-count="2">
+            <div style="display:flex;{{ m.justify }}">
+              <div style="max-width:88%;padding:10px 12px;border-radius:2px;{{ m.bubbleStyle }}">
+                <div class="sec" style="margin-bottom:4px;font-size:9px;{{ m.labelStyle }}">{{ m.roleLabel }}</div>
+                <div style="font-size:12.5px;line-height:1.55;white-space:pre-wrap;">{{ m.text }}</div>
+              </div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ chatSending }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;justify-content:flex-start;">
+              <div class="box-mute" style="max-width:88%;padding:10px 12px;">
+                <div class="note">печатает…</div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+        <div style="flex-shrink:0;padding:10px 12px 12px;border-top:1px solid var(--ln);">
+          <div style="display:flex;gap:8px;align-items:flex-end;">
+            <input class="fld-box" style="font-size:12.5px;padding:9px 10px;" value="{{ chatInput }}" onChange="{{ setChatInput }}" onKeyDown="{{ chatKeyDown }}" placeholder="Вопрос ассистенту…">
+            <div class="btn btn-acc btn-sm" onClick="{{ sendChatMessage }}">→</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ trainingChatClosed }}" hint-placeholder-val="{{ true }}">
+      <div class="btn btn-acc" onClick="{{ toggleTrainingChat }}" style="position:fixed;right:20px;bottom:20px;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,0.35);">ИИ-ассистент</div>
+    </sc-if>
 
     <!-- модальное окно узла -->
     <sc-if value="{{ modalVisible }}" hint-placeholder-val="{{ false }}">
@@ -2148,6 +2166,7 @@ class Component extends DCLogic {
     hoveredHint: false,
     aiTab: 'hint',
     searchQuery: '',
+    trainingChatOpen: false,
     reportData: null,
     libraryChecked: {},
     launchedScenarios: [],
@@ -2174,7 +2193,7 @@ class Component extends DCLogic {
     if (this._timer) clearInterval(this._timer);
   }
   componentDidUpdate() {
-    if (this.state.screen === 'knowledge' && this.__chatScrollEl) {
+    if ((this.state.screen === 'knowledge' || (this.state.screen === 'training' && this.state.trainingChatOpen)) && this.__chatScrollEl) {
       this.__chatScrollEl.scrollTop = this.__chatScrollEl.scrollHeight;
     }
     document.documentElement.setAttribute('data-theme', this.state.theme);
@@ -2551,6 +2570,15 @@ class Component extends DCLogic {
     const q = (st.searchQuery || '').toLowerCase();
     const regResults = REG_DATA.filter(r => !q || r.q.toLowerCase().includes(q) || r.a.toLowerCase().includes(q));
 
+    const toggleTrainingChat = () => this.setState(s => ({
+      trainingChatOpen: !s.trainingChatOpen,
+      chatMessages: s.chatMessages.length ? s.chatMessages : [
+        { role: 'assistant', text: 'Здравствуйте. Я — ИИ-ассистент. Спросите про технологический режим, регламент действий или устройство узла.' }
+      ]
+    }));
+    const trainingChatOpen = st.trainingChatOpen;
+    const trainingChatClosed = !st.trainingChatOpen;
+
     const logList = [...st.log].reverse().slice(0, 60).map(l => ({ tLabel: fmtTime(l.t), text: l.text }));
 
     const modalVisible = !!st.modalNode;
@@ -2821,6 +2849,7 @@ class Component extends DCLogic {
       showSidebar: st.showSidebar, toggleSidebarClick, sidebarCollapsed,
       setTabHint, setTabSearch, aiTabIsHint, aiTabIsSearch, tabHintBg, tabHintColor, tabSearchBg, tabSearchColor,
       examLocked, showHintText, showHintIdle, hintText, searchQuery: st.searchQuery, setSearchInput, regResults,
+      toggleTrainingChat, trainingChatOpen, trainingChatClosed,
       logList, modalVisible, modalTitle, modalRows, modalShowResolve, modalHintVisible, regulatorLabel, closeModalClick,
       toggleManualClick, manualLabel, endSessionClick,
       reportScenarioTitle, reportModeLabel, reactionTimeLabel, errorsLabel, resolvedCountLabelReport, unresolvedColor, reactionColor, reactionBg,
@@ -2846,4 +2875,3 @@ class Component extends DCLogic {
 </script>
 </body>
 </html>
-

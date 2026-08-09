@@ -1,0 +1,23 @@
+# Локальный конфиг snapshot-сервиса
+# Секреты перекрываются env: SNAPSHOT_DB_DSN, SNAPSHOT_S3_ENDPOINT, SNAPSHOT_S3_ACCESS_KEY, SNAPSHOT_S3_SECRET_KEY
+
+[http]
+addr              = ":8080"
+read_timeout      = "10s"
+write_timeout     = "30s"
+shutdown_timeout  = "15s"
+
+[db]
+dsn               = "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+max_conns         = 10
+min_conns         = 2
+conn_timeout      = "5s"
+query_timeout     = "5s"
+
+[s3]
+endpoint          = "minio:9000"
+bucket            = "snapshots"
+access_key        = "ktcminio"
+secret_key        = "ktcminio_secret"
+use_ssl           = false
+region            = "us-east-1"

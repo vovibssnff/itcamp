@@ -1,0 +1,20 @@
+# Локальный конфиг report-сервиса
+# Секреты перекрываются env: REPORT_DB_DSN, REPORT_NATS_URL
+
+[http]
+addr              = ":8080"
+read_timeout      = "10s"
+write_timeout     = "30s"
+shutdown_timeout  = "15s"
+
+[db]
+dsn               = "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+max_conns         = 10
+min_conns         = 2
+conn_timeout      = "5s"
+query_timeout     = "5s"
+
+[nats]
+url               = "nats://nats:4222"
+report_tasks_subj = "report.tasks"
+queue_group       = "report-workers"

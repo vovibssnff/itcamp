@@ -832,3 +832,98 @@ kbd {
 .overflow-hidden {
   overflow: hidden;
 }
+
+/* ─── Auth / Login split layout (matches ktk.html reference) ─────────────────── */
+.auth {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+}
+
+.auth-l {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 56px 60px;
+  border-right: 1px solid var(--ln);
+  overflow: hidden;
+}
+
+.auth-l::after {
+  content: '';
+  position: absolute;
+  right: -30%;
+  top: -40%;
+  width: 90%;
+  height: 180%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--acc) 6%, transparent),
+    transparent 72%
+  );
+  pointer-events: none;
+}
+
+.auth-r {
+  display: flex;
+  align-items: center;
+  padding: 56px 60px;
+  background: var(--srf);
+}
+
+.auth-display {
+  margin: 0;
+  font-family: var(--ui);
+  font-weight: 600;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+  font-size: clamp(52px, 7.4vw, 108px);
+  color: var(--tx);
+}
+
+.auth-meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--ln);
+  border: 1px solid var(--ln);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+
+.auth-meta > div {
+  background: var(--ink);
+  padding: 13px 15px;
+}
+
+.auth-meta span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tx4);
+  margin-bottom: 5px;
+}
+
+.auth-meta b {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--tx2);
+}
+
+@media (max-width: 940px) {
+  .auth {
+    grid-template-columns: 1fr;
+  }
+  .auth-l {
+    border-right: 0;
+    border-bottom: 1px solid var(--ln);
+    padding: 40px 26px;
+  }
+  .auth-r {
+    padding: 40px 26px;
+  }
+}

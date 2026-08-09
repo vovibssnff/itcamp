@@ -7,6 +7,7 @@ import { Faceplate } from '@/canvas/hmi/Faceplate'
 import { AlarmBanner } from '@/components/alarms/AlarmBanner'
 import { AlarmList } from '@/components/alarms/AlarmList'
 import { TrendPanel } from '@/components/trends/TrendPanel'
+import { FloatingAiChat } from '@/components/ai/FloatingAiChat'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useSessionStore } from '@/store/session'
 import type { CanvasNode } from '@/store/constructor'
@@ -156,7 +157,7 @@ export default function TrainingScreen() {
             </div>
 
             {/* 01 · Trends with sparklines */}
-            <TrendPanel height={240} />
+            <TrendPanel />
 
             {/* 02 · Alarms journal */}
             <div
@@ -192,6 +193,9 @@ export default function TrainingScreen() {
         regulators={regulators}
         onSendCommand={handleSendCommand}
       />
+
+      {/* Floating ИИ-ассистент (reference: плавающий чат ИИ-ассистента) */}
+      <FloatingAiChat />
     </div>
   )
 }

@@ -5,6 +5,7 @@ import {
   ApartmentOutlined,
   ThunderboltOutlined,
   PlayCircleOutlined,
+  RobotOutlined,
   FileTextOutlined,
   SettingOutlined,
   UserOutlined,
@@ -26,6 +27,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/components': 'Компоненты',
   '/scenarios': 'Сценарии',
   '/sessions': 'Сессии',
+  '/knowledge': 'База знаний',
   '/reports': 'Отчёты',
   '/admin/users': 'Пользователи',
   '/admin/system': 'Система',
@@ -87,6 +89,11 @@ export function AppShell() {
           },
         ]
       : []),
+    {
+      key: '/knowledge',
+      icon: <RobotOutlined />,
+      label: t('nav.knowledge'),
+    },
     {
       key: '/reports',
       icon: <FileTextOutlined />,

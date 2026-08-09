@@ -73,8 +73,11 @@ export default function ConstructorScreen() {
     })()
   }, [id, setStoreTemplate, setNodes, setEdges])
 
-  // Measure canvas container
+  // Measure canvas container. Depends on `loading` because while loading the
+  // canvas container is not mounted (early return renders a spinner) — the
+  // observer must (re)attach once the real layout is in the DOM.
   useEffect(() => {
+    if (loading) return
     const el = containerRef.current
     if (!el) return
     const obs = new ResizeObserver(() => {
@@ -83,7 +86,7 @@ export default function ConstructorScreen() {
     obs.observe(el)
     setCanvasSize({ w: el.clientWidth, h: el.clientHeight })
     return () => obs.disconnect()
-  }, [])
+  }, [loading])
 
   const saveTemplate = useCallback(async () => {
     if (!id || !template) return
@@ -232,7 +235,10 @@ export default function ConstructorScreen() {
         </div>
 
         {/* Canvas */}
-        <div ref={containerRef} style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        <div
+          ref={containerRef}
+          style={{ flex: 1, minWidth: 0, minHeight: 0, overflow: 'hidden', position: 'relative' }}
+        >
           {validationErrors.length > 0 && (
             <div
               style={{

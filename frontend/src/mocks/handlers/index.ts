@@ -5,6 +5,7 @@ import { orchestratorHandlers } from './orchestrator'
 import { assessmentHandlers } from './assessment'
 import { reportHandlers } from './report'
 import { snapshotHandlers } from './snapshot'
+import { aiHandlers } from './ai'
 
 export const handlers = [
   ...authHandlers,
@@ -14,4 +15,5 @@ export const handlers = [
   ...assessmentHandlers,
   ...reportHandlers,
   ...snapshotHandlers,
+  ...aiHandlers,
 ]

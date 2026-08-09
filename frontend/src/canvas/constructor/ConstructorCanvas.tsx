@@ -352,7 +352,12 @@ export function ConstructorCanvas({
         height,
         background: canvasTokens.bg.canvas,
         cursor: isDraggingStage ? 'grabbing' : 'default',
-        position: 'relative',
+        // Absolutely positioned so the canvas never drives the size of the
+        // flex container that measures it (prevents a resize feedback loop
+        // that left the stage stuck at its default dimensions).
+        position: 'absolute',
+        top: 0,
+        left: 0,
       }}
       onDragOver={handleDragOver}
       onDrop={handleDrop}

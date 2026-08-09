@@ -5,6 +5,7 @@ import { StopOutlined } from '@ant-design/icons'
 import { HmiCanvas } from '@/canvas/hmi/HmiCanvas'
 import { Faceplate } from '@/canvas/hmi/Faceplate'
 import { AlarmBanner } from '@/components/alarms/AlarmBanner'
+import { FloatingAiChat } from '@/components/ai/FloatingAiChat'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useSessionStore } from '@/store/session'
 import type { CanvasNode } from '@/store/constructor'
@@ -157,6 +158,12 @@ export default function ExamScreen() {
         telemetry={telemetry}
         regulators={regulators}
         onSendCommand={(type, tag, value) => send({ type: 'actuator', tag, value })}
+      />
+
+      {/* AI hints are disabled during the qualification exam (reference behaviour) */}
+      <FloatingAiChat
+        disabled
+        disabledLabel="Подсказки ИИ отключены — режим квалификационного экзамена"
       />
     </div>
   )

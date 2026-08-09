@@ -10,8 +10,9 @@ type RoleTab = 'operator' | 'instructor'
 
 const ROLE_DESCRIPTIONS: Record<RoleTab, string> = {
   operator:
-    'Режим обучаемого оператора — прохождение тренировок и экзаменов по управлению технологическим процессом',
-  instructor: 'Режим инструктора — управление сессиями, сценариями, шаблонами и оценкой обучаемых',
+    'Тренировка на мнемосхеме установки, отработка аварийных ситуаций и разбор действий по регламенту.',
+  instructor:
+    'Управление сессиями, конструктор сценариев и шаблонов, наблюдение за обучаемыми и оценка.',
 }
 
 type AuthMode = 'login' | 'register'
@@ -24,7 +25,7 @@ export default function LoginScreen() {
   const [displayName, setDisplayName] = useState('')
   const [loading, setLoading] = useState(false)
   const { setTokens, setUser } = useAuthStore()
-  const { theme, toggleTheme } = useUIStore()
+  const { theme, setTheme } = useUIStore()
   const navigate = useNavigate()
   const { t } = useTranslation()
 
@@ -59,68 +60,16 @@ export default function LoginScreen() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--ink)',
-        padding: '24px',
-        position: 'relative',
-      }}
-    >
-      <div className="bg-grid" />
-
-      {/* Theme toggle */}
-      <button
-        className="btn btn-ghost btn-sm"
-        style={{
-          position: 'absolute',
-          top: 22,
-          right: 22,
-          fontFamily: 'var(--mono)',
-          fontSize: 10,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-        }}
-        onClick={toggleTheme}
-      >
-        {theme === 'dark' ? '◑ Светлая' : '● Тёмная'}
-      </button>
-
-      {/* Login card */}
-      <div
-        className="cell rise"
-        style={{
-          width: '100%',
-          maxWidth: 420,
-          padding: '40px 36px',
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
-        {/* Brand */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 9,
-            marginBottom: 28,
-          }}
-        >
-          <i
+    <div className="auth">
+      {/* ── Left brand panel ── */}
+      <div className="auth-l">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div
+            className="rise"
             style={{
-              width: 7,
-              height: 7,
-              background: 'var(--acc)',
-              borderRadius: 1,
-              display: 'block',
-              flexShrink: 0,
-            }}
-          />
-          <span
-            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 9,
               fontFamily: 'var(--mono)',
               fontSize: 11,
               fontWeight: 500,
@@ -129,127 +78,189 @@ export default function LoginScreen() {
               color: 'var(--tx2)',
             }}
           >
-            КТК · Тренажёр
-          </span>
+            <i
+              style={{
+                width: 7,
+                height: 7,
+                background: 'var(--acc)',
+                borderRadius: 1,
+                display: 'block',
+                flexShrink: 0,
+              }}
+            />
+            АВТОР · КТК ЭЛОУ-АВТ
+          </div>
+
+          <div className="seg seg-mono">
+            <button
+              style={{
+                background: theme === 'dark' ? 'var(--acc)' : 'transparent',
+                color: theme === 'dark' ? 'var(--acc-ink)' : 'var(--tx3)',
+              }}
+              onClick={() => setTheme('dark')}
+            >
+              Тёмная
+            </button>
+            <button
+              style={{
+                background: theme === 'light' ? 'var(--acc)' : 'transparent',
+                color: theme === 'light' ? 'var(--acc-ink)' : 'var(--tx3)',
+              }}
+              onClick={() => setTheme('light')}
+            >
+              Светлая
+            </button>
+          </div>
         </div>
 
-        <h2 className="h2" style={{ marginBottom: 4 }}>
-          Вход в систему
-        </h2>
-        <p className="note" style={{ marginBottom: 24 }}>
-          Компьютерный тренажёрный комплекс ЭЛОУ-АВТ
-        </p>
-
-        {/* Role tabs */}
-        <div className="seg" style={{ width: '100%', marginBottom: 20 }}>
-          <button
-            style={{
-              flex: 1,
-              background: roleTab === 'operator' ? 'var(--acc)' : undefined,
-              color: roleTab === 'operator' ? 'var(--acc-ink)' : undefined,
-              fontWeight: roleTab === 'operator' ? 600 : undefined,
-            }}
-            onClick={() => setRoleTab('operator')}
-          >
-            Обучаемый
-          </button>
-          <button
-            style={{
-              flex: 1,
-              background: roleTab === 'instructor' ? 'var(--acc)' : undefined,
-              color: roleTab === 'instructor' ? 'var(--acc-ink)' : undefined,
-              fontWeight: roleTab === 'instructor' ? 600 : undefined,
-            }}
-            onClick={() => setRoleTab('instructor')}
-          >
-            Инструктор
-          </button>
+        <div style={{ padding: '48px 0' }}>
+          <div className="kick rise d1" style={{ marginBottom: 18 }}>
+            КТК ЭЛОУ-АВТ · Тренажёрный комплекс
+          </div>
+          <h1 className="auth-display rise d2">
+            <span style={{ color: 'var(--acc)' }}>АВТ</span>ОР
+          </h1>
+          <p className="lede rise d3" style={{ marginTop: 26, maxWidth: '52ch' }}>
+            Компьютерный тренажёрный комплекс для подготовки операторов технологического процесса:
+            мнемосхема установки, отработка нештатных ситуаций и разбор действий по регламенту.
+          </p>
         </div>
 
-        <p className="note" style={{ marginBottom: 22 }}>
-          {ROLE_DESCRIPTIONS[roleTab]}
-        </p>
-
-        {/* Fields */}
-        <div style={{ marginBottom: 16 }}>
-          <label className="fld-lbl">{t('auth.username')}</label>
-          <input
-            className="fld"
-            placeholder="ivanov.ii"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            onKeyDown={handleKeyDown}
-            autoFocus
-            autoComplete="username"
-          />
+        <div className="auth-meta rise d4">
+          <div>
+            <span>Установка</span>
+            <b>ЭЛОУ-АВТ / КТК</b>
+          </div>
+          <div>
+            <span>Платформа</span>
+            <b>Astra Linux SE 1.8</b>
+          </div>
+          <div>
+            <span>Аутентификация</span>
+            <b>Корпоративный LDAP</b>
+          </div>
         </div>
+      </div>
 
-        {mode === 'register' && (
-          <div style={{ marginBottom: 16 }}>
-            <label className="fld-lbl">{t('auth.displayName')}</label>
+      {/* ── Right auth form ── */}
+      <div className="auth-r">
+        <div style={{ width: '100%', maxWidth: 360 }}>
+          <div className="sec rise" style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>{mode === 'register' ? 'Регистрация' : 'Вход в систему'}</span>
+            <span>02 / 02</span>
+          </div>
+          <h2 className="h1 rise d1" style={{ marginTop: 12 }}>
+            {mode === 'register' ? 'Создать учётную запись' : 'Авторизация'}
+          </h2>
+
+          {/* Role */}
+          <div className="rise d2" style={{ marginTop: 32 }}>
+            <div className="sec" style={{ marginBottom: 9 }}>
+              Роль
+            </div>
+            <div className="seg" style={{ width: '100%' }}>
+              <button
+                style={{
+                  flex: 1,
+                  background: roleTab === 'operator' ? 'var(--acc)' : undefined,
+                  color: roleTab === 'operator' ? 'var(--acc-ink)' : undefined,
+                  fontWeight: roleTab === 'operator' ? 600 : undefined,
+                }}
+                onClick={() => setRoleTab('operator')}
+              >
+                Обучаемый
+              </button>
+              <button
+                style={{
+                  flex: 1,
+                  background: roleTab === 'instructor' ? 'var(--acc)' : undefined,
+                  color: roleTab === 'instructor' ? 'var(--acc-ink)' : undefined,
+                  fontWeight: roleTab === 'instructor' ? 600 : undefined,
+                }}
+                onClick={() => setRoleTab('instructor')}
+              >
+                Инструктор
+              </button>
+            </div>
+            <div className="note" style={{ marginTop: 10 }}>
+              {ROLE_DESCRIPTIONS[roleTab]}
+            </div>
+          </div>
+
+          {/* Username */}
+          <div className="rise d3" style={{ marginTop: 30 }}>
+            <label className="fld-lbl">{t('auth.username')}</label>
             <input
               className="fld"
-              placeholder="Иванов Иван Иванович"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Ivanov.II"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               onKeyDown={handleKeyDown}
-              autoComplete="name"
+              autoFocus
+              autoComplete="username"
             />
           </div>
-        )}
 
-        <div style={{ marginBottom: 28 }}>
-          <label className="fld-lbl">{t('auth.password')}</label>
-          <Input.Password
-            className="fld"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={handleKeyDown}
-            autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              borderBottom: '1.5px solid var(--ln2)',
-              borderRadius: 0,
-              padding: '10px 0',
-              fontFamily: 'var(--mono)',
-              fontSize: 15,
-              color: 'var(--tx)',
-              boxShadow: 'none',
-            }}
-          />
-        </div>
+          {mode === 'register' && (
+            <div className="rise d3" style={{ marginTop: 22 }}>
+              <label className="fld-lbl">{t('auth.displayName')}</label>
+              <input
+                className="fld"
+                placeholder="Иванов Иван Иванович"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                onKeyDown={handleKeyDown}
+                autoComplete="name"
+              />
+            </div>
+          )}
 
-        <button
-          className="btn btn-acc btn-w"
-          onClick={() => void handleSubmit()}
-          disabled={loading || !username || !password}
-          style={{ marginBottom: 14 }}
-        >
-          {loading ? '...' : mode === 'register' ? t('auth.register') : t('auth.login')}
-        </button>
+          {/* Password */}
+          <div className="rise d4" style={{ marginTop: 22 }}>
+            <label className="fld-lbl">{t('auth.password')}</label>
+            <Input.Password
+              className="fld"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={handleKeyDown}
+              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                borderBottom: '1.5px solid var(--ln2)',
+                borderRadius: 0,
+                padding: '10px 0',
+                fontFamily: 'var(--mono)',
+                fontSize: 15,
+                color: 'var(--tx)',
+                boxShadow: 'none',
+              }}
+            />
+          </div>
 
-        <button
-          type="button"
-          className="btn btn-ghost btn-w btn-sm"
-          onClick={() => setMode((m) => (m === 'login' ? 'register' : 'login'))}
-        >
-          {mode === 'login' ? t('auth.noAccount') : t('auth.haveAccount')}
-        </button>
+          <div className="rise d5" style={{ marginTop: 34 }}>
+            <button
+              className="btn btn-acc btn-w"
+              onClick={() => void handleSubmit()}
+              disabled={loading || !username || !password}
+            >
+              {loading ? '...' : mode === 'register' ? t('auth.register') : 'Войти в тренажёр'}
+            </button>
+          </div>
 
-        <div
-          style={{
-            marginTop: 28,
-            fontFamily: 'var(--mono)',
-            fontSize: 9,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: 'var(--tx4)',
-            textAlign: 'center',
-          }}
-        >
-          Astra Linux SE 1.8 · LDAP
+          <button
+            type="button"
+            className="btn btn-ghost btn-w btn-sm"
+            style={{ marginTop: 12 }}
+            onClick={() => setMode((m) => (m === 'login' ? 'register' : 'login'))}
+          >
+            {mode === 'login' ? t('auth.noAccount') : t('auth.haveAccount')}
+          </button>
+
+          <div className="note rise d6" style={{ marginTop: 18, fontSize: 11 }}>
+            Доступ фиксируется в журнале безопасности. Учётные данные — корпоративные.
+          </div>
         </div>
       </div>
     </div>

@@ -138,10 +138,11 @@ function SparklineRow({ label, unit, color, values, alarmState }: SparklineRowPr
 
 interface TrendPanelProps {
   width?: number
+  /** @deprecated telemetry is now displayed in full without an inner scroll */
   height?: number
 }
 
-export function TrendPanel({ height = 340 }: TrendPanelProps) {
+export function TrendPanel(_props: TrendPanelProps = {}) {
   const theme = useUIStore((s) => s.theme)
   const colors = theme === 'light' ? ZONE_COLORS_LIGHT : ZONE_COLORS
 
@@ -194,12 +195,10 @@ export function TrendPanel({ height = 340 }: TrendPanelProps) {
             />
           </div>
 
-          {/* Sparkline rows */}
+          {/* Sparkline rows — displayed in full (no inner scroll) */}
           <div
             style={{
               padding: '0 16px 12px',
-              maxHeight: height,
-              overflowY: 'auto',
             }}
           >
             {selectedTags.length === 0 ? (

@@ -17,6 +17,14 @@ const MODES = [
     desc: 'Оценочное испытание без подсказок — результат фиксируется в журнале',
     route: 'exam',
   },
+  {
+    key: 'knowledge',
+    num: '03',
+    icon: '📘',
+    label: 'База знаний',
+    desc: 'Чат с ИИ-ассистентом по регламентам и технологии установки',
+    route: 'knowledge',
+  },
 ]
 
 export default function ModeSelectScreen() {
@@ -41,7 +49,11 @@ export default function ModeSelectScreen() {
             <div
               key={mode.key}
               className="row"
-              onClick={() => void navigate(`/sessions/${id}/${mode.route}`)}
+              onClick={() =>
+                void navigate(
+                  mode.route === 'knowledge' ? '/knowledge' : `/sessions/${id}/${mode.route}`,
+                )
+              }
             >
               <span className="row-num">{mode.num}</span>
               <div className="row-body">

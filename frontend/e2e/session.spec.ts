@@ -8,8 +8,8 @@ test.describe('TEST-03 / TEST-04: Session lifecycle', () => {
 
   test('instructor console shows active sessions', async ({ page }) => {
     await page.goto('/sessions')
-    await expect(page.getByText('Консоль инструктора')).toBeVisible()
-    await expect(page.getByText('Петров П.П.')).toBeVisible()
+    await expect(page.getByText('Консоль управления')).toBeVisible()
+    await expect(page.getByText('Петров П.П.').first()).toBeVisible()
   })
 
   test('session shows status badge', async ({ page }) => {
@@ -19,13 +19,13 @@ test.describe('TEST-03 / TEST-04: Session lifecycle', () => {
 
   test('can navigate to session observation', async ({ page }) => {
     await page.goto('/sessions/sess-001/observe')
-    await expect(page.getByText('НАБЛЮДЕНИЕ')).toBeVisible()
+    await expect(page.getByText('Наблюдение')).toBeVisible()
   })
 
-  test('observe screen shows HMI canvas', async ({ page }) => {
+  test('observe screen shows HMI mnemonic', async ({ page }) => {
     await page.goto('/sessions/sess-001/observe')
-    // Canvas element should be present
-    await expect(page.locator('canvas')).toBeVisible()
+    await expect(page.locator('svg').first()).toBeVisible()
+    await expect(page.getByText('К-1').first()).toBeVisible()
   })
 })
 
@@ -36,17 +36,17 @@ test.describe('TEST-05: Operator training session', () => {
 
   test('operator can enter training screen', async ({ page }) => {
     await page.goto('/sessions/sess-001/operator')
-    await expect(page.locator('canvas')).toBeVisible()
+    await expect(page.locator('svg').first()).toBeVisible()
   })
 
-  test('training screen shows ESD button', async ({ page }) => {
+  test('training screen shows start control', async ({ page }) => {
     await page.goto('/sessions/sess-001/operator')
-    await expect(page.getByRole('button', { name: 'ESD' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Начать тренировку' })).toBeVisible()
   })
 
-  test('training screen shows alarm and trends tabs', async ({ page }) => {
+  test('training screen shows alarm journal and trends', async ({ page }) => {
     await page.goto('/sessions/sess-001/operator')
-    await expect(page.getByText('Аварии')).toBeVisible()
-    await expect(page.getByText('Тренды')).toBeVisible()
+    await expect(page.getByText('Журнал аварий').first()).toBeVisible()
+    await expect(page.getByText(/Тренды/)).toBeVisible()
   })
 })

@@ -1,0 +1,80 @@
+# ─────────────────────────────────────────────────────────────
+# Слой ktc-mon: мониторинг платформы — Prometheus + Grafana + cAdvisor.
+#
+# Назначение:
+#   - Prometheus — хранилище и сбор метрик (pull) в формате Prometheus.
+#   - Grafana   — дашборды поверх данных Prometheus.
+#   - cAdvisor  — сбор метрик СО ВСЕХ контейнеров (CPU/RAM/сеть/IO)
+#                 через Docker Engine API.
+#
+# Сейчас собран только core (prometheus+grafana+cadvisor). Пер-сервисные
+# targets в prometheus.yml уже заведены — они «оживут», когда сервисы
+# начнут экспонировать /metrics в формате Prometheus (см. prometheus.yml).
+#
+# Сеть: ktc-data (external) — та же, что у data/app/ai/sim слоёв, поэтому
+# Prometheus видит все сервисы платформы по DNS-именам контейнеров.
+# ─────────────────────────────────────────────────────────────
+
+name: ${COMPOSE_PROJECT_NAME:-ktk-mon}
+
+networks:
+  ktc-data:
+    external: true
+    name: ${DATA_NETWORK:-ktc-data}
+
+services:
+  # ── Prometheus ─────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION:-v2.54.1}
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROM_RETENTION:-30d}
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
+    networks: [ktc-data]
+    restart: unless-stopped
+
+  # ── Grafana ────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION:-11.3.1}
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      # Дашборды (можно класть готовые .json в ./grafana/dashboards)
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_HOST_PORT:-3000}:3000"
+    networks: [ktc-data]
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # ── cAdvisor: метрики всех контейнеров ────────────────────
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:${CADVISOR_VERSION:-v0.49.1}
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg:rw
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    # Порт 8080 занят ai-service, поэтому наружу 18080.
+    ports:
+      - "${CADVISOR_HOST_PORT:-18080}:8080"
+    networks: [ktc-data]
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:

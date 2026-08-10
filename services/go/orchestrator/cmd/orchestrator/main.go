@@ -66,6 +66,8 @@ func main() {
 		simClient = client.NewMockSimClient()
 		assessmentClient = client.NewMockAssessmentClient()
 		snapshotClient = client.NewMockSnapshotClient()
+		constructorClient = client.NewMockConstructorClient()
+		scenarioClient = client.NewMockScenarioClient()
 	} else {
 		log.Info("using real HTTP clients", "assessment", cfg.Clients.AssessmentURL, "snapshot", cfg.Clients.SnapshotURL)
 		simClient = client.NewMockSimClient()

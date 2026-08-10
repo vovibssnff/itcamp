@@ -122,7 +122,10 @@ func (s *SessionService) Start(ctx context.Context, id string) (domain.Session, 
 	s.runners[id] = runner
 	s.mu.Unlock()
 
-	go runner.run(ctx)
+	// Detach from the HTTP request context: r.Context() is cancelled as soon as
+	// ServeHTTP returns, which would otherwise kill the 1 Hz sim/telemetry loop
+	// immediately after a successful Start.
+	go runner.run(context.WithoutCancel(ctx))
 
 	sess.Status = domain.StatusRunning
 	_ = s.publisher.PublishSessionEvent(ctx, id, "started", nil)
@@ -318,13 +321,21 @@ func (r *SessionRunner) tick(ctx context.Context, engine *TriggerEngine) {
 		Alarms:     state.Alarms,
 	}
 
-	_ = r.svc.cache.SaveTelemetry(ctx, r.sessionID, telemetry)
-	r.svc.hub.BroadcastTelemetry(r.sessionID, telemetry)
+	if r.svc.cache != nil {
+		_ = r.svc.cache.SaveTelemetry(ctx, r.sessionID, telemetry)
+	}
+	if r.svc.hub != nil {
+		r.svc.hub.BroadcastTelemetry(r.sessionID, telemetry)
+	}
 
 	for _, alarm := range state.Alarms {
 		if alarm.AckModelTime == nil {
-			_ = r.svc.repo.RecordAlarm(ctx, alarm)
-			_ = r.svc.assessment.SendEvent(ctx, r.sessionID, "alarm", alarm)
+			if r.svc.repo != nil {
+				_ = r.svc.repo.RecordAlarm(ctx, alarm)
+			}
+			if r.svc.assessment != nil {
+				_ = r.svc.assessment.SendEvent(ctx, r.sessionID, "alarm", alarm)
+			}
 		}
 	}
 

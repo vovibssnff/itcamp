@@ -120,3 +120,39 @@ func (m *MockSnapshotClient) Restore(_ context.Context, snapshotID string) (doma
 	}
 	return s, nil
 }
+
+// MockConstructorClient returns a minimal init-state payload for Start.
+type MockConstructorClient struct {
+	Exports map[string][]byte
+}
+
+func NewMockConstructorClient() *MockConstructorClient {
+	return &MockConstructorClient{Exports: make(map[string][]byte)}
+}
+
+func (m *MockConstructorClient) ExportTemplate(_ context.Context, templateID string) ([]byte, error) {
+	if payload, ok := m.Exports[templateID]; ok {
+		return payload, nil
+	}
+	return []byte(`{"schema_version":"2.0","nodes":[],"model_time":0}`), nil
+}
+
+// MockScenarioClient returns empty scenario documents for trigger loading.
+type MockScenarioClient struct {
+	Scenarios map[string][]byte
+}
+
+func NewMockScenarioClient() *MockScenarioClient {
+	return &MockScenarioClient{Scenarios: make(map[string][]byte)}
+}
+
+func (m *MockScenarioClient) GetFullScenario(_ context.Context, scenarioID string) ([]byte, error) {
+	if payload, ok := m.Scenarios[scenarioID]; ok {
+		return payload, nil
+	}
+	return []byte(`{"id":"` + scenarioID + `","faults":[]}`), nil
+}
+
+func (m *MockScenarioClient) GetRandomExam(_ context.Context, templateID string) ([]byte, error) {
+	return []byte(`{"id":"exam-mock","template_id":"` + templateID + `","faults":[]}`), nil
+}

@@ -127,6 +127,7 @@ export function mapSession(raw: unknown): SessionRecord {
       str(pick(r, 'template_id', 'templateId')),
     ),
     operatorId: str(pick(r, 'operator_id', 'operatorId') ?? operatorIds[0]),
+    operatorIds,
     operatorName: str(
       pick(r, 'operator_name', 'operatorName'),
       str(pick(r, 'operator_id', 'operatorId') ?? operatorIds[0]),

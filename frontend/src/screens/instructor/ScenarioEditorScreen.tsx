@@ -25,6 +25,7 @@ import { useAutoSave } from '@/hooks/useAutoSave'
 import { scenariosApi } from '@/api/scenarios'
 import { templatesApi } from '@/api/templates'
 import { snapshotsApi } from '@/api/snapshots'
+import { isMockApi } from '@/utils/env'
 
 const STATUS_LABELS: Record<ScenarioStatus, string> = {
   draft: 'Черновик',
@@ -42,6 +43,7 @@ const STATUS_VARIANT: Record<ScenarioStatus, 'ok' | 'warn' | 'alarm' | 'default'
 
 function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
   const navigate = useNavigate()
+  const mock = isMockApi()
   const [scenarios, setScenarios] = useState<
     Omit<Scenario, 'faults' | 'reference_actions' | 'criteria'>[]
   >([])
@@ -57,7 +59,7 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
     setLoading(true)
     try {
       const query: Record<string, string> = {}
-      if (filterStatus) query.status = filterStatus
+      if (mock && filterStatus) query.status = filterStatus
       if (filterType) query.type = filterType
       if (q) query.q = q
       const data = (await scenariosApi.list(query)) as typeof scenarios
@@ -67,7 +69,7 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
     } finally {
       setLoading(false)
     }
-  }, [filterStatus, filterType, q])
+  }, [filterStatus, filterType, q, mock])
 
   useEffect(() => {
     void fetch_()
@@ -86,6 +88,10 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
   }
 
   async function doModerate(id: string, action: 'publish' | 'archive' | 'unpublish') {
+    if (!isMockApi()) {
+      void message.info('Модерация сценариев доступна только в mock-режиме')
+      return
+    }
     // Moderation endpoints are mock-only (not in gateway OpenAPI).
     await fetch(`/api/v1/scenarios/${id}/${action}`, { method: 'POST' })
     void fetch_()
@@ -132,11 +138,13 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Tooltip title="Сгенерировать черновик с помощью ИИ">
-            <button className="btn btn-ghost" onClick={() => setAiModal(true)}>
-              <RobotOutlined /> ИИ-черновик
-            </button>
-          </Tooltip>
+          {mock && (
+            <Tooltip title="Сгенерировать черновик с помощью ИИ">
+              <button className="btn btn-ghost" onClick={() => setAiModal(true)}>
+                <RobotOutlined /> ИИ-черновик
+              </button>
+            </Tooltip>
+          )}
           <button className="btn btn-acc" onClick={() => void navigate('/scenarios/new')}>
             <PlusOutlined /> Новый сценарий
           </button>
@@ -160,16 +168,18 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
           onChange={(e) => setQ(e.target.value)}
           style={{ width: 220 }}
         />
-        <Seg
-          options={[
-            { value: '', label: 'Все' },
-            { value: 'draft', label: 'Черновики' },
-            { value: 'published', label: 'Опубликованные' },
-            { value: 'archived', label: 'Архив' },
-          ]}
-          value={filterStatus}
-          onChange={setFilterStatus}
-        />
+        {mock && (
+          <Seg
+            options={[
+              { value: '', label: 'Все' },
+              { value: 'draft', label: 'Черновики' },
+              { value: 'published', label: 'Опубликованные' },
+              { value: 'archived', label: 'Архив' },
+            ]}
+            value={filterStatus}
+            onChange={setFilterStatus}
+          />
+        )}
         <Seg
           options={[
             { value: '', label: 'Все' },
@@ -229,7 +239,7 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
                     <button className="btn btn-ghost btn-sm" onClick={() => void doClone(row.id)}>
                       <CopyOutlined />
                     </button>
-                    {row.status === 'draft' && (
+                    {mock && row.status === 'draft' && (
                       <button
                         className="btn btn-ghost btn-sm"
                         onClick={() => void doModerate(row.id, 'publish')}
@@ -237,7 +247,7 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
                         <CheckCircleOutlined />
                       </button>
                     )}
-                    {row.status === 'published' && (
+                    {mock && row.status === 'published' && (
                       <>
                         <button
                           className="btn btn-ghost btn-sm"
@@ -405,6 +415,10 @@ function ScenarioEditor({ id }: { id: string }) {
 
   async function doModerate(action: 'publish' | 'archive' | 'unpublish') {
     if (!scenario) return
+    if (!isMockApi()) {
+      void message.info('Модерация сценариев доступна только в mock-режиме')
+      return
+    }
     await fetch(`/api/v1/scenarios/${scenario.id}/${action}`, { method: 'POST' })
     patch({
       status: action === 'publish' ? 'published' : action === 'archive' ? 'archived' : 'draft',

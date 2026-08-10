@@ -32,6 +32,8 @@ func mapError(err error) (int, string) {
 		return http.StatusConflict, "already_running"
 	case errors.Is(err, domain.ErrSessionNotRunning):
 		return http.StatusConflict, "not_running"
+	case errors.Is(err, domain.ErrSessionNotPaused):
+		return http.StatusConflict, "not_paused"
 	case errors.Is(err, domain.ErrInvalidSpeed):
 		return http.StatusBadRequest, "invalid_speed"
 	case errors.Is(err, domain.ErrExamRestoreForbidden):
@@ -104,6 +106,16 @@ func (h *SessionHandler) Start(w http.ResponseWriter, r *http.Request) {
 func (h *SessionHandler) Pause(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	sess, err := h.svc.Pause(r.Context(), id)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, sess)
+}
+
+func (h *SessionHandler) Resume(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	sess, err := h.svc.Resume(r.Context(), id)
 	if err != nil {
 		writeError(w, err)
 		return

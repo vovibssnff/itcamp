@@ -47,6 +47,44 @@ func TestAuthMiddlewareMissingToken(t *testing.T) {
 	}
 }
 
+func TestAuthMiddlewareWebSocketQueryToken(t *testing.T) {
+	c := newAuthClient(t, introspectHandler(true, "u-ws", []string{"operator"}))
+	var gotAuth string
+	var gotUID string
+	h := AuthMiddleware(c, discardLogger())(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		gotUID = ContextString(r.Context(), CtxUserID)
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/ws/sessions/s1/operator?token=ws-tok", nil)
+	req.Header.Set("Upgrade", "websocket")
+	req.Header.Set("Connection", "Upgrade")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d, want 200", rec.Code)
+	}
+	if gotUID != "u-ws" {
+		t.Errorf("user id = %q, want u-ws", gotUID)
+	}
+	if gotAuth != "Bearer ws-tok" {
+		t.Errorf("Authorization = %q, want Bearer ws-tok", gotAuth)
+	}
+}
+
+func TestAuthMiddlewareQueryTokenIgnoredWithoutUpgrade(t *testing.T) {
+	c := newAuthClient(t, introspectHandler(true, "u-1", []string{"admin"}))
+	h := AuthMiddleware(c, discardLogger())(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions?token=ws-tok", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("code = %d, want 401", rec.Code)
+	}
+}
+
 func TestAuthMiddlewareValidToken(t *testing.T) {
 	c := newAuthClient(t, introspectHandler(true, "u-1", []string{"admin", "operator"}))
 	var gotCtx context.Context

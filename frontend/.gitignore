@@ -3,6 +3,12 @@ dist
 coverage
 playwright-report
 test-results
+*.tsbuildinfo
+
+# Local Vite / runtime env (templates *.example stay tracked via root .gitignore)
+.env
+.env.*
+!.env.example
+!.env.*.example
 .env.local
 .env.*.local
-*.tsbuildinfo

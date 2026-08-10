@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -18,13 +19,17 @@ func NewHTTPAssessmentClient(url string) *HTTPAssessmentClient {
 	return &HTTPAssessmentClient{url: url, client: &http.Client{Timeout: 10 * time.Second}}
 }
 
-func (c *HTTPAssessmentClient) SendEvent(ctx context.Context, sessionID, eventType string, data any) error {
+func (c *HTTPAssessmentClient) SendEvent(ctx context.Context, sessionID, scenarioID, eventType string, data any) error {
 	payload, _ := json.Marshal(map[string]any{
 		"session_id": sessionID,
 		"type":       eventType,
 		"data":       data,
 	})
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url+"/assessment/event", bytes.NewReader(payload))
+	urlStr := c.url + "/assessment/event"
+	if scenarioID != "" {
+		urlStr += "?scenario_id=" + url.QueryEscape(scenarioID)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlStr, bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}

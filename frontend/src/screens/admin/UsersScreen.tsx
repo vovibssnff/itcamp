@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { UserProfile, UserRole } from '@/store/auth'
 import { usersApi } from '@/api/users'
 import { tokens } from '@/theme/tokens'
+import { isMockApi } from '@/utils/env'
 
 const ROLE_COLORS: Record<UserRole, string> = {
   admin: 'red',
@@ -18,6 +19,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 }
 
 export default function UsersScreen() {
+  const mutable = isMockApi()
   const [users, setUsers] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [editOpen, setEditOpen] = useState(false)
@@ -103,21 +105,29 @@ export default function UsersScreen() {
       key: 'role',
       render: (v: UserRole) => <Tag color={ROLE_COLORS[v]}>{ROLE_LABELS[v]}</Tag>,
     },
-    {
-      title: '',
-      key: 'actions',
-      render: (_: unknown, record: UserProfile) => (
-        <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => void openEdit(record)} />
-          <Button
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => void deleteUser(record.id)}
-          />
-        </Space>
-      ),
-    },
+    ...(mutable
+      ? [
+          {
+            title: '',
+            key: 'actions',
+            render: (_: unknown, record: UserProfile) => (
+              <Space>
+                <Button
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={() => void openEdit(record)}
+                />
+                <Button
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => void deleteUser(record.id)}
+                />
+              </Space>
+            ),
+          },
+        ]
+      : []),
   ]
 
   return (
@@ -136,10 +146,17 @@ export default function UsersScreen() {
           <h1 className="h1" style={{ marginTop: 12 }}>
             Пользователи
           </h1>
+          {!mutable && (
+            <p style={{ color: tokens.text.secondary, marginTop: 8 }}>
+              Учётные записи ведутся во внешнем каталоге (LDAP). Здесь — только просмотр.
+            </p>
+          )}
         </div>
-        <button className="btn btn-acc" onClick={() => void openEdit(null)}>
-          <PlusOutlined /> Новый пользователь
-        </button>
+        {mutable && (
+          <button className="btn btn-acc" onClick={() => void openEdit(null)}>
+            <PlusOutlined /> Новый пользователь
+          </button>
+        )}
       </div>
 
       <Table
@@ -150,31 +167,33 @@ export default function UsersScreen() {
         pagination={false}
       />
 
-      <Modal
-        title={editing ? 'Редактировать пользователя' : 'Новый пользователь'}
-        open={editOpen}
-        onOk={() => void saveUser()}
-        onCancel={() => setEditOpen(false)}
-        okText="Сохранить"
-        cancelText="Отмена"
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item name="username" label="Логин" rules={[{ required: true }]}>
-            <Input placeholder="ivanov.ii" />
-          </Form.Item>
-          <Form.Item name="displayName" label="Отображаемое имя" rules={[{ required: true }]}>
-            <Input placeholder="Иванов И.И." />
-          </Form.Item>
-          <Form.Item name="role" label="Роль" rules={[{ required: true }]}>
-            <Select
-              options={(['admin', 'instructor', 'operator'] as UserRole[]).map((r) => ({
-                value: r,
-                label: ROLE_LABELS[r],
-              }))}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {mutable && (
+        <Modal
+          title={editing ? 'Редактировать пользователя' : 'Новый пользователь'}
+          open={editOpen}
+          onOk={() => void saveUser()}
+          onCancel={() => setEditOpen(false)}
+          okText="Сохранить"
+          cancelText="Отмена"
+        >
+          <Form form={form} layout="vertical">
+            <Form.Item name="username" label="Логин" rules={[{ required: true }]}>
+              <Input placeholder="ivanov.ii" />
+            </Form.Item>
+            <Form.Item name="displayName" label="Отображаемое имя" rules={[{ required: true }]}>
+              <Input placeholder="Иванов И.И." />
+            </Form.Item>
+            <Form.Item name="role" label="Роль" rules={[{ required: true }]}>
+              <Select
+                options={(['admin', 'instructor', 'operator'] as UserRole[]).map((r) => ({
+                  value: r,
+                  label: ROLE_LABELS[r],
+                }))}
+              />
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
     </div>
   )
 }

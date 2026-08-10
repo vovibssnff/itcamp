@@ -65,7 +65,7 @@ export default function ExamScreen() {
 
   useEffect(() => {
     if (elapsed >= EXAM_DURATION_S) {
-      void navigate(`/reports/${sessionId ?? 'sess-001'}`)
+      void navigate(`/reports/${sessionId}`)
     }
   }, [elapsed, sessionId, navigate])
 
@@ -90,7 +90,7 @@ export default function ExamScreen() {
       content: 'Текущий результат будет зафиксирован.',
       okText: 'Завершить',
       cancelText: 'Продолжить',
-      onOk: () => void navigate(`/reports/${sessionId ?? 'sess-001'}`),
+      onOk: () => void navigate(`/reports/${sessionId}`),
     })
   }
 
@@ -102,7 +102,7 @@ export default function ExamScreen() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
           <button
             className="btn btn-ghost btn-sm"
-            onClick={() => void navigate(`/sessions/${sessionId ?? 'sess-001'}/mode`)}
+            onClick={() => void navigate(`/sessions/${sessionId}/mode`)}
           >
             ← Назад
           </button>

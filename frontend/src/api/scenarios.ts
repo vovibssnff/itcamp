@@ -4,18 +4,35 @@ import { unwrap, unwrapVoid } from './request'
 const BASE_URL =
   import.meta.env.VITE_MOCK_API === 'true' ? '' : (import.meta.env.VITE_API_BASE_URL ?? '')
 
+function toScenarioBody(body: unknown): Record<string, unknown> {
+  const r = (body ?? {}) as Record<string, unknown>
+  return {
+    template_id: r.template_id ?? r.templateId,
+    name: r.name,
+    description: r.description ?? '',
+    type: r.type,
+    start_preset_id: r.start_preset_id ?? r.startPresetId,
+    faults: r.faults ?? [],
+    reference_actions: r.reference_actions ?? r.referenceActions ?? [],
+    criteria: r.criteria ?? {},
+  }
+}
+
 /** Scenario payloads keep frontend-friendly shapes; MSW + backend both accepted via passthrough. */
 export const scenariosApi = {
   async list(query?: Record<string, string>): Promise<unknown[]> {
     const qs = query ? `?${new URLSearchParams(query).toString()}` : ''
-    // Use authenticated client path for list; query typing on gw is sparse.
+    // Drop FE-only status filter against real API (schema has no status).
+    const q = { ...(query ?? {}) }
+    if (import.meta.env.VITE_MOCK_API !== 'true') {
+      delete q.status
+    }
     const raw = await unwrap<unknown[]>(
       apiClient.GET('/api/v1/scenarios', {
-        params: { query: query as never },
+        params: { query: q as never },
       }),
     )
     if (Array.isArray(raw)) return raw
-    // Fallback if client dropped query — rare
     void qs
     return []
   },
@@ -25,14 +42,16 @@ export const scenariosApi = {
   },
 
   async create(body: unknown): Promise<unknown> {
-    return unwrap<unknown>(apiClient.POST('/api/v1/scenarios', { body: body as never }))
+    return unwrap<unknown>(
+      apiClient.POST('/api/v1/scenarios', { body: toScenarioBody(body) as never }),
+    )
   },
 
   async update(id: string, body: unknown): Promise<unknown> {
     return unwrap<unknown>(
       apiClient.PUT('/api/v1/scenarios/{id}', {
         params: { path: { id } },
-        body: body as never,
+        body: toScenarioBody(body) as never,
       }),
     )
   },

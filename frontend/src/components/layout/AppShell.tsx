@@ -103,7 +103,7 @@ export function AppShell() {
           <a
             className={styles.mark}
             onClick={() => {
-              const home = role === 'operator' ? '/sessions/sess-001/mode' : '/home'
+              const home = role === 'operator' ? '/operator' : '/home'
               void navigate(home)
             }}
           >
@@ -156,9 +156,7 @@ export function AppShell() {
             {!isRoot && (
               <button
                 className={styles.backBtn}
-                onClick={() =>
-                  void navigate(role === 'operator' ? '/sessions/sess-001/mode' : '/home')
-                }
+                onClick={() => void navigate(role === 'operator' ? '/operator' : '/home')}
               >
                 ⌂
               </button>

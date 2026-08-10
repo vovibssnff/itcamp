@@ -42,6 +42,15 @@ func (m *MockSimClient) Step(_ context.Context, sessionID string, ticks int32) (
 	}
 	speed := m.Speeds[sessionID]
 	s.ModelTime += float64(ticks) * speed
+	// Produce evolving telemetry so WS/HMI smoke works without sim-worker.
+	s.Tags = []domain.Tag{
+		{TagID: "TIC-101.PV", Value: 180 + 0.1*s.ModelTime, Unit: "C", Quality: "good"},
+		{TagID: "PIC-201.PV", Value: 1.2 + 0.01*s.ModelTime, Unit: "kgf/cm2", Quality: "good"},
+		{TagID: "FIC-301.PV", Value: 50 + (s.ModelTime * 0.3), Unit: "m3/h", Quality: "good"},
+	}
+	s.Regulators = []domain.Regulator{
+		{TagID: "FIC-301", PV: 50, SP: 55, OUT: 40, Mode: "AUTO"},
+	}
 	m.States[sessionID] = s
 	return s, nil
 }
@@ -81,7 +90,7 @@ func NewMockAssessmentClient() *MockAssessmentClient {
 	}
 }
 
-func (m *MockAssessmentClient) SendEvent(_ context.Context, sessionID, eventType string, _ any) error {
+func (m *MockAssessmentClient) SendEvent(_ context.Context, sessionID, _scenarioID, eventType string, _ any) error {
 	m.Events = append(m.Events, sessionID+":"+eventType)
 	return nil
 }

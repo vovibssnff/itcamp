@@ -119,14 +119,14 @@ services:
     restart: "no"
 
   # Применение централизованных миграций БД (golang-migrate).
-  # Зависит от postgres (service_healthy); миграции монтируются из ../../../db/migrations.
+  # Зависит от postgres (service_healthy); миграции монтируются из ../../db/migrations.
   migrate:
     build:
-      context: ../../../tools/migrator
-      dockerfile: ./migrator/Dockerfile
+      context: ../../tools/migrator
+      dockerfile: ../../compose/data/migrator/Dockerfile
     command: ["up", "-dsn", "postgres://admin:${PICODATA_ADMIN_PASSWORD:-T0psecret}@picodata:4327/postgres?sslmode=disable", "-migrations", "/migrations"]
     volumes:
-      - ../../../db/migrations:/migrations:ro
+      - ../../db/migrations:/migrations:ro
     depends_on:
       picodata:
         condition: service_healthy

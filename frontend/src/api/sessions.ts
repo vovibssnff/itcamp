@@ -3,9 +3,9 @@ import { unwrap } from './request'
 import { mapSession } from './mappers'
 import type { SessionRecord } from '@/mocks/fixtures/sessions'
 
-/** Gateway enum is start|pause|stop|checkpoint|restore|actuator; UI still sends `resume` as-is. */
+/** Gateway enum is start|pause|resume|stop|checkpoint|restore|actuator. */
 export type SessionAction =
-  'start' | 'pause' | 'stop' | 'checkpoint' | 'restore' | 'actuator' | 'resume'
+  'start' | 'pause' | 'resume' | 'stop' | 'checkpoint' | 'restore' | 'actuator'
 
 export interface CreateSessionInput {
   templateId: string
@@ -48,13 +48,12 @@ export const sessionsApi = {
     action: SessionAction,
     body?: unknown,
   ): Promise<SessionRecord | unknown> {
-    // `resume` is kept for the UI; gateway enum omits it — cast through.
     const raw = await unwrap<unknown>(
       apiClient.POST('/api/v1/sessions/{id}/{action}', {
         params: {
           path: {
             id,
-            action: action as 'start' | 'pause' | 'stop' | 'checkpoint' | 'restore' | 'actuator',
+            action,
           },
         },
         body: (body ?? {}) as never,

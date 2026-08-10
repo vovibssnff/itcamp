@@ -4,6 +4,7 @@ import { resolve } from 'path'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  const proxyTarget = env.VITE_DEV_PROXY_TARGET || 'http://localhost:8088'
 
   return {
     plugins: [react()],
@@ -14,16 +15,13 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
-      ...(env.VITE_API_BASE_URL
-        ? {
-            proxy: {
-              '/api': {
-                target: env.VITE_API_BASE_URL,
-                changeOrigin: true,
-              },
-            },
-          }
-        : {}),
+      proxy: {
+        '/api': {
+          target: proxyTarget,
+          changeOrigin: true,
+          ws: true,
+        },
+      },
     },
     build: {
       target: 'es2022',

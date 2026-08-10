@@ -8,7 +8,7 @@ import { useAuthStore } from './store/auth'
 // eslint-disable-next-line react-refresh/only-export-components
 function IndexRedirect() {
   const role = useAuthStore((s) => s.user?.role)
-  if (role === 'operator') return <Navigate to="/sessions/sess-001/mode" replace />
+  if (role === 'operator') return <Navigate to="/operator" replace />
   return <Navigate to="/home" replace />
 }
 
@@ -20,6 +20,7 @@ const ScenarioEditorScreen = lazy(() => import('./screens/instructor/ScenarioEdi
 const InstructorConsole = lazy(() => import('./screens/instructor/InstructorConsole'))
 const SessionObserveScreen = lazy(() => import('./screens/instructor/SessionObserveScreen'))
 const ModeSelectScreen = lazy(() => import('./screens/operator/ModeSelectScreen'))
+const OperatorHomeScreen = lazy(() => import('./screens/operator/OperatorHomeScreen'))
 const TrainingScreen = lazy(() => import('./screens/operator/TrainingScreen'))
 const ExamScreen = lazy(() => import('./screens/operator/ExamScreen'))
 const KnowledgeScreen = lazy(() => import('./screens/KnowledgeScreen'))
@@ -133,6 +134,16 @@ export const router = createBrowserRouter([
           <RoleGuard roles={['operator', 'instructor', 'admin']}>
             <Lazy>
               <TrainingScreen />
+            </Lazy>
+          </RoleGuard>
+        ),
+      },
+      {
+        path: 'operator',
+        element: (
+          <RoleGuard roles={['operator']}>
+            <Lazy>
+              <OperatorHomeScreen />
             </Lazy>
           </RoleGuard>
         ),

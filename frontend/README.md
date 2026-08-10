@@ -1,42 +1,60 @@
-# KTK Frontend
+# Backend wiring
 
-React + Vite SPA for the KTK training complex.
+The SPA talks to the **API gateway** (`gw`) at `/api/v1/*`.
 
-## Backend wiring
+### Docker Compose (recommended local stack)
 
-The app talks to the **API gateway** (`gw`) at `/api/v1/*` via a typed
-`openapi-fetch` client (`src/api/client.ts` + domain modules in `src/api/`).
-
-| Env var             | Purpose                                       |
-| ------------------- | --------------------------------------------- |
-| `VITE_API_BASE_URL` | Gateway origin (dev: `http://localhost:8088`) |
-| `VITE_WS_BASE_URL`  | WebSocket origin (dev: `ws://localhost:8088`) |
-| `VITE_MOCK_API`     | `true` → MSW REST mocks + mock WebSocket      |
-
-### Real gateway (docker-compose)
+Frontend is part of `compose/app` (Angie serves the SPA and proxies `/api` → `gw`):
 
 ```bash
-cp .env.development.example .env.development
-# defaults already point at localhost:8088
-pnpm dev
+cd compose/data && cp -n .env.example .env && docker compose up -d --build
+cd ../sim  && cp -n .env.example .env && docker compose up -d --build
+cd ../app  && cp -n .env.example .env && docker compose up -d --build
 ```
 
-Vite proxies `/api` to `VITE_API_BASE_URL` when set.
+| URL                   | What                 |
+| --------------------- | -------------------- |
+| http://localhost:8090 | Frontend SPA         |
+| http://localhost:8088 | Gateway API directly |
+
+Stub auth users: `admin/admin123`, `instructor/instructor123`, `operator/operator123`.
+
+Build args (empty bases = same-origin `/api` via Angie proxy):
+
+- `VITE_API_BASE_URL=`
+- `VITE_WS_BASE_URL=`
+- `VITE_MOCK_API=false`
+
+### Vite hot-reload (optional, without Docker frontend)
+
+| Env var                 | Purpose                                                    |
+| ----------------------- | ---------------------------------------------------------- |
+| `VITE_API_BASE_URL`     | Leave **empty** for relative REST via Vite proxy           |
+| `VITE_WS_BASE_URL`      | Leave **empty** for same-origin WS via Vite proxy          |
+| `VITE_DEV_PROXY_TARGET` | Vite `/api` proxy target (default `http://localhost:8088`) |
+| `VITE_MOCK_API`         | `true` → MSW REST mocks + mock WebSocket                   |
+
+```bash
+cp -n .env.development.example .env.development
+pnpm install && pnpm openapi:gen && pnpm dev
+```
 
 ### Mock mode (no backend)
 
 ```bash
-# Playwright E2E always uses mocks. For local UI:
 VITE_MOCK_API=true pnpm dev
-# or: cp .env.mock .env.development.local
 ```
 
-Mock-only endpoints (not in gateway OpenAPI) stay under MSW:
+MSW mock logins use `admin`/`admin`, `instructor`/`instructor`, `operator`/`operator`
+(different from compose stub passwords above).
+
+Mock-only endpoints (hidden when `VITE_MOCK_API=false`):
 
 - `POST /api/ai/chat`
 - `POST /api/scenarios/ai-generate`
-- scenario moderation `publish|archive|unpublish`
+- scenario moderation `publish\|archive\|unpublish`
 - CSV export `/api/assessment/reports/export`
+- `/api/assignments*`
 
 ### Regenerate OpenAPI types
 

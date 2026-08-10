@@ -151,3 +151,19 @@ services:
       - snapshot
       - report
     restart: unless-stopped
+
+  # ── Frontend SPA (Angie static + /api proxy → gw) ─────────
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ""
+        VITE_WS_BASE_URL: ""
+        VITE_MOCK_API: "false"
+    ports:
+      - "${HTTP_FRONTEND:-8090}:8080"
+    networks: [dev-app, ktc-data]
+    depends_on:
+      - gw
+    restart: unless-stopped

@@ -20,7 +20,19 @@ go run ./tools/migrator force -dsn "..." -version 6
 
 ## Структура миграций
 
-Файлы в `db/migrations/` с префиксом `NNNN_<service>_<name>.sql`:
+Файлы в `db/migrations/` с префиксом `NNNN_<service>_<name>.up.sql`
+(golang-migrate):
+
+```
+0001_auth_users.up.sql
+0100_constructor_component_types.up.sql
+0200_scenario_faults_catalog.up.sql
+...
+```
+
+`tools/migrator create` создаёт `.up.sql`.
+
+Диапазоны номеров:
 
 | Диапазон | Сервис |
 |---|---|

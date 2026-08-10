@@ -53,6 +53,7 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /sessions/{id}", sh.Get)
 	mux.HandleFunc("POST /sessions/{id}/start", sh.Start)
 	mux.HandleFunc("POST /sessions/{id}/pause", sh.Pause)
+	mux.HandleFunc("POST /sessions/{id}/resume", sh.Resume)
 	mux.HandleFunc("POST /sessions/{id}/stop", sh.Stop)
 	mux.HandleFunc("PUT /sessions/{id}/speed", sh.Speed)
 	mux.HandleFunc("POST /sessions/{id}/checkpoint", sh.Checkpoint)

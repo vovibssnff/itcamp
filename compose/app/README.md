@@ -26,15 +26,19 @@ cp .env.example .env
 
 # 2) Поднять data-plane (PostgreSQL, MinIO, NATS, Redis)
 cd ../data && cp .env.example .env && docker compose up -d
-cd ../app
 
-# 3) Поднять сервисы приложения (первый раз с --build)
-docker compose up -d --build
+# 3) Поднять Simulation Engine (sim-worker нужен orchestrator'у)
+cd ../sim && cp .env.example .env && docker compose up -d --build
 
-# 4) Просмотр логов / статуса
-docker compose ps
-docker compose logs -f gw
+# 4) Поднять сервисы приложения + frontend (первый раз с --build)
+cd ../app && docker compose up -d --build
+
+# Frontend UI: http://localhost:8090  (проксирует /api → gw)
+# Gateway API: http://localhost:8088
+# Vite hot-reload (опционально): см. frontend/README.md
 ```
+
+Stub users: `admin/admin123`, `instructor/instructor123`, `operator/operator123`.
 
 Проверить контракты можно файлами из `helper/*.http` (в корне репозитория).
 
@@ -49,7 +53,8 @@ docker compose logs -f gw
 | orchestrator | 8085 | `HTTP_ORCHESTRATOR` |
 | snapshot | 8086 | `HTTP_SNAPSHOT` |
 | report | 8087 | `HTTP_REPORT` |
-| gw (вход) | 8088 | `HTTP_GW` |
+| gw (вход API) | 8088 | `HTTP_GW` |
+| frontend (SPA) | 8090 | `HTTP_FRONTEND` |
 
 ## Пользователи auth (stub-режим)
 

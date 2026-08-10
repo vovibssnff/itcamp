@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { useAuthStore } from '@/store/auth'
 import type { ExamAssignment } from '@/mocks/fixtures/assignments'
+import { isMockApi } from '@/utils/env'
 
 interface ModeCard {
   key: string
@@ -46,7 +47,7 @@ export default function ModeSelectScreen() {
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    if (!user?.id) {
+    if (!user?.id || !isMockApi()) {
       setLoaded(true)
       return
     }
@@ -70,7 +71,16 @@ export default function ModeSelectScreen() {
   let num = 1
   modes.push({ ...BASE_MODES[0]!, num: String(num++).padStart(2, '0') })
 
-  if (examAssignment) {
+  // Exam is always available for this session in real mode (instructor created exam session).
+  if (!isMockApi()) {
+    modes.push({
+      key: 'exam',
+      num: String(num++).padStart(2, '0'),
+      label: 'Экзамен',
+      desc: 'Экзаменационный режим без подсказок ИИ',
+      route: 'exam',
+    })
+  } else if (examAssignment) {
     const overdue = examAssignment.dueDate.slice(0, 10) < new Date().toISOString().slice(0, 10)
     modes.push({
       key: 'exam',
@@ -87,10 +97,12 @@ export default function ModeSelectScreen() {
     })
   }
 
-  modes.push({
-    ...BASE_MODES[1]!,
-    num: String(num++).padStart(2, '0'),
-  })
+  if (isMockApi()) {
+    modes.push({
+      ...BASE_MODES[1]!,
+      num: String(num++).padStart(2, '0'),
+    })
+  }
 
   return (
     <div className="wrap-n mode-select-screen">

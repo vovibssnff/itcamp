@@ -49,7 +49,7 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# Env / secrets
+# Env / secrets (keep *.example templates tracked)
 .env
 .env.*
 !.env.example
@@ -61,6 +61,12 @@ Desktop.ini
 secrets/
 **/secrets/**
 !**/secrets/.gitkeep
+*-openrc.sh
+*_openrc.sh
+
+# Local agent / package caches (never commit)
+.pnpm-store/
+context/
 
 # Docker / k8s local overrides (charts stay tracked)
 **/values.local.yaml

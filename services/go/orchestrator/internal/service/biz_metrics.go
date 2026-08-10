@@ -32,6 +32,12 @@ var (
 			Help: "Total paused sessions",
 		},
 	)
+	sessionsResumedTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "orchestrator_sessions_resumed_total",
+			Help: "Total resumed sessions",
+		},
+	)
 	sessionsRestoredTotal = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "orchestrator_sessions_restored_total",
@@ -64,6 +70,7 @@ func init() {
 		sessionsStartedTotal,
 		sessionsStoppedTotal,
 		sessionsPausedTotal,
+		sessionsResumedTotal,
 		sessionsRestoredTotal,
 		checkpointsCreatedTotal,
 		operatorActionsTotal,
@@ -85,6 +92,10 @@ func IncSessionStopped() {
 
 func IncSessionPaused() {
 	sessionsPausedTotal.Inc()
+}
+
+func IncSessionResumed() {
+	sessionsResumedTotal.Inc()
 }
 
 func IncSessionRestored() {

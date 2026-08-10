@@ -100,7 +100,7 @@ export default function TrainingScreen() {
   }
 
   function handleFinish() {
-    void navigate(`/reports/${sessionId ?? 'sess-001'}`)
+    void navigate(`/reports/${sessionId}`)
   }
 
   return (

@@ -39,6 +39,40 @@ func TestExtractBearer(t *testing.T) {
 	}
 }
 
+func TestExtractToken(t *testing.T) {
+	t.Run("bearer preferred", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "/ws?token=from-query", nil)
+		r.Header.Set("Authorization", "Bearer from-header")
+		r.Header.Set("Upgrade", "websocket")
+		r.Header.Set("Connection", "Upgrade")
+		if got := extractToken(r); got != "from-header" {
+			t.Errorf("extractToken() = %q, want from-header", got)
+		}
+	})
+	t.Run("ws query token", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "/ws?token=ws-tok", nil)
+		r.Header.Set("Upgrade", "websocket")
+		r.Header.Set("Connection", "Upgrade")
+		if got := extractToken(r); got != "ws-tok" {
+			t.Errorf("extractToken() = %q, want ws-tok", got)
+		}
+	})
+	t.Run("ws access_token", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "/ws?access_token=at-1", nil)
+		r.Header.Set("Upgrade", "websocket")
+		r.Header.Set("Connection", "upgrade")
+		if got := extractToken(r); got != "at-1" {
+			t.Errorf("extractToken() = %q, want at-1", got)
+		}
+	})
+	t.Run("query ignored without upgrade", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "/api?token=nope", nil)
+		if got := extractToken(r); got != "" {
+			t.Errorf("extractToken() = %q, want empty", got)
+		}
+	})
+}
+
 func TestContextString(t *testing.T) {
 	ctx := context.WithValue(context.Background(), CtxUserID, "u-1")
 	if got := ContextString(ctx, CtxUserID); got != "u-1" {

@@ -97,8 +97,11 @@ func (s *SessionService) Start(ctx context.Context, id string) (domain.Session, 
 	if err != nil {
 		return domain.Session{}, err
 	}
-	if sess.Status == domain.StatusRunning {
+	if sess.Status == domain.StatusRunning || sess.Status == domain.StatusPaused {
 		return domain.Session{}, domain.ErrSessionAlreadyRunning
+	}
+	if sess.Status != domain.StatusCreated {
+		return domain.Session{}, domain.ErrSessionNotRunning
 	}
 
 	initState, err := s.constructor.ExportTemplate(ctx, sess.TemplateID)
@@ -120,6 +123,15 @@ func (s *SessionService) Start(ctx context.Context, id string) (domain.Session, 
 	IncSessionStarted()
 
 	runner := newSessionRunner(id, sess.ScenarioID, s, s.log)
+	if err := runner.loadScenario(ctx); err != nil {
+		s.log.WarnContext(ctx, "scenario load for triggers failed", "session", id, "error", err)
+	}
+
+	// Preload assessment scoring session (criteria) before ticks/events.
+	if err := s.assessment.SendEvent(ctx, id, sess.ScenarioID, "session_start", map[string]any{"mode": sess.Mode}); err != nil {
+		s.log.WarnContext(ctx, "assessment preload failed", "session", id, "error", err)
+	}
+
 	s.mu.Lock()
 	s.runners[id] = runner
 	s.mu.Unlock()
@@ -148,6 +160,32 @@ func (s *SessionService) Pause(ctx context.Context, id string) (domain.Session, 
 	return s.repo.GetByID(ctx, id)
 }
 
+func (s *SessionService) Resume(ctx context.Context, id string) (domain.Session, error) {
+	sess, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return domain.Session{}, err
+	}
+	if sess.Status != domain.StatusPaused {
+		return domain.Session{}, domain.ErrSessionNotPaused
+	}
+
+	s.mu.Lock()
+	runner, ok := s.runners[id]
+	s.mu.Unlock()
+	if !ok {
+		return domain.Session{}, domain.ErrSessionNotRunning
+	}
+	runner.resume()
+
+	if err := s.repo.UpdateStatus(ctx, id, domain.StatusRunning, 0); err != nil {
+		return domain.Session{}, err
+	}
+	IncSessionResumed()
+	_ = s.publisher.PublishSessionEvent(ctx, id, "resumed", nil)
+	audit.Emit(ctx, s.log, "session.resumed", "id", id)
+	return s.repo.GetByID(ctx, id)
+}
+
 func (s *SessionService) Stop(ctx context.Context, id string) (domain.Session, error) {
 	s.mu.Lock()
 	runner, ok := s.runners[id]
@@ -164,7 +202,9 @@ func (s *SessionService) Stop(ctx context.Context, id string) (domain.Session, e
 	}
 
 	_ = s.sim.DestroySession(ctx, id)
-	_ = s.assessment.Finalize(ctx, id)
+	if err := s.assessment.Finalize(ctx, id); err != nil {
+		s.log.WarnContext(ctx, "assessment finalize failed", "session", id, "error", err)
+	}
 
 	if err := s.repo.UpdateStatus(ctx, id, domain.StatusStopped, modelTime); err != nil {
 		return domain.Session{}, err
@@ -240,7 +280,7 @@ func (s *SessionService) HandleActuator(ctx context.Context, id, userID, target 
 	}
 	IncOperatorAction()
 	s.hub.BroadcastOperatorAction(id, action)
-	_ = s.assessment.SendEvent(ctx, id, "action", action)
+	_ = s.assessment.SendEvent(ctx, id, sess.ScenarioID, "action", action)
 	_ = s.publisher.PublishSessionEvent(ctx, id, "operator_action", action)
 	return nil
 }
@@ -259,18 +299,47 @@ type SessionRunner struct {
 	scenarioID string
 	svc        *SessionService
 	log        *slog.Logger
+	engine     *TriggerEngine
 	paused     bool
 	stopped    bool
 	mu         sync.Mutex
 }
 
 func newSessionRunner(sessionID, scenarioID string, svc *SessionService, log *slog.Logger) *SessionRunner {
-	return &SessionRunner{sessionID: sessionID, scenarioID: scenarioID, svc: svc, log: log}
+	return &SessionRunner{
+		sessionID:  sessionID,
+		scenarioID: scenarioID,
+		svc:        svc,
+		log:        log,
+		engine:     NewTriggerEngine(log),
+	}
+}
+
+func (r *SessionRunner) loadScenario(ctx context.Context) error {
+	if r.svc.scenario == nil || r.scenarioID == "" {
+		return nil
+	}
+	raw, err := r.svc.scenario.GetFullScenario(ctx, r.scenarioID)
+	if err != nil {
+		return err
+	}
+	var data ScenarioData
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return err
+	}
+	r.engine.LoadScenario(r.sessionID, data)
+	return nil
 }
 
 func (r *SessionRunner) pause() {
 	r.mu.Lock()
 	r.paused = true
+	r.mu.Unlock()
+}
+
+func (r *SessionRunner) resume() {
+	r.mu.Lock()
+	r.paused = false
 	r.mu.Unlock()
 }
 
@@ -296,8 +365,6 @@ func (r *SessionRunner) run(ctx context.Context) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	engine := NewTriggerEngine(r.log)
-
 	for !r.isStopped() {
 		select {
 		case <-ctx.Done():
@@ -306,12 +373,12 @@ func (r *SessionRunner) run(ctx context.Context) {
 			if r.isPaused() {
 				continue
 			}
-			r.tick(ctx, engine)
+			r.tick(ctx)
 		}
 	}
 }
 
-func (r *SessionRunner) tick(ctx context.Context, engine *TriggerEngine) {
+func (r *SessionRunner) tick(ctx context.Context) {
 	state, err := r.svc.sim.Step(ctx, r.sessionID, 1)
 	if err != nil {
 		r.log.Error("sim step failed", "session", r.sessionID, "error", err)
@@ -331,11 +398,11 @@ func (r *SessionRunner) tick(ctx context.Context, engine *TriggerEngine) {
 	for _, alarm := range state.Alarms {
 		if alarm.AckModelTime == nil {
 			_ = r.svc.repo.RecordAlarm(ctx, alarm)
-			_ = r.svc.assessment.SendEvent(ctx, r.sessionID, "alarm", alarm)
+			_ = r.svc.assessment.SendEvent(ctx, r.sessionID, r.scenarioID, "alarm", alarm)
 		}
 	}
 
-	engine.CheckTriggers(ctx, r.sessionID, state.ModelTime, state.Tags, r.svc.sim, r.svc.repo, r.svc.publisher)
+	r.engine.CheckTriggers(ctx, r.sessionID, state.ModelTime, state.Tags, r.svc.sim, r.svc.repo, r.svc.publisher)
 }
 
 var _ = json.Marshal

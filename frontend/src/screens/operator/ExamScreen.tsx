@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { Modal } from 'antd'
+import { Modal, message } from 'antd'
 import { HmiCanvas } from '@/canvas/hmi/HmiCanvas'
 import { EloudAvtScheme } from '@/canvas/hmi/EloudAvtScheme'
 import { Faceplate } from '@/canvas/hmi/Faceplate'
@@ -15,6 +15,9 @@ import { TEMPLATES, type Template } from '@/mocks/fixtures/templates'
 import { sessionsApi } from '@/api/sessions'
 import { templatesApi } from '@/api/templates'
 import { componentsApi } from '@/api/components'
+import { reportsApi } from '@/api/reports'
+import { toErrorMessage } from '@/api/errors'
+import { isMockApi } from '@/utils/env'
 
 const EXAM_DURATION_S = 3600
 
@@ -29,10 +32,11 @@ export default function ExamScreen() {
   const theme = useUIStore((s) => s.theme)
   const setTheme = useUIStore((s) => s.setTheme)
 
+  const [sessionReady, setSessionReady] = useState(false)
   const { send } = useWebSocket({
     sessionId: sessionId ?? null,
     channel: 'operator',
-    enabled: !!sessionId,
+    enabled: sessionReady && !!sessionId,
   })
   const telemetry = useSessionStore((s) => s.telemetry)
   const regulators = useSessionStore((s) => s.regulators)
@@ -44,30 +48,64 @@ export default function ExamScreen() {
     if (!sessionId) return
     void (async () => {
       try {
-        const [session, components] = await Promise.all([
-          sessionsApi.get(sessionId),
-          componentsApi.list(),
-        ])
-        if (components.length) setComponentTypes(components)
-        if (session.templateId) {
-          setTemplate(await templatesApi.get(session.templateId))
+        const session = await sessionsApi.get(sessionId)
+        try {
+          const components = await componentsApi.list()
+          if (components.length) setComponentTypes(components)
+        } catch {
+          /* optional for operators */
         }
-      } catch {
-        // Fall back to demo template.
+        if (session.templateId) {
+          try {
+            setTemplate(await templatesApi.get(session.templateId))
+          } catch {
+            if (!isMockApi()) {
+              void message.warning('Не удалось загрузить шаблон — показан демо-вид')
+            }
+          }
+        }
+        // Backend "created" is mapped to "idle" for the SPA.
+        if (session.status === 'idle') {
+          await sessionsApi.action(sessionId, 'start')
+        }
+        setSessionReady(true)
+      } catch (err) {
+        if (!isMockApi()) {
+          void message.error(toErrorMessage(err, 'Не удалось запустить экзамен'))
+        } else {
+          setSessionReady(true)
+        }
       }
     })()
   }, [sessionId])
 
   useEffect(() => {
+    if (!sessionReady) return
     const id = setInterval(() => setElapsed((e) => e + 1), 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [sessionReady])
+
+  async function finishExam() {
+    if (!sessionId) return
+    try {
+      await sessionsApi.action(sessionId, 'stop')
+      try {
+        await reportsApi.create(sessionId, 'exam')
+      } catch {
+        /* ignore duplicate / queue errors */
+      }
+      void navigate(`/reports/${sessionId}`)
+    } catch (err) {
+      void message.error(toErrorMessage(err, 'Не удалось завершить экзамен'))
+    }
+  }
 
   useEffect(() => {
     if (elapsed >= EXAM_DURATION_S) {
-      void navigate(`/reports/${sessionId ?? 'sess-001'}`)
+      void finishExam()
     }
-  }, [elapsed, sessionId, navigate])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elapsed, sessionId])
 
   useEffect(() => {
     const el = containerRef.current
@@ -90,7 +128,7 @@ export default function ExamScreen() {
       content: 'Текущий результат будет зафиксирован.',
       okText: 'Завершить',
       cancelText: 'Продолжить',
-      onOk: () => void navigate(`/reports/${sessionId ?? 'sess-001'}`),
+      onOk: () => finishExam(),
     })
   }
 
@@ -102,7 +140,7 @@ export default function ExamScreen() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
           <button
             className="btn btn-ghost btn-sm"
-            onClick={() => void navigate(`/sessions/${sessionId ?? 'sess-001'}/mode`)}
+            onClick={() => void navigate(`/sessions/${sessionId}/mode`)}
           >
             ← Назад
           </button>

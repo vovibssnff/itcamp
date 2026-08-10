@@ -233,11 +233,11 @@ paths:
 
   /api/v1/sessions/{id}/{action}:
     post:
-      summary: start | pause | stop | checkpoint | restore | actuator
+      summary: start | pause | resume | stop | checkpoint | restore | actuator
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
-        - { name: action, in: path, required: true, schema: { type: string, enum: [start, pause, stop, checkpoint, restore, actuator] } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [start, pause, resume, stop, checkpoint, restore, actuator] } }
       responses:
         '200': { description: OK }
 

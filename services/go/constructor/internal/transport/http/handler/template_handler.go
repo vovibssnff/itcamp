@@ -28,6 +28,9 @@ func (h *TemplateHandler) List(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
+	if templates == nil {
+		templates = []domain.Template{}
+	}
 	writeJSON(w, http.StatusOK, templates)
 }
 

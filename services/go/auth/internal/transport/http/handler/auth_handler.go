@@ -3,8 +3,10 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/itcamp/ktc/services/auth/internal/domain"
+	"github.com/itcamp/ktc/services/auth/internal/security"
 	"github.com/itcamp/ktc/services/auth/internal/service"
 	"github.com/itcamp/ktc/services/auth/internal/transport/http/dto"
 	"github.com/itcamp/ktc/services/auth/internal/transport/http/middleware"
@@ -37,7 +39,13 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, domain.ErrMFARequired) {
-			writeJSON(w, http.StatusOK, dto.MFARequiredResponse{MFARequired: true})
+			resp := dto.MFARequiredResponse{
+				MFARequired:     true,
+				UserID:          result.User.ID,
+				Login:           result.User.Login,
+				EnrollmentToken: result.EnrollmentToken,
+			}
+			writeJSON(w, http.StatusOK, resp)
 			return
 		}
 		writeError(w, err)
@@ -49,6 +57,24 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		RefreshToken: result.Tokens.RefreshToken,
 		ExpiresIn:    int(result.Tokens.AccessTTL.Seconds()),
 		TokenType:    "Bearer",
+	})
+}
+
+func (h *AuthHandler) Enrollment(w http.ResponseWriter, r *http.Request) {
+	token := bearerToken(r)
+	if token == "" {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+	secret, login, err := h.auth.EnrollmentSecret(r.Context(), token)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, dto.MFAEnrollmentResponse{
+		Secret:     secret,
+		OTPAuthURI: security.OTPAuthURI("KTC", login, secret),
+		Login:      login,
 	})
 }
 
@@ -89,4 +115,13 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func bearerToken(r *http.Request) string {
+	authz := r.Header.Get("Authorization")
+	const prefix = "Bearer "
+	if !strings.HasPrefix(authz, prefix) {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(authz, prefix))
 }

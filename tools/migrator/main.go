@@ -91,7 +91,7 @@ func main() {
 		}
 		num := nextNumber(*migrationsPath, *service)
 		base := fmt.Sprintf("%04d_%s_%s", num, *service, *name)
-		upFile := filepath.Join(*migrationsPath, base+".sql")
+		upFile := filepath.Join(*migrationsPath, base+".up.sql")
 		if err := os.WriteFile(upFile, []byte("-- "+base+"\n"), 0o644); err != nil {
 			log.Fatalf("create: %v", err)
 		}

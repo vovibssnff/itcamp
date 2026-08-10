@@ -8,6 +8,8 @@ export interface UserProfile {
   username: string
   displayName: string
   role: UserRole
+  /** All roles from /me (or JWT); primary `role` is the privileged-most. */
+  roles?: UserRole[]
 }
 
 interface AuthState {

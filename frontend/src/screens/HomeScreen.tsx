@@ -15,6 +15,11 @@ const INSTRUCTOR_CARDS: NavCard[] = [
     path: '/templates',
   },
   {
+    title: 'Компоненты',
+    desc: 'Библиотека типов компонентов КТК для построения технологических схем',
+    path: '/components',
+  },
+  {
     title: 'Сценарии',
     desc: 'Управление сценариями обучения: создание, настройка неисправностей и критериев оценки',
     path: '/scenarios',
@@ -44,18 +49,12 @@ const ADMIN_EXTRA: NavCard[] = [
     path: '/admin/system',
     roles: ['admin'],
   },
-  {
-    title: 'Компоненты',
-    desc: 'Библиотека типов компонентов КТК для построения технологических схем',
-    path: '/components',
-    roles: ['admin'],
-  },
 ]
 
 export default function HomeScreen() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const role = user?.role ?? 'instructor'
+  const role = user?.role ?? 'operator'
 
   const cards = role === 'admin' ? [...INSTRUCTOR_CARDS, ...ADMIN_EXTRA] : INSTRUCTOR_CARDS
 

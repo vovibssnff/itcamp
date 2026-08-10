@@ -7,6 +7,7 @@ import (
 	"encoding/base32"
 	"errors"
 	"io"
+	"net/url"
 	"time"
 
 	"github.com/pquerna/otp"
@@ -38,6 +39,18 @@ func (s *TOTPService) GenerateSecret(userID string) (string, error) {
 		return "", err
 	}
 	return key.Secret(), nil
+}
+
+// OTPAuthURI builds a standard otpauth:// URL for authenticator apps / QR codes.
+func OTPAuthURI(issuer, accountName, secret string) string {
+	label := url.PathEscape(issuer) + ":" + url.PathEscape(accountName)
+	q := url.Values{}
+	q.Set("secret", secret)
+	q.Set("issuer", issuer)
+	q.Set("algorithm", "SHA1")
+	q.Set("digits", "6")
+	q.Set("period", "30")
+	return "otpauth://totp/" + label + "?" + q.Encode()
 }
 
 func (s *TOTPService) Validate(code, secret string) bool {

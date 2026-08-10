@@ -5,6 +5,7 @@ import { SearchOutlined, DownloadOutlined, PlusOutlined } from '@ant-design/icon
 import { Pill } from '@/components/ui'
 import { reportsApi } from '@/api/reports'
 import type { ReportMeta } from '@/api/mappers'
+import { isMockApi } from '@/utils/env'
 
 const PAGE_SIZE = 20
 
@@ -221,12 +222,14 @@ export default function ReportListScreen() {
             showSizeChanger={false}
             showQuickJumper
           />
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => window.open('/api/assessment/reports/export?format=csv')}
-          >
-            <DownloadOutlined /> Экспорт CSV
-          </button>
+          {isMockApi() && (
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => window.open('/api/assessment/reports/export?format=csv')}
+            >
+              <DownloadOutlined /> Экспорт CSV
+            </button>
+          )}
         </div>
       )}
     </div>

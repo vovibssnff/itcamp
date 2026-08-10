@@ -52,12 +52,14 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 
 		h := middleware.InjectHeaders(proxyHandler)
 
-		if route.Auth {
-			h = middleware.AuthMiddleware(d.Auth, d.Log)(h)
-		}
-
+		// RequireRoles must wrap inside Auth so it runs after introspect
+		// populates ContextRoles. Last Wrap is outermost: Auth → Roles → proxy.
 		if len(route.Roles) > 0 {
 			h = middleware.RequireRoles(route.Roles...)(h)
+		}
+
+		if route.Auth {
+			h = middleware.AuthMiddleware(d.Auth, d.Log)(h)
 		}
 
 		pattern := route.Prefix

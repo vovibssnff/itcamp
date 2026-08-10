@@ -16,10 +16,19 @@
     "displayName": "ФИО",
     "noAccount": "Нет аккаунта? Регистрация",
     "haveAccount": "Уже есть аккаунт? Войти",
-    "registerTitle": "Регистрация нового пользователя"
+    "registerTitle": "Регистрация нового пользователя",
+    "mfaRequired": "Введите код MFA",
+    "mfaSetup": "Отсканируйте QR и введите код из приложения",
+    "mfaCode": "Код MFA",
+    "mfaEnrollTitle": "Настройка 2FA",
+    "mfaEnrollHint": "Отсканируйте QR в Google Authenticator / Authy или введите секрет вручную, затем укажите 6-значный код.",
+    "mfaQrAlt": "QR-код для настройки MFA",
+    "mfaCopySecret": "Копировать",
+    "mfaSecretCopied": "Секрет скопирован",
+    "mfaSecretCopyFailed": "Не удалось скопировать"
   },
   "nav": {
-    "templates": "Шаблоны",
+    "templates": "Установки",
     "components": "Компоненты",
     "scenarios": "Сценарии",
     "sessions": "Сессии",
@@ -27,7 +36,8 @@
     "reports": "Отчёты",
     "admin": "Администрирование",
     "users": "Пользователи",
-    "system": "Система"
+    "system": "Система",
+    "home": "Главная"
   },
   "constructor": {
     "title": "Конструктор",

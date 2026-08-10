@@ -31,7 +31,11 @@ const authMiddleware: Middleware = {
 
     // Avoid refresh loops on auth endpoints themselves.
     const path = new URL(request.url, 'http://local').pathname
-    if (path.includes('/api/v1/auth/login') || path.includes('/api/v1/auth/refresh')) {
+    if (
+      path.includes('/api/v1/auth/login') ||
+      path.includes('/api/v1/auth/refresh') ||
+      path.includes('/api/v1/auth/mfa/enrollment')
+    ) {
       return response
     }
 

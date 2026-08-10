@@ -10,7 +10,8 @@ interface WsOptions {
   onStatusChange?: (connected: boolean) => void
 }
 
-const WS_BASE = import.meta.env.VITE_WS_BASE_URL ?? 'ws://localhost:8088'
+// Empty / unset → same-origin relative WS (Vite proxies /api with ws: true).
+const WS_BASE = (import.meta.env.VITE_WS_BASE_URL as string | undefined)?.trim() || ''
 const MAX_RECONNECT_DELAY = 30_000
 const RECONNECT_TOLERANCE_MS = 3 * 60 * 1000
 
@@ -37,7 +38,8 @@ export class WsConnection {
   private buildUrl(): string {
     const token = useAuthStore.getState().accessToken
     const params = new URLSearchParams({ token: token ?? '' })
-    return `${WS_BASE}/api/v1/ws/sessions/${this.sessionId}/${this.channel}?${params.toString()}`
+    const path = `/api/v1/ws/sessions/${this.sessionId}/${this.channel}?${params.toString()}`
+    return WS_BASE ? `${WS_BASE}${path}` : path
   }
 
   private connect() {

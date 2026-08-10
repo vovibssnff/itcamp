@@ -27,7 +27,7 @@ func testUser() domain.User {
 }
 
 func TestTokenService_Introspect_Valid(t *testing.T) {
-	ts := NewTokenService(testTokenConfig(), newMockRefreshStore())
+	ts := NewTokenService(testTokenConfig(), newMockRefreshStore(), nil)
 	pair, err := ts.Issue(testCtx(), testUser())
 	if err != nil {
 		t.Fatalf("issue failed: %v", err)
@@ -52,7 +52,7 @@ func TestTokenService_Introspect_Valid(t *testing.T) {
 }
 
 func TestTokenService_Introspect_Invalid(t *testing.T) {
-	ts := NewTokenService(testTokenConfig(), newMockRefreshStore())
+	ts := NewTokenService(testTokenConfig(), newMockRefreshStore(), nil)
 	result, err := ts.Introspect(testCtx(), "invalid.token.here")
 	if err == nil {
 		t.Fatal("expected error for invalid token")
@@ -63,7 +63,7 @@ func TestTokenService_Introspect_Invalid(t *testing.T) {
 }
 
 func TestTokenService_Introspect_Empty(t *testing.T) {
-	ts := NewTokenService(testTokenConfig(), newMockRefreshStore())
+	ts := NewTokenService(testTokenConfig(), newMockRefreshStore(), nil)
 	result, err := ts.Introspect(testCtx(), "")
 	if err == nil {
 		t.Fatal("expected error for empty token")
@@ -74,7 +74,7 @@ func TestTokenService_Introspect_Empty(t *testing.T) {
 }
 
 func TestTokenService_Introspect_WrongKey(t *testing.T) {
-	ts := NewTokenService(testTokenConfig(), newMockRefreshStore())
+	ts := NewTokenService(testTokenConfig(), newMockRefreshStore(), nil)
 	pair, _ := ts.Issue(testCtx(), testUser())
 
 	ts2 := NewTokenService(config.JWTConfig{
@@ -83,7 +83,7 @@ func TestTokenService_Introspect_WrongKey(t *testing.T) {
 		AccessTTL:     config.Duration(15 * time.Minute),
 		RefreshTTL:    config.Duration(24 * time.Hour),
 		Issuer:        "ktc-auth-test",
-	}, newMockRefreshStore())
+	}, newMockRefreshStore(), nil)
 
 	_, err := ts2.Introspect(testCtx(), pair.AccessToken)
 	if err == nil {
@@ -92,7 +92,7 @@ func TestTokenService_Introspect_WrongKey(t *testing.T) {
 }
 
 func TestTokenService_TokenPair_NotEmpty(t *testing.T) {
-	ts := NewTokenService(testTokenConfig(), newMockRefreshStore())
+	ts := NewTokenService(testTokenConfig(), newMockRefreshStore(), nil)
 	pair, err := ts.Issue(testCtx(), testUser())
 	if err != nil {
 		t.Fatalf("issue failed: %v", err)
@@ -116,7 +116,7 @@ func TestTokenService_TokenPair_NotEmpty(t *testing.T) {
 
 func TestTokenService_Refresh_Rotation(t *testing.T) {
 	store := newMockRefreshStore()
-	ts := NewTokenService(testTokenConfig(), store)
+	ts := NewTokenService(testTokenConfig(), store, nil)
 
 	pair, err := ts.Issue(testCtx(), testUser())
 	if err != nil {
@@ -142,7 +142,7 @@ func TestTokenService_Refresh_Rotation(t *testing.T) {
 
 func TestTokenService_Revoke(t *testing.T) {
 	store := newMockRefreshStore()
-	ts := NewTokenService(testTokenConfig(), store)
+	ts := NewTokenService(testTokenConfig(), store, nil)
 
 	pair, err := ts.Issue(testCtx(), testUser())
 	if err != nil {

@@ -98,6 +98,9 @@ func (c Config) validate() error {
 		if _, ok := c.Upstreams[r.Upstream]; !ok {
 			return fmt.Errorf("route[%d]: upstream %q not defined", i, r.Upstream)
 		}
+		if len(r.Roles) > 0 && !r.Auth {
+			return fmt.Errorf("route[%d]: roles require auth=true", i)
+		}
 	}
 	return nil
 }

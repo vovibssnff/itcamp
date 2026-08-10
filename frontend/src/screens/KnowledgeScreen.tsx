@@ -1,6 +1,23 @@
 import { AiChat } from '@/components/ai/AiChat'
+import { isMockApi } from '@/utils/env'
+import { tokens } from '@/theme/tokens'
 
 export default function KnowledgeScreen() {
+  if (!isMockApi()) {
+    return (
+      <div className="wrap rise">
+        <div className="sec">База знаний</div>
+        <h1 className="h1" style={{ marginTop: 12 }}>
+          ИИ-ассистент недоступен
+        </h1>
+        <p style={{ color: tokens.text.secondary, marginTop: 12 }}>
+          REST-чат с ИИ пока доступен только в mock-режиме. В реальном стеке подсказки ИИ приходят
+          через WebSocket (`ai_hint`) во время тренировки.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div
       style={{

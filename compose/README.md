@@ -58,7 +58,7 @@ cd compose/data
 cp .env.example .env
 docker compose up -d --build
 
-# 2) прикладной слой
+# 2) прикладной слой (+ frontend SPA на :8090)
 cd ../app
 cp .env.example .env
 docker compose up -d --build
@@ -69,6 +69,7 @@ cp .env.example .env
 docker compose up -d --build
 
 # 4) Вычислительный слой (Simulation Engine: sim-manager + sim-worker)
+#    лучше поднять до/вместе с app — orchestrator ходит в sim-worker
 cd ../sim
 cp .env.example .env
 docker compose up -d --build
@@ -99,6 +100,7 @@ make smoke      # проверка живости postgres/redis/minio/nats
 | snapshot | 8086 | `HTTP_SNAPSHOT` | app |
 | report | 8087 | `HTTP_REPORT` | app |
 | gw (вход) | 8088 | `HTTP_GW` | app |
+| frontend (SPA) | 8090 | `HTTP_FRONTEND` | app |
 | ai-service (REST) | 8080 | `AI_HTTP_HOST_PORT` | ai |
 | ai-service (gRPC) | 50051 | `AI_GRPC_HOST_PORT` | ai |
 | ollama | 11434 | `OLLAMA_HOST_PORT` | ai |

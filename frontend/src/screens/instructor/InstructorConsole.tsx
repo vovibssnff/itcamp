@@ -33,8 +33,10 @@ import { assessmentApi } from '@/api/assessment'
 import { snapshotsApi } from '@/api/snapshots'
 import { reportsApi } from '@/api/reports'
 import { templatesApi } from '@/api/templates'
+import { isMockApi } from '@/utils/env'
 import { scenariosApi } from '@/api/scenarios'
 import { usersApi } from '@/api/users'
+import { toErrorMessage } from '@/api/errors'
 import type { SnapshotMeta } from '@/api/mappers'
 import type { TemplateSummary } from '@/api/mappers'
 import type { UserProfile } from '@/store/auth'
@@ -117,6 +119,10 @@ export default function InstructorConsole() {
   }, [])
 
   const fetchAssignments = useCallback(async () => {
+    if (!isMockApi()) {
+      setAssignments([])
+      return
+    }
     try {
       const res = await fetch('/api/assignments')
       setAssignments((await res.json()) as ExamAssignment[])
@@ -131,7 +137,7 @@ export default function InstructorConsole() {
     void (async () => {
       try {
         const [users, scens] = await Promise.all([usersApi.list(), scenariosApi.list()])
-        setOperators(users.filter((u) => u.role === 'operator'))
+        setOperators(users.filter((u) => (u.roles ?? []).includes('operator')))
         setExamScenarios(
           (scens as { id?: string; name?: string }[]).map((s) => ({
             id: s.id ?? '',
@@ -215,7 +221,7 @@ export default function InstructorConsole() {
           name: s.name ?? s.id ?? '',
         })),
       )
-      setOperators(users.filter((u) => u.role === 'operator'))
+      setOperators(users.filter((u) => (u.roles ?? []).includes('operator')))
       createForm.resetFields()
       createForm.setFieldsValue({ mode: 'training' })
       setCreateOpen(true)
@@ -243,33 +249,54 @@ export default function InstructorConsole() {
   }
 
   async function sessionAction(id: string, action: 'start' | 'pause' | 'resume' | 'stop') {
-    await sessionsApi.action(id, action)
-    void fetchSessions()
+    try {
+      await sessionsApi.action(id, action)
+      void fetchSessions()
+    } catch (err) {
+      void message.error(toErrorMessage(err, 'Ошибка действия над сессией'))
+    }
   }
 
   async function setSpeed(id: string, speed: number) {
-    await sessionsApi.setSpeed(id, speed)
-    void fetchSessions()
+    try {
+      await sessionsApi.setSpeed(id, speed)
+      void fetchSessions()
+    } catch (err) {
+      void message.error(toErrorMessage(err, 'Не удалось изменить скорость'))
+    }
   }
 
   async function saveSnapshot() {
     if (!snapshotModal.sessionId || !snapshotLabel) return
-    await sessionsApi.checkpoint(snapshotModal.sessionId, snapshotLabel)
-    void message.success('Снимок сохранён')
-    setSnapshotModal({ open: false, sessionId: null })
-    setSnapshotLabel('')
+    try {
+      await sessionsApi.checkpoint(snapshotModal.sessionId, snapshotLabel)
+      void message.success('Снимок сохранён')
+      setSnapshotModal({ open: false, sessionId: null })
+      setSnapshotLabel('')
+    } catch (err) {
+      void message.error(toErrorMessage(err, 'Не удалось сохранить снимок'))
+    }
   }
 
   async function submitOverride() {
     if (!overrideModal.sessionId) return
-    await assessmentApi.override({
-      sessionId: overrideModal.sessionId,
-      newScore: overrideScore,
-      verdict: overrideScore >= 60 ? 'pass' : 'fail',
-      comment: overrideComment,
-    })
-    void message.success('Оценка скорректирована')
-    setOverrideModal({ open: false, sessionId: null })
+    if (!overrideComment.trim()) {
+      void message.warning('Укажите комментарий к корректировке')
+      return
+    }
+    try {
+      const threshold = 60
+      await assessmentApi.override({
+        sessionId: overrideModal.sessionId,
+        newScore: overrideScore,
+        verdict: overrideScore >= threshold ? 'pass' : 'fail',
+        comment: overrideComment.trim(),
+      })
+      void message.success('Оценка скорректирована')
+      setOverrideModal({ open: false, sessionId: null })
+    } catch (err) {
+      void message.error(toErrorMessage(err, 'Не удалось скорректировать оценку'))
+    }
   }
 
   async function openRestore(sessionId: string) {
@@ -558,137 +585,143 @@ export default function InstructorConsole() {
         pagination={false}
       />
 
-      {/* ── Exam assignments ─────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-end',
-          justifyContent: 'space-between',
-          marginTop: 40,
-          marginBottom: 16,
-        }}
-      >
-        <div>
-          <div className="sec">Назначенные экзамены</div>
-          <p className="note" style={{ marginTop: 8 }}>
-            Экзамены по конкретным темам с индивидуальным сроком сдачи
-          </p>
-        </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openAssignModal}>
-          Назначить экзамен
-        </Button>
-      </div>
-
-      <Table
-        dataSource={assignments}
-        columns={assignmentColumns}
-        rowKey="id"
-        pagination={false}
-        locale={{ emptyText: 'Нет назначенных экзаменов' }}
-      />
-
-      <Modal
-        title="Назначить экзамен"
-        open={assignOpen}
-        onOk={() => void submitAssignment()}
-        onCancel={() => setAssignOpen(false)}
-        okText="Назначить"
-        cancelText="Отмена"
-        confirmLoading={assignSaving}
-        width={520}
-      >
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 12, color: tokens.text.muted }}>Ученик</label>
-          <Select
-            style={{ width: '100%', marginTop: 4 }}
-            placeholder="Выберите ученика"
-            value={assignForm.operatorId || undefined}
-            onChange={(v) => void handleOperatorPicked(v)}
-            options={operators.map((o) => ({ value: o.id, label: o.displayName }))}
-          />
-        </div>
-
-        {assignForm.operatorId && (
+      {/* ── Exam assignments (mock-only) ─────────────────────────────────── */}
+      {isMockApi() && (
+        <>
           <div
-            className="box-acc"
-            style={{ marginBottom: 14, display: 'flex', gap: 10, alignItems: 'flex-start' }}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'space-between',
+              marginTop: 40,
+              marginBottom: 16,
+            }}
           >
-            <BulbOutlined style={{ marginTop: 2, color: tokens.accent.cyan }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, color: tokens.text.muted, marginBottom: 4 }}>
-                РЕКОМЕНДАЦИЯ ИИ
-              </div>
-              {recLoading ? (
-                <div style={{ fontSize: 12.5, color: tokens.text.secondary }}>
-                  Анализ результатов…
-                </div>
-              ) : recommendation ? (
-                <>
-                  <div style={{ fontSize: 12.5, color: tokens.text.primary, lineHeight: 1.5 }}>
-                    {recommendation.summary}
-                  </div>
-                  {recommendation.weakTopics.length > 0 && (
-                    <ul style={{ margin: '8px 0 0', paddingLeft: 16 }}>
-                      {recommendation.weakTopics.map((t) => (
-                        <li key={t.scenarioId} style={{ fontSize: 12, marginBottom: 6 }}>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            style={{ padding: '1px 8px', fontSize: 11, marginRight: 6 }}
-                            onClick={() =>
-                              setAssignForm((f) => ({ ...f, scenarioId: t.scenarioId }))
-                            }
-                          >
-                            Выбрать тему
-                          </button>
-                          <strong style={{ color: tokens.text.primary }}>{t.scenarioName}</strong>
-                          <div style={{ color: tokens.text.secondary, marginTop: 2 }}>
-                            {t.detail}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </>
-              ) : null}
+            <div>
+              <div className="sec">Назначенные экзамены</div>
+              <p className="note" style={{ marginTop: 8 }}>
+                Экзамены по конкретным темам с индивидуальным сроком сдачи
+              </p>
             </div>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openAssignModal}>
+              Назначить экзамен
+            </Button>
           </div>
-        )}
 
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 12, color: tokens.text.muted }}>Тема экзамена</label>
-          <Select
-            style={{ width: '100%', marginTop: 4 }}
-            placeholder="Выберите тему"
-            value={assignForm.scenarioId || undefined}
-            onChange={(v) => setAssignForm((f) => ({ ...f, scenarioId: v }))}
-            options={examScenarios.map((s) => ({ value: s.id, label: s.name }))}
+          <Table
+            dataSource={assignments}
+            columns={assignmentColumns}
+            rowKey="id"
+            pagination={false}
+            locale={{ emptyText: 'Нет назначенных экзаменов' }}
           />
-        </div>
 
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 12, color: tokens.text.muted }}>Срок сдачи</label>
-          <Input
-            type="date"
-            style={{ marginTop: 4 }}
-            min={todayStr}
-            value={assignForm.dueDate}
-            onChange={(e) => setAssignForm((f) => ({ ...f, dueDate: e.target.value }))}
-          />
-        </div>
+          <Modal
+            title="Назначить экзамен"
+            open={assignOpen}
+            onOk={() => void submitAssignment()}
+            onCancel={() => setAssignOpen(false)}
+            okText="Назначить"
+            cancelText="Отмена"
+            confirmLoading={assignSaving}
+            width={520}
+          >
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: tokens.text.muted }}>Ученик</label>
+              <Select
+                style={{ width: '100%', marginTop: 4 }}
+                placeholder="Выберите ученика"
+                value={assignForm.operatorId || undefined}
+                onChange={(v) => void handleOperatorPicked(v)}
+                options={operators.map((o) => ({ value: o.id, label: o.displayName }))}
+              />
+            </div>
 
-        <div>
-          <label style={{ fontSize: 12, color: tokens.text.muted }}>
-            Комментарий (необязательно)
-          </label>
-          <Input.TextArea
-            rows={2}
-            style={{ marginTop: 4 }}
-            value={assignForm.note}
-            onChange={(e) => setAssignForm((f) => ({ ...f, note: e.target.value }))}
-            placeholder="На что обратить внимание при подготовке..."
-          />
-        </div>
-      </Modal>
+            {assignForm.operatorId && (
+              <div
+                className="box-acc"
+                style={{ marginBottom: 14, display: 'flex', gap: 10, alignItems: 'flex-start' }}
+              >
+                <BulbOutlined style={{ marginTop: 2, color: tokens.accent.cyan }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, color: tokens.text.muted, marginBottom: 4 }}>
+                    РЕКОМЕНДАЦИЯ ИИ
+                  </div>
+                  {recLoading ? (
+                    <div style={{ fontSize: 12.5, color: tokens.text.secondary }}>
+                      Анализ результатов…
+                    </div>
+                  ) : recommendation ? (
+                    <>
+                      <div style={{ fontSize: 12.5, color: tokens.text.primary, lineHeight: 1.5 }}>
+                        {recommendation.summary}
+                      </div>
+                      {recommendation.weakTopics.length > 0 && (
+                        <ul style={{ margin: '8px 0 0', paddingLeft: 16 }}>
+                          {recommendation.weakTopics.map((t) => (
+                            <li key={t.scenarioId} style={{ fontSize: 12, marginBottom: 6 }}>
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                style={{ padding: '1px 8px', fontSize: 11, marginRight: 6 }}
+                                onClick={() =>
+                                  setAssignForm((f) => ({ ...f, scenarioId: t.scenarioId }))
+                                }
+                              >
+                                Выбрать тему
+                              </button>
+                              <strong style={{ color: tokens.text.primary }}>
+                                {t.scenarioName}
+                              </strong>
+                              <div style={{ color: tokens.text.secondary, marginTop: 2 }}>
+                                {t.detail}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: tokens.text.muted }}>Тема экзамена</label>
+              <Select
+                style={{ width: '100%', marginTop: 4 }}
+                placeholder="Выберите тему"
+                value={assignForm.scenarioId || undefined}
+                onChange={(v) => setAssignForm((f) => ({ ...f, scenarioId: v }))}
+                options={examScenarios.map((s) => ({ value: s.id, label: s.name }))}
+              />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: tokens.text.muted }}>Срок сдачи</label>
+              <Input
+                type="date"
+                style={{ marginTop: 4 }}
+                min={todayStr}
+                value={assignForm.dueDate}
+                onChange={(e) => setAssignForm((f) => ({ ...f, dueDate: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: 12, color: tokens.text.muted }}>
+                Комментарий (необязательно)
+              </label>
+              <Input.TextArea
+                rows={2}
+                style={{ marginTop: 4 }}
+                value={assignForm.note}
+                onChange={(e) => setAssignForm((f) => ({ ...f, note: e.target.value }))}
+                placeholder="На что обратить внимание при подготовке..."
+              />
+            </div>
+          </Modal>
+        </>
+      )}
 
       <Modal
         title="Новая сессия"

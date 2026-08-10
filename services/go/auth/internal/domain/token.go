@@ -14,6 +14,7 @@ type Claims struct {
 	Login   string `json:"login"`
 	Roles   []Role `json:"roles"`
 	TokenID string `json:"jti"`
+	Purpose string `json:"purpose,omitempty"`
 }
 
 type RefreshToken struct {

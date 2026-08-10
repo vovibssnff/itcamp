@@ -12,9 +12,13 @@ import { useUIStore } from '@/store/ui'
 import type { CanvasNode } from '@/store/constructor'
 import { COMPONENT_TYPES, type ComponentType } from '@/mocks/fixtures/components'
 import { TEMPLATES, type Template } from '@/mocks/fixtures/templates'
+import { message } from 'antd'
 import { sessionsApi } from '@/api/sessions'
 import { templatesApi } from '@/api/templates'
 import { componentsApi } from '@/api/components'
+import { reportsApi } from '@/api/reports'
+import { toErrorMessage } from '@/api/errors'
+import { isMockApi } from '@/utils/env'
 
 const STATUS_LABELS: Record<string, string> = {
   idle: 'Ожидание',
@@ -62,16 +66,26 @@ export default function TrainingScreen() {
     if (!sessionId) return
     void (async () => {
       try {
-        const [session, components] = await Promise.all([
-          sessionsApi.get(sessionId),
-          componentsApi.list(),
-        ])
-        if (components.length) setComponentTypes(components)
-        if (session.templateId) {
-          setTemplate(await templatesApi.get(session.templateId))
+        const session = await sessionsApi.get(sessionId)
+        try {
+          const components = await componentsApi.list()
+          if (components.length) setComponentTypes(components)
+        } catch {
+          /* operators may lack components role — keep demo types */
         }
-      } catch {
-        // Fall back to demo template when session/template unavailable.
+        if (session.templateId) {
+          try {
+            setTemplate(await templatesApi.get(session.templateId))
+          } catch {
+            if (!isMockApi()) {
+              void message.warning('Не удалось загрузить шаблон установки — показан демо-вид')
+            }
+          }
+        }
+      } catch (err) {
+        if (!isMockApi()) {
+          void message.error(toErrorMessage(err, 'Не удалось загрузить сессию'))
+        }
       }
     })()
   }, [sessionId])
@@ -99,8 +113,29 @@ export default function TrainingScreen() {
     send({ type: 'actuator', tag, value })
   }
 
-  function handleFinish() {
-    void navigate(`/reports/${sessionId ?? 'sess-001'}`)
+  async function handleStart() {
+    if (!sessionId) return
+    try {
+      await sessionsApi.action(sessionId, 'start')
+      setStarted(true)
+    } catch (err) {
+      void message.error(toErrorMessage(err, 'Не удалось начать тренировку'))
+    }
+  }
+
+  async function handleFinish() {
+    if (!sessionId) return
+    try {
+      await sessionsApi.action(sessionId, 'stop')
+      try {
+        await reportsApi.create(sessionId, 'session')
+      } catch {
+        /* report may already exist or queue later */
+      }
+      void navigate(`/reports/${sessionId}`)
+    } catch (err) {
+      void message.error(toErrorMessage(err, 'Не удалось завершить сессию'))
+    }
   }
 
   return (
@@ -167,7 +202,7 @@ export default function TrainingScreen() {
             </div>
           </div>
           {!started && (
-            <button className="btn btn-acc btn-sm" onClick={() => setStarted(true)}>
+            <button className="btn btn-acc btn-sm" onClick={() => void handleStart()}>
               Начать тренировку
             </button>
           )}
@@ -213,7 +248,11 @@ export default function TrainingScreen() {
               background: 'var(--srf)',
             }}
           >
-            <button className="btn btn-acc btn-sm" onClick={handleFinish} disabled={!started}>
+            <button
+              className="btn btn-acc btn-sm"
+              onClick={() => void handleFinish()}
+              disabled={!started}
+            >
               Завершить тренировку
             </button>
           </div>

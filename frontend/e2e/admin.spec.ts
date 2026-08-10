@@ -8,7 +8,7 @@ test.describe('TEST-10: Admin screens', () => {
 
   test('admin can access users screen', async ({ page }) => {
     await page.goto('/admin/users')
-    await expect(page.getByText('Пользователи')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Пользователи' })).toBeVisible()
   })
 
   test('users screen shows existing users', async ({ page }) => {
@@ -28,7 +28,7 @@ test.describe('TEST-10: Admin screens', () => {
 
   test('system screen shows metrics', async ({ page }) => {
     await page.goto('/admin/system')
-    await expect(page.getByText('Система')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Система' })).toBeVisible()
     await expect(page.getByText('Версия', { exact: true })).toBeVisible()
   })
 })

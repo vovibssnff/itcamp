@@ -14,7 +14,17 @@ type TokenResponse struct {
 }
 
 type MFARequiredResponse struct {
-	MFARequired bool `json:"mfa_required"`
+	MFARequired bool   `json:"mfa_required"`
+	UserID      string `json:"user_id,omitempty"`
+	Login       string `json:"login,omitempty"`
+	// EnrollmentToken exchanges for secret/otpauth_uri via POST /mfa/enrollment.
+	EnrollmentToken string `json:"enrollment_token,omitempty"`
+}
+
+type MFAEnrollmentResponse struct {
+	Secret     string `json:"secret"`
+	OTPAuthURI string `json:"otpauth_uri"`
+	Login      string `json:"login,omitempty"`
 }
 
 type RefreshRequest struct {

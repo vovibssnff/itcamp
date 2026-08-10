@@ -890,14 +890,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** start | pause | stop | checkpoint | restore | actuator */
+        /** start | pause | resume | stop | checkpoint | restore | actuator */
         post: {
             parameters: {
                 query?: never;
                 header?: never;
                 path: {
                     id: string;
-                    action: "start" | "pause" | "stop" | "checkpoint" | "restore" | "actuator";
+                    action: "start" | "pause" | "resume" | "stop" | "checkpoint" | "restore" | "actuator";
                 };
                 cookie?: never;
             };

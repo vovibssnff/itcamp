@@ -17,7 +17,7 @@ type SimClient interface {
 }
 
 type AssessmentClient interface {
-	SendEvent(ctx context.Context, sessionID string, eventType string, data any) error
+	SendEvent(ctx context.Context, sessionID, scenarioID, eventType string, data any) error
 	GetScore(ctx context.Context, sessionID string) (any, error)
 	Finalize(ctx context.Context, sessionID string) error
 }

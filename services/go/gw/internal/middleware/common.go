@@ -60,6 +60,31 @@ func extractBearer(r *http.Request) string {
 	return strings.TrimSpace(auth[7:])
 }
 
+func isWebSocketUpgrade(r *http.Request) bool {
+	if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+		return false
+	}
+	connection := strings.ToLower(r.Header.Get("Connection"))
+	return strings.Contains(connection, "upgrade")
+}
+
+// extractToken returns the access token from Authorization: Bearer, or — for
+// WebSocket upgrades only — from ?token= / ?access_token= (browsers cannot set
+// Authorization on the WebSocket constructor).
+func extractToken(r *http.Request) string {
+	if token := extractBearer(r); token != "" {
+		return token
+	}
+	if !isWebSocketUpgrade(r) {
+		return ""
+	}
+	q := r.URL.Query()
+	if token := q.Get("token"); token != "" {
+		return token
+	}
+	return q.Get("access_token")
+}
+
 func ContextString(ctx context.Context, key ctxKey) string {
 	if v, ok := ctx.Value(key).(string); ok {
 		return v

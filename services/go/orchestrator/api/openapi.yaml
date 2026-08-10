@@ -129,6 +129,17 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Session' }
 
+  /sessions/{id}/resume:
+    post:
+      summary: Возобновить после паузы (FR-SESS-02)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
   /sessions/{id}/stop:
     post:
       summary: Остановить (FR-SESS-02)

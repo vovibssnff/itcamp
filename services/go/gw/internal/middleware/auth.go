@@ -13,7 +13,7 @@ import (
 func AuthMiddleware(authClient *auth.Client, log *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token := extractBearer(r)
+			token := extractToken(r)
 			if token == "" {
 				writeProblem(w, http.StatusUnauthorized, "missing_token", "Authorization Bearer token required")
 				return
@@ -35,6 +35,11 @@ func AuthMiddleware(authClient *auth.Client, log *slog.Logger) func(http.Handler
 			ctx = context.WithValue(ctx, CtxLogin, result.Login)
 			ctx = context.WithValue(ctx, CtxRoles, result.Roles)
 			ctx = context.WithValue(ctx, CtxToken, token)
+
+			// Ensure upstream sees Bearer even when the client used ?token= (WS).
+			if extractBearer(r) == "" {
+				r.Header.Set("Authorization", "Bearer "+token)
+			}
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

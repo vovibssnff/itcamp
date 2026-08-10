@@ -5,6 +5,7 @@ export interface SessionRecord {
   templateId: string
   templateName: string
   operatorId: string
+  operatorIds?: string[]
   operatorName: string
   instructorId: string
   scenarioId?: string

@@ -47,19 +47,25 @@ url = "http://report:8080"
 [[routes]]
 prefix       = "/api/v1/auth/login"
 upstream     = "auth"
-strip_prefix = "/api/v1"
+strip_prefix = "/api/v1/auth"
 auth         = false
 
 [[routes]]
 prefix       = "/api/v1/auth/refresh"
 upstream     = "auth"
-strip_prefix = "/api/v1"
+strip_prefix = "/api/v1/auth"
+auth         = false
+
+[[routes]]
+prefix       = "/api/v1/auth/mfa/enrollment"
+upstream     = "auth"
+strip_prefix = "/api/v1/auth"
 auth         = false
 
 [[routes]]
 prefix       = "/api/v1/auth"
 upstream     = "auth"
-strip_prefix = "/api/v1"
+strip_prefix = "/api/v1/auth"
 auth         = true
 
 [[routes]]
@@ -67,7 +73,7 @@ prefix       = "/api/v1/users"
 upstream     = "auth"
 strip_prefix = "/api/v1"
 auth         = true
-roles        = ["admin"]
+roles        = ["admin", "instructor"]
 
 # --- Constructor (instructor/admin) ---
 [[routes]]

@@ -46,6 +46,15 @@ spec:
         fsGroup: 1000
       nodeSelector:
         ktc.role: db
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: picodata
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: picodata
           image: {{ .Values.picodata.image }}

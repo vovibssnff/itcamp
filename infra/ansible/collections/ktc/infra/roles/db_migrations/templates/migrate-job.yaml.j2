@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ktc-migrations
+  namespace: ktc-data
+data:
+  note: "Migrations are baked into migrator image; ConfigMap is a marker."
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ktc-migrate
+  namespace: ktc-data
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      imagePullSecrets:
+        - name: ghcr-pull
+      containers:
+        - name: migrator
+          image: "{{ ktc_image_registry }}/migrator:{{ ktc_image_tag }}"
+          args:
+            - up
+            - -dsn
+            - "postgres://admin:$(PICODATA_ADMIN_PASSWORD)@picodata.ktc-data.svc.cluster.local:4327/postgres?sslmode=disable"
+            - -migrations
+            - /migrations
+          env:
+            - name: PICODATA_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ktc-data-secrets
+                  key: PICODATA_ADMIN_PASSWORD

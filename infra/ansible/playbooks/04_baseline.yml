@@ -1,0 +1,8 @@
+---
+- name: Cluster baseline (namespaces, policies, secrets)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [baseline]
+  roles:
+    - cluster_baseline

@@ -58,6 +58,8 @@ Desktop.ini
 *.key
 *.p12
 *.pfx
+*openrc*
+*openrc.sh
 secrets/
 **/secrets/**
 !**/secrets/.gitkeep
@@ -87,6 +89,17 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+
+# Deckhouse / Ansible secrets & generated artifacts
+infra/deckhouse/config.yml
+infra/deckhouse/config.prod.yml
+infra/deckhouse/dhctl-tmp/
+infra/ansible/.vault_pass
+infra/ansible/inventory/prod/hosts.ini
+infra/ansible/inventory/prod/group_vars/all/vault.yml
+!infra/ansible/inventory/prod/group_vars/all/vault.yml.example
+!infra/ansible/inventory/prod/hosts.ini.example
+
 
 # Helm chart dependencies / vendored charts
 charts/*.tgz

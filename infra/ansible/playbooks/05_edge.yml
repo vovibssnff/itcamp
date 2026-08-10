@@ -1,0 +1,8 @@
+---
+- name: Edge DNS wait, TLS, Ingress → gw
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [edge]
+  roles:
+    - edge_tls

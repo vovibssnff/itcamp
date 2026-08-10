@@ -1,17 +1,15 @@
-replicaCount: 2
-
-image:
-  repository: docker.angie.software/angie
-  tag: "1.12.1"
-  pullPolicy: IfNotPresent
-
-service:
-  port: 80
-
-resources:
-  requests:
-    cpu: 50m
-    memory: 64Mi
-  limits:
-    cpu: 500m
-    memory: 256Mi
+# Production uses Go BFF (services/go/gw). Legacy Angie stub templates remain unused when dependency is used.
+ktc-service:
+  name: gw
+  image:
+    repository: ""
+    tag: latest
+  replicaCount: 2
+  service:
+    port: 80
+  nodeSelector:
+    ktc.role: app
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8

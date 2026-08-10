@@ -1,0 +1,8 @@
+ktc-service:
+  name: report
+  image:
+    repository: ""
+    tag: latest
+  replicaCount: 2
+  nodeSelector:
+    ktc.role: app

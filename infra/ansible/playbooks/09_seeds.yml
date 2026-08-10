@@ -1,0 +1,8 @@
+---
+- name: Load demo seeds (components, templates, scenarios)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [seeds]
+  roles:
+    - seeds

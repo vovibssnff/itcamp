@@ -1,0 +1,8 @@
+---
+- name: OS baseline and node prerequisites
+  hosts: static
+  become: true
+  tags: [os]
+  roles:
+    - common
+    - node_prereqs

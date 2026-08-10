@@ -1,0 +1,45 @@
+---
+- name: Apply PrometheusRule for KTC critical alerts
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: monitoring.coreos.com/v1
+      kind: PrometheusRule
+      metadata:
+        name: ktc-critical
+        namespace: ktc-obs
+        labels:
+          prometheus: main
+          app: ktc
+      spec:
+        groups:
+          - name: ktc.critical
+            rules:
+              - alert: KtcPicodataDown
+                expr: up{job=~".*picodata.*"} == 0
+                for: 2m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: Picodata target down
+              - alert: KtcCertExpirySoon
+                expr: (certmanager_certificate_expiration_timestamp_seconds - time()) / 86400 < 14
+                for: 1h
+                labels:
+                  severity: warning
+                annotations:
+                  summary: TLS certificate expires in less than 14 days
+  failed_when: false
+
+- name: Ensure ktc-obs namespace labeled
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: ktc-obs
+        labels:
+          ktc.io/part-of: ktc

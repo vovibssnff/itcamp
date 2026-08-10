@@ -1,0 +1,165 @@
+---
+- name: Apply KTC namespaces
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    src: "{{ ktc_infra_root }}/namespaces/ktc.yaml"
+
+- name: Build GHCR dockerconfigjson
+  ansible.builtin.set_fact:
+    ghcr_dockerconfig: >-
+      {{
+        {'auths': {
+          (ktc_image_registry.split('/')[0]): {
+            'username': 'token',
+            'password': vault_ghcr_pat,
+            'auth': ('token:' ~ vault_ghcr_pat) | b64encode
+          }
+        }} | to_json | b64encode
+      }}
+  no_log: true
+
+- name: Create imagePullSecret in each namespace
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: ghcr-pull
+        namespace: "{{ item }}"
+      type: kubernetes.io/dockerconfigjson
+      data:
+        .dockerconfigjson: "{{ ghcr_dockerconfig }}"
+  loop: "{{ ktc_namespaces }}"
+  no_log: true
+
+- name: Create application secrets
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: ktc-app-secrets
+        namespace: ktc-app
+      type: Opaque
+      stringData:
+        AUTH_JWT_SIGNING_KEY: "{{ vault_jwt_signing_key }}"
+        AUTH_TOTP_ENCRYPTION_KEY: "{{ vault_totp_encryption_key }}"
+  no_log: true
+
+- name: Create data-plane secrets
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: ktc-data-secrets
+        namespace: ktc-data
+      type: Opaque
+      stringData:
+        PICODATA_ADMIN_PASSWORD: "{{ vault_picodata_admin_password }}"
+        S3_ACCESS_KEY: "{{ vault_s3_access_key }}"
+        S3_SECRET_KEY: "{{ vault_s3_secret_key }}"
+        NATS_TOKEN: "{{ vault_nats_token | default('') }}"
+  no_log: true
+
+- name: Mirror data secrets into ktc-app (DSN consumers)
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: ktc-data-secrets
+        namespace: ktc-app
+      type: Opaque
+      stringData:
+        PICODATA_ADMIN_PASSWORD: "{{ vault_picodata_admin_password }}"
+        S3_ACCESS_KEY: "{{ vault_s3_access_key }}"
+        S3_SECRET_KEY: "{{ vault_s3_secret_key }}"
+        DB_DSN: >-
+          postgres://admin:{{ vault_picodata_admin_password }}@picodata.ktc-data.svc.cluster.local:4327/postgres?sslmode=disable
+  no_log: true
+
+- name: Apply PeerAuthentication STRICT for mesh namespaces
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: security.istio.io/v1beta1
+      kind: PeerAuthentication
+      metadata:
+        name: default
+        namespace: "{{ item }}"
+      spec:
+        mtls:
+          mode: STRICT
+  loop:
+    - ktc-app
+    - ktc-sim
+    - ktc-ai
+
+- name: Apply default-deny NetworkPolicy
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: default-deny
+        namespace: "{{ item }}"
+      spec:
+        podSelector: {}
+        policyTypes: ["Ingress", "Egress"]
+  loop: "{{ ktc_namespaces }}"
+
+- name: Allow DNS egress in all namespaces
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: allow-dns
+        namespace: "{{ item }}"
+      spec:
+        podSelector: {}
+        policyTypes: ["Egress"]
+        egress:
+          - to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: kube-system
+            ports:
+              - protocol: UDP
+                port: 53
+              - protocol: TCP
+                port: 53
+  loop: "{{ ktc_namespaces }}"
+
+- name: Apply ResourceQuota for ktc-app
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ResourceQuota
+      metadata:
+        name: ktc-app-quota
+        namespace: ktc-app
+      spec:
+        hard:
+          requests.cpu: "20"
+          requests.memory: 40Gi
+          limits.cpu: "40"
+          limits.memory: 80Gi
+          pods: "80"

@@ -1,0 +1,8 @@
+---
+- name: Deploy application umbrella Helm chart
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [apps]
+  roles:
+    - app_deploy

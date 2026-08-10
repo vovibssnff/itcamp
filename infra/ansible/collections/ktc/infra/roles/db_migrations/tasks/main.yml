@@ -1,0 +1,12 @@
+---
+- name: Apply migrator Job
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition: "{{ lookup('template', 'migrate-job.yaml.j2') | from_yaml_all | list }}"
+
+- name: Wait for migrator Job complete
+  ansible.builtin.command: >
+    kubectl --kubeconfig {{ kubeconfig_path }} -n ktc-data
+    wait --for=condition=complete job/ktc-migrate --timeout=600s
+  changed_when: false

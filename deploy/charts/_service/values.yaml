@@ -1,0 +1,62 @@
+name: service
+fullnameOverride: ""
+
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: ghcr-pull
+
+replicaCount: 2
+
+containerPort: 8080
+grpcPort: 0
+
+service:
+  type: ClusterIP
+  port: 80
+  grpcPort: 0
+
+env: []
+envFromSecrets: []
+
+configToml: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+nodeSelector:
+  ktc.role: app
+
+tolerations: []
+affinity: {}
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+probes:
+  readyPath: /readyz
+  livePath: /healthz
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+serviceAccount:
+  create: false
+  name: ""
+  rules: []
+
+podAnnotations: {}

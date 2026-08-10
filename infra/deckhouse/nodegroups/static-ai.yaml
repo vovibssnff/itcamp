@@ -1,0 +1,20 @@
+# Enable when ai_count > 0 and GPU flavor is available.
+apiVersion: deckhouse.io/v1
+kind: NodeGroup
+metadata:
+  name: ai
+spec:
+  nodeType: Static
+  staticInstances:
+    count: 0
+    labelSelector:
+      matchLabels:
+        ktc-role: ai
+  nodeTemplate:
+    labels:
+      ktc.role: ai
+      node-role.deckhouse.io/worker: ""
+    taints:
+      - key: ai
+        value: "true"
+        effect: NoSchedule

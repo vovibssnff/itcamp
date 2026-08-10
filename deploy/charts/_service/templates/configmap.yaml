@@ -1,0 +1,11 @@
+{{- if .Values.configToml }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ktc-service.fullname" . }}-config
+  labels:
+    {{- include "ktc-service.labels" . | nindent 4 }}
+data:
+  config.toml: |
+{{ .Values.configToml | indent 4 }}
+{{- end }}

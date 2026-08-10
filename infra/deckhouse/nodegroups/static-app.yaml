@@ -1,0 +1,15 @@
+apiVersion: deckhouse.io/v1
+kind: NodeGroup
+metadata:
+  name: app
+spec:
+  nodeType: Static
+  staticInstances:
+    count: 2
+    labelSelector:
+      matchLabels:
+        ktc-role: app
+  nodeTemplate:
+    labels:
+      ktc.role: app
+      node-role.deckhouse.io/worker: ""

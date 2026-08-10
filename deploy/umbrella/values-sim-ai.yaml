@@ -1,0 +1,6 @@
+# Used as --values when installing charts/sim-manager and charts/ai separately.
+# Override image.repository / tag from Ansible.
+ktc-service:
+  replicaCount: 1
+  hpa:
+    enabled: false

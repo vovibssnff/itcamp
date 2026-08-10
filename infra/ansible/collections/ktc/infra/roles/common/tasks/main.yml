@@ -1,0 +1,46 @@
+---
+- name: Ensure apt cache is fresh
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install baseline packages
+  ansible.builtin.apt:
+    name:
+      - chrony
+      - curl
+      - gnupg
+      - ca-certificates
+      - python3
+      - python3-apt
+    state: present
+
+- name: Enable and start chrony
+  ansible.builtin.service:
+    name: chrony
+    state: started
+    enabled: true
+
+- name: Set timezone to UTC
+  community.general.timezone:
+    name: UTC
+
+- name: Harden SSH — disable password auth and root login
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+    validate: "sshd -t -f %s"
+  loop:
+    - { regexp: "^#?PermitRootLogin", line: "PermitRootLogin no" }
+    - { regexp: "^#?PasswordAuthentication", line: "PasswordAuthentication no" }
+  notify: Restart sshd
+
+- name: Ensure ubuntu can sudo without password (CAPS / Ansible)
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/90-ktc-ubuntu
+    mode: "0440"
+    content: |
+      ubuntu ALL=(ALL) NOPASSWD:ALL
+    validate: "visudo -cf %s"

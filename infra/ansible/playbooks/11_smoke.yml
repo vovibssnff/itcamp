@@ -1,0 +1,8 @@
+---
+- name: Production smoke tests
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [smoke]
+  roles:
+    - smoke_tests

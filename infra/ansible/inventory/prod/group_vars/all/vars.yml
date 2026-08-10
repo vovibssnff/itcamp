@@ -1,0 +1,58 @@
+---
+# Non-secret production defaults. Override per-env or via -e.
+# Secrets live in vault.yml (ansible-vault encrypt).
+
+ktc_domain: "ktk.example.ru" # REQUIRED
+ktc_cluster_name: "ktc-prod"
+ktc_release_channel: "Stable"
+ktc_master_count: 3
+
+ktc_image_registry: "ghcr.io/CHANGE_ME/itcamp" # REQUIRED: GHCR org or registry
+ktc_image_tag: "latest"
+
+ktc_namespaces:
+  - ktc-app
+  - ktc-sim
+  - ktc-ai
+  - ktc-data
+  - ktc-infra
+  - ktc-obs
+
+ktc_s3_endpoint: "https://hb.ru-msk.vkcloud-storage.ru"
+ktc_s3_region: "ru-msk"
+ktc_s3_buckets:
+  snapshots: "ktc-prod-snapshots"
+  reports: "ktc-prod-reports"
+  icons: "ktc-prod-component-icons"
+
+ktc_acme_email: "ops@example.ru" # REQUIRED
+ktc_letsencrypt_prod: false # set true after staging cert succeeds
+ktc_tls_mode: "http01" # http01 | dns01
+
+ktc_app_count: 2
+ktc_sim_count: 2
+ktc_ai_count: 0
+ktc_db_count: 3
+
+ktc_picodata_replicas: 3
+ktc_nats_replicas: 3
+ktc_radix_enabled: true
+
+# playbooks/ live under infra/ansible/playbooks → repo root is ../../..
+ktc_repo_root: "{{ playbook_dir }}/../../.."
+ktc_infra_root: "{{ playbook_dir }}/../.."
+kubeconfig_path: "{{ lookup('env', 'HOME') }}/.kube/ktc-prod.config"
+deckhouse_config_src: "{{ ktc_infra_root }}/deckhouse/config.prod.yml.example"
+deckhouse_config_dst: "{{ ktc_infra_root }}/deckhouse/config.prod.yml"
+deckhouse_install_image: "registry.deckhouse.io/deckhouse/ee/install:stable"
+deckhouse_ssh_user: "ubuntu"
+deckhouse_ssh_key: "{{ lookup('env', 'HOME') }}/.ssh/ktc_ed25519"
+
+ansible_python_interpreter: /usr/bin/python3
+
+# StorageClass name after cloud-provider-openstack is ready (discover: kubectl get sc)
+ktc_storage_class: ""
+
+# Stub auth users for first smoke (replace with LDAP later)
+ktc_smoke_admin_login: "admin"
+ktc_smoke_admin_password: "admin123"

@@ -1,0 +1,8 @@
+---
+- name: Adopt static workers via Deckhouse CAPS
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [nodes]
+  roles:
+    - deckhouse_static_nodes

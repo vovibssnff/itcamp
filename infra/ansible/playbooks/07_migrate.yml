@@ -1,0 +1,8 @@
+---
+- name: Apply Picodata SQL migrations
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [migrate]
+  roles:
+    - db_migrations

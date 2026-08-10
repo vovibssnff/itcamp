@@ -1,0 +1,10 @@
+apiVersion: v2
+name: scenario
+description: KTC scenario service
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+  - name: ktc-service
+    version: 0.1.0
+    repository: "file://../_service"

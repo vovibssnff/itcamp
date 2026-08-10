@@ -10,6 +10,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "< 5.85.0"
     }
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.5"
+    }
   }
 
   # Remote state in VK Cloud Object Storage (HotBox) — enable after first apply

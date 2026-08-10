@@ -1,0 +1,105 @@
+---
+- name: Helm dependency build umbrella (best-effort)
+  ansible.builtin.command: >
+    helm dependency build {{ ktc_repo_root }}/deploy/umbrella
+  register: helm_deps
+  changed_when: "'Saving' in helm_deps.stdout or 'Downloading' in helm_deps.stdout"
+  failed_when: false
+
+- name: Helm upgrade umbrella chart
+  kubernetes.core.helm:
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: ktc
+    chart_ref: "{{ ktc_repo_root }}/deploy/umbrella"
+    release_namespace: ktc-app
+    create_namespace: true
+    wait: true
+    wait_timeout: 20m
+    values_files:
+      - "{{ ktc_repo_root }}/deploy/umbrella/values-prod.yaml"
+    values:
+      global:
+        domain: "{{ ktc_domain }}"
+        imageRegistry: "{{ ktc_image_registry }}"
+        imageTag: "{{ ktc_image_tag }}"
+        s3Endpoint: "{{ ktc_s3_endpoint }}"
+        s3Region: "{{ ktc_s3_region }}"
+        s3Buckets: "{{ ktc_s3_buckets }}"
+
+- name: Wait for gw deployment
+  ansible.builtin.command: >
+    kubectl --kubeconfig {{ kubeconfig_path }} -n ktc-app
+    rollout status deploy/gw --timeout=300s
+  changed_when: false
+
+- name: Helm dependency build sim-manager / ai charts
+  ansible.builtin.command: "helm dependency build {{ ktc_repo_root }}/deploy/charts/{{ item }}"
+  loop:
+    - sim-manager
+    - ai
+  failed_when: false
+  changed_when: false
+
+- name: Helm upgrade sim-manager into ktc-sim
+  kubernetes.core.helm:
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: sim-manager
+    chart_ref: "{{ ktc_repo_root }}/deploy/charts/sim-manager"
+    release_namespace: ktc-sim
+    create_namespace: true
+    wait: true
+    wait_timeout: 10m
+    values:
+      ktc-service:
+        name: sim-manager
+        image:
+          repository: "{{ ktc_image_registry }}/sim-manager"
+          tag: "{{ ktc_image_tag }}"
+        replicaCount: 1
+        grpcPort: 50051
+        service:
+          grpcPort: 50051
+        hpa:
+          enabled: false
+        nodeSelector:
+          ktc.role: sim
+        tolerations:
+          - key: sim
+            value: "true"
+            effect: NoSchedule
+        serviceAccount:
+          create: true
+          name: sim-manager
+          rules:
+            - apiGroups: [""]
+              resources: ["pods"]
+              verbs: ["get", "list", "watch", "create", "delete"]
+
+- name: Helm upgrade ai into ktc-ai
+  kubernetes.core.helm:
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: ai
+    chart_ref: "{{ ktc_repo_root }}/deploy/charts/ai"
+    release_namespace: ktc-ai
+    create_namespace: true
+    wait: true
+    wait_timeout: 10m
+    values:
+      ktc-service:
+        name: ai
+        image:
+          repository: "{{ ktc_image_registry }}/ai"
+          tag: "{{ ktc_image_tag }}"
+        replicaCount: 1
+        grpcPort: 50051
+        service:
+          grpcPort: 50051
+        hpa:
+          enabled: false
+        nodeSelector:
+          ktc.role: ai
+        tolerations:
+          - key: ai
+            value: "true"
+            effect: NoSchedule
+  when: ktc_ai_count | int > 0

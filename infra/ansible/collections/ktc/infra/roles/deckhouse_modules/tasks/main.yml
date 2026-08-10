@@ -1,0 +1,46 @@
+---
+- name: Apply prod ModuleConfig / IngressNginxController templates
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/tmp/ktc-{{ item }}"
+    mode: "0644"
+  loop:
+    - istio.prod.yaml
+    - monitoring.prod.yaml
+    - ingress-nginx.prod.yaml
+  when: item != 'ingress-nginx.prod.yaml' or ktc_ingress_fip is defined
+
+- name: Apply istio ModuleConfig
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    src: "{{ ktc_infra_root }}/deckhouse/modules/istio.prod.yaml"
+
+- name: Apply monitoring ModuleConfigs
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    src: "{{ ktc_infra_root }}/deckhouse/modules/monitoring.prod.yaml"
+
+- name: Render IngressNginxController with floating IP
+  ansible.builtin.template:
+    src: ingress-nginx.prod.yaml.j2
+    dest: /tmp/ktc-ingress-nginx.prod.yaml
+    mode: "0644"
+
+- name: Apply IngressNginxController
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    src: /tmp/ktc-ingress-nginx.prod.yaml
+
+- name: Wait for ClusterIssuer letsencrypt
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: cert-manager.io/v1
+    kind: ClusterIssuer
+    name: letsencrypt
+  register: issuer
+  until: issuer.resources | length > 0
+  retries: 30
+  delay: 10

@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ktc-seeds
+  namespace: ktc-app
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: OnFailure
+      imagePullSecrets:
+        - name: ghcr-pull
+      containers:
+        - name: seeds
+          image: "{{ ktc_image_registry }}/constructor:{{ ktc_image_tag }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Seed loader placeholder — wire to constructor/scenario seed CLI when ready"
+              echo "Expected: >=24 components, >=1 template, >=5 scenarios, >=3 presets"
+              exit 0

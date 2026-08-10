@@ -1,0 +1,37 @@
+---
+- name: HTTPS healthz
+  ansible.builtin.uri:
+    url: "https://{{ ktc_domain }}/healthz"
+    method: GET
+    validate_certs: "{{ ktc_letsencrypt_prod }}"
+    status_code: [200, 503]
+  register: healthz
+  failed_when: false
+
+- name: Login as admin (stub)
+  ansible.builtin.uri:
+    url: "https://{{ ktc_domain }}/api/v1/auth/login"
+    method: POST
+    validate_certs: "{{ ktc_letsencrypt_prod }}"
+    body_format: json
+    body:
+      login: "{{ ktc_smoke_admin_login }}"
+      password: "{{ ktc_smoke_admin_password }}"
+    status_code: [200, 401, 503]
+  register: login
+  failed_when: false
+
+- name: Smoke report
+  ansible.builtin.debug:
+    msg: |
+      healthz={{ healthz.status | default('n/a') }}
+      login={{ login.status | default('n/a') }}
+      domain=https://{{ ktc_domain }}
+      Next: verify session create + WS telemetry manually or extend this role.
+
+- name: Fail smoke if healthz unreachable
+  ansible.builtin.assert:
+    that:
+      - healthz.status is defined
+      - healthz.status in [200, 503]
+    fail_msg: "Cannot reach https://{{ ktc_domain }}/healthz — check DNS/TLS/Ingress/gw"

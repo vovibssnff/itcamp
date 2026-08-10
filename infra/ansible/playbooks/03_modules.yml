@@ -1,0 +1,8 @@
+---
+- name: Apply production Deckhouse ModuleConfigs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [modules]
+  roles:
+    - deckhouse_modules

@@ -1,0 +1,17 @@
+---
+# Production site playbook. Run from infra/ansible/:
+#   ansible-galaxy collection install -r requirements.yml
+#   ansible-playbook site.yml --ask-vault-pass
+# Phase tags: os, bootstrap, nodes, modules, baseline, edge, data, migrate, apps, seeds, obs, smoke
+- import_playbook: playbooks/00_os.yml
+- import_playbook: playbooks/01_bootstrap.yml
+- import_playbook: playbooks/02_static_nodes.yml
+- import_playbook: playbooks/03_modules.yml
+- import_playbook: playbooks/04_baseline.yml
+- import_playbook: playbooks/05_edge.yml
+- import_playbook: playbooks/06_data.yml
+- import_playbook: playbooks/07_migrate.yml
+- import_playbook: playbooks/08_apps.yml
+- import_playbook: playbooks/09_seeds.yml
+- import_playbook: playbooks/10_obs.yml
+- import_playbook: playbooks/11_smoke.yml

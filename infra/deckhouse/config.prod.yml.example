@@ -1,0 +1,138 @@
+# Deckhouse EE Hybrid bootstrap for production (VK Cloud / OpenStack).
+# Rendered by Ansible role deckhouse_bootstrap from vault + terraform outputs.
+# Copy secrets via Ansible — never commit filled config.prod.yml.
+#
+# Differences vs teststand config.yml.example:
+#   - masterNodeGroup.replicas: 3 (HA)
+#   - publicDomainTemplate uses production domain
+#   - worker NodeGroups are Static (CAPS), not listed here
+
+apiVersion: deckhouse.io/v1
+kind: ClusterConfiguration
+clusterType: Cloud
+cloud:
+  provider: OpenStack
+  prefix: ktc
+podSubnetCIDR: 10.111.0.0/16
+serviceSubnetCIDR: 10.222.0.0/16
+kubernetesVersion: "Automatic"
+clusterDomain: cluster.local
+---
+apiVersion: deckhouse.io/v1
+kind: InitConfiguration
+deckhouse:
+  imagesRepo: registry.deckhouse.io/deckhouse/ee
+  registryDockerCfg: <BASE64_DOCKER_CFG>
+  releaseChannel: Stable
+---
+apiVersion: deckhouse.io/v1
+kind: ModuleConfig
+metadata:
+  name: deckhouse
+spec:
+  version: 1
+  enabled: true
+  settings:
+    bundle: Default
+    releaseChannel: Stable
+    logLevel: Info
+    update:
+      windows:
+        - from: "02:00"
+          to: "04:00"
+          days:
+            - Mon
+            - Wed
+---
+apiVersion: deckhouse.io/v1
+kind: ModuleConfig
+metadata:
+  name: global
+spec:
+  version: 2
+  settings:
+    modules:
+      publicDomainTemplate: "%s.ktk.example.ru" # REPLACE domain
+      https:
+        mode: CertManager
+        certManager:
+          clusterIssuerName: letsencrypt
+---
+apiVersion: deckhouse.io/v1
+kind: ModuleConfig
+metadata:
+  name: user-authn
+spec:
+  version: 2
+  enabled: true
+  settings:
+    controlPlaneConfigurator:
+      dexCAMode: DoNotNeed
+    publishAPI:
+      enabled: true
+      https:
+        mode: Global
+        global:
+          kubeconfigGeneratorMasterCA: ""
+---
+apiVersion: deckhouse.io/v1
+kind: OpenStackClusterConfiguration
+layout: Standard
+sshPublicKey: "<SSH_PUBLIC_KEY>"
+provider:
+  authURL: https://infra.mail.ru:35357/v3/
+  domainName: "users"
+  username: "<OS_USERNAME>"
+  password: "<OS_PASSWORD>"
+  region: "RegionOne"
+  tenantID: "<OS_PROJECT_ID>"
+masterNodeGroup:
+  replicas: 3
+  instanceClass:
+    flavorName: STD3-8-16
+    imageName: ubuntu-22-04-cloudamd64
+    rootDiskSize: 60
+    volumeType: "high-iops"
+    additionalSecurityGroups: []
+# Workers join via StaticInstance / NodeGroup (nodeType: Static) — see nodegroups/static-*.yaml
+standard:
+  # After terraform apply, set from terraform output deckhouse_hints:
+  # internalNetworkCIDR: "10.20.0.0/24"
+  # internalNetworkName: "ktc-prod-net"
+  externalNetworkName: "internet"
+  externalNetworkDHCP: false
+  masterWithExternalFloatingIP: true
+---
+apiVersion: deckhouse.io/v1alpha1
+kind: ModuleConfig
+metadata:
+  name: cni-cilium
+spec:
+  version: 1
+  enabled: true
+---
+apiVersion: deckhouse.io/v1alpha1
+kind: ModuleConfig
+metadata:
+  name: cert-manager
+spec:
+  version: 1
+  enabled: true
+---
+apiVersion: deckhouse.io/v1alpha1
+kind: ModuleConfig
+metadata:
+  name: ingress-nginx
+spec:
+  version: 1
+  enabled: true
+---
+apiVersion: deckhouse.io/v1alpha1
+kind: ModuleConfig
+metadata:
+  name: prometheus
+spec:
+  version: 2
+  enabled: true
+  settings:
+    longtermRetentionDays: 30

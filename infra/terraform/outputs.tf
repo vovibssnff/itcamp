@@ -48,11 +48,27 @@ output "s3_component_icons_bucket" {
 }
 
 output "deckhouse_hints" {
-  description = "Values to paste into infra/deckhouse/config.yml"
+  description = "Values to paste into infra/deckhouse/config.yml / config.prod.yml"
   value = {
     internalNetworkCIDR = var.subnet_cidr
     internalNetworkName = vkcs_networking_network.app.name
     externalNetworkName = var.ext_network_name
     floatingIP          = vkcs_networking_floatingip.ingress.address
+    domain              = var.domain
   }
+}
+
+output "static_nodes" {
+  description = "Static worker VMs for Deckhouse CAPS / Ansible"
+  value = {
+    for k, v in vkcs_compute_instance.node : k => {
+      ip   = v.access_ip_v4
+      role = local.static_nodes[k].role
+      name = v.name
+    }
+  }
+}
+
+output "ansible_inventory_path" {
+  value = try(abspath(local_file.ansible_inventory[0].filename), null)
 }

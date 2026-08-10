@@ -1,0 +1,62 @@
+---
+- name: Disable swap now
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+  failed_when: false
+
+- name: Comment swap entries in fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*\s+swap\s+.*)$'
+    replace: '# \1'
+
+- name: Load kernel modules for Kubernetes networking
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - br_netfilter
+    - overlay
+
+- name: Persist kernel modules
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/ktc-k8s.conf
+    mode: "0644"
+    content: |
+      br_netfilter
+      overlay
+
+- name: Apply sysctl settings for kubelet / CNI
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_file: /etc/sysctl.d/99-ktc-k8s.conf
+    reload: true
+  loop:
+    - { key: "net.ipv4.ip_forward", value: "1" }
+    - { key: "net.bridge.bridge-nf-call-iptables", value: "1" }
+    - { key: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
+    - { key: "fs.inotify.max_user_instances", value: "8192" }
+    - { key: "fs.inotify.max_user_watches", value: "524288" }
+    - { key: "vm.max_map_count", value: "262144" }
+
+- name: Disable UFW if present (perimeter is VK Cloud SG)
+  ansible.builtin.service:
+    name: ufw
+    state: stopped
+    enabled: false
+  failed_when: false
+
+- name: Check NVIDIA GPU presence on ai nodes
+  ansible.builtin.command: lspci
+  register: lspci_out
+  changed_when: false
+  when: ktc_role | default('') == 'ai'
+
+- name: Assert GPU visible on ai nodes
+  ansible.builtin.assert:
+    that:
+      - "'NVIDIA' in lspci_out.stdout or 'nvidia' in lspci_out.stdout | lower"
+    fail_msg: "No NVIDIA device on ai node — check GPU flavor / passthrough"
+  when: ktc_role | default('') == 'ai'

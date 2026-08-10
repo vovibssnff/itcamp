@@ -1,0 +1,103 @@
+---
+- name: Assert kubeconfig exists
+  ansible.builtin.stat:
+    path: "{{ kubeconfig_path }}"
+  register: kubeconfig_stat
+
+- name: Fail without kubeconfig
+  ansible.builtin.assert:
+    that: kubeconfig_stat.stat.exists
+    fail_msg: "Missing {{ kubeconfig_path }} — complete bootstrap first"
+
+- name: Read SSH private key for CAPS
+  ansible.builtin.slurp:
+    src: "{{ deckhouse_ssh_key }}"
+  register: ssh_priv
+  no_log: true
+
+- name: Apply SSHCredentials
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: deckhouse.io/v1alpha1
+      kind: SSHCredentials
+      metadata:
+        name: ktc-ssh
+      spec:
+        user: "{{ deckhouse_ssh_user }}"
+        privateSSHKey: "{{ ssh_priv.content }}"
+  no_log: true
+
+- name: Build static host list from inventory groups
+  ansible.builtin.set_fact:
+    ktc_static_hosts: >-
+      {{
+        (groups['app'] | default([]) | map('extract', hostvars) | list)
+        + (groups['sim'] | default([]) | map('extract', hostvars) | list)
+        + (groups['ai'] | default([]) | map('extract', hostvars) | list)
+        + (groups['db'] | default([]) | map('extract', hostvars) | list)
+      }}
+
+- name: Apply StaticInstance for each worker
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: deckhouse.io/v1alpha1
+      kind: StaticInstance
+      metadata:
+        name: "{{ item.inventory_hostname | replace('_', '-') }}"
+        labels:
+          ktc-role: "{{ item.ktc_role | default(item.group_names | intersect(['app','sim','ai','db']) | first) }}"
+      spec:
+        address: "{{ item.ansible_host }}"
+        credentialsRef:
+          kind: SSHCredentials
+          name: ktc-ssh
+  loop: "{{ ktc_static_hosts }}"
+  loop_control:
+    label: "{{ item.inventory_hostname }}"
+
+- name: Apply static NodeGroups
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    src: "{{ ktc_infra_root }}/deckhouse/nodegroups/{{ item }}"
+  loop:
+    - static-app.yaml
+    - static-sim.yaml
+    - static-ai.yaml
+    - static-db.yaml
+
+- name: Patch NodeGroup staticInstances.count from vars
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: deckhouse.io/v1
+      kind: NodeGroup
+      metadata:
+        name: "{{ item.name }}"
+      spec:
+        nodeType: Static
+        staticInstances:
+          count: "{{ item.count }}"
+          labelSelector:
+            matchLabels:
+              ktc-role: "{{ item.name }}"
+  loop:
+    - { name: app, count: "{{ ktc_app_count }}" }
+    - { name: sim, count: "{{ ktc_sim_count }}" }
+    - { name: ai, count: "{{ ktc_ai_count }}" }
+    - { name: db, count: "{{ ktc_db_count }}" }
+
+- name: Wait for worker nodes Ready
+  ansible.builtin.command: >
+    kubectl --kubeconfig {{ kubeconfig_path }} get nodes
+    -l ktc.role --no-headers
+  register: nodes_out
+  until: nodes_out.stdout_lines | length >= (ktc_app_count + ktc_sim_count + ktc_ai_count + ktc_db_count) | int
+  retries: 60
+  delay: 30
+  changed_when: false

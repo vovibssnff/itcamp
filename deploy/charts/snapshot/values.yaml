@@ -1,0 +1,13 @@
+ktc-service:
+  name: snapshot
+  image:
+    repository: ""
+    tag: latest
+  replicaCount: 2
+  containerPort: 8080
+  grpcPort: 50052
+  service:
+    port: 80
+    grpcPort: 50052
+  nodeSelector:
+    ktc.role: app

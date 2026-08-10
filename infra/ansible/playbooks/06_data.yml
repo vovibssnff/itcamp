@@ -1,0 +1,8 @@
+---
+- name: Deploy data-layer (Picodata / Radix / NATS)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [data]
+  roles:
+    - data_layer

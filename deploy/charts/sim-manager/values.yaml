@@ -1,0 +1,29 @@
+ktc-service:
+  name: sim-manager
+  image:
+    repository: ""
+    tag: latest
+  replicaCount: 1
+  containerPort: 8080
+  grpcPort: 50051
+  service:
+    port: 80
+    grpcPort: 50051
+  hpa:
+    enabled: false
+  nodeSelector:
+    ktc.role: sim
+  tolerations:
+    - key: sim
+      value: "true"
+      effect: NoSchedule
+  serviceAccount:
+    create: true
+    name: sim-manager
+    rules:
+      - apiGroups: [""]
+        resources: ["pods"]
+        verbs: ["get", "list", "watch", "create", "delete"]
+      - apiGroups: ["apps"]
+        resources: ["deployments"]
+        verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]

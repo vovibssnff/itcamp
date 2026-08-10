@@ -1,0 +1,100 @@
+apiVersion: deckhouse.io/v1
+kind: ClusterConfiguration
+clusterType: Cloud
+cloud:
+  provider: OpenStack
+  prefix: ktc
+podSubnetCIDR: 10.111.0.0/16
+serviceSubnetCIDR: 10.222.0.0/16
+kubernetesVersion: "Automatic"
+clusterDomain: cluster.local
+---
+apiVersion: deckhouse.io/v1
+kind: InitConfiguration
+deckhouse:
+  imagesRepo: registry.deckhouse.io/deckhouse/ee
+  registryDockerCfg: {{ deckhouse_registry_dockercfg }}
+  releaseChannel: {{ ktc_release_channel }}
+---
+apiVersion: deckhouse.io/v1
+kind: ModuleConfig
+metadata:
+  name: deckhouse
+spec:
+  version: 1
+  enabled: true
+  settings:
+    bundle: Default
+    releaseChannel: {{ ktc_release_channel }}
+    logLevel: Info
+---
+apiVersion: deckhouse.io/v1
+kind: ModuleConfig
+metadata:
+  name: global
+spec:
+  version: 2
+  settings:
+    modules:
+      publicDomainTemplate: "%s.{{ ktc_domain }}"
+      https:
+        mode: CertManager
+        certManager:
+          clusterIssuerName: letsencrypt
+---
+apiVersion: deckhouse.io/v1
+kind: OpenStackClusterConfiguration
+layout: Standard
+sshPublicKey: "{{ ssh_pub.content | b64decode | trim }}"
+provider:
+  authURL: https://infra.mail.ru:35357/v3/
+  domainName: "users"
+  username: "{{ vault_os_username }}"
+  password: "{{ vault_os_password }}"
+  region: "RegionOne"
+  tenantID: "{{ vault_os_project_id }}"
+masterNodeGroup:
+  replicas: {{ ktc_master_count }}
+  instanceClass:
+    flavorName: STD3-8-16
+    imageName: ubuntu-22-04-cloudamd64
+    rootDiskSize: 60
+    volumeType: "high-iops"
+standard:
+  externalNetworkName: "internet"
+  externalNetworkDHCP: false
+  masterWithExternalFloatingIP: true
+---
+apiVersion: deckhouse.io/v1alpha1
+kind: ModuleConfig
+metadata:
+  name: cni-cilium
+spec:
+  version: 1
+  enabled: true
+---
+apiVersion: deckhouse.io/v1alpha1
+kind: ModuleConfig
+metadata:
+  name: cert-manager
+spec:
+  version: 1
+  enabled: true
+---
+apiVersion: deckhouse.io/v1alpha1
+kind: ModuleConfig
+metadata:
+  name: ingress-nginx
+spec:
+  version: 1
+  enabled: true
+---
+apiVersion: deckhouse.io/v1alpha1
+kind: ModuleConfig
+metadata:
+  name: prometheus
+spec:
+  version: 2
+  enabled: true
+  settings:
+    longtermRetentionDays: 30

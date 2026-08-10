@@ -3,27 +3,28 @@ namespace: ktc-data
 picodata:
   enabled: true
   image: docker.binary.picodata.io/picodata:25.5.9
-  replicas: 1
+  replicas: 3
   adminPassword: "CHANGE_ME"
-  storage: 20Gi
+  storage: 50Gi
   storageClassName: ""
 
 radix:
   # Redis stand-in on port 7379 (Radix plugin is commercial)
   enabled: true
   image: redis:7.4-alpine
-  storage: 5Gi
+  storage: 10Gi
   storageClassName: ""
 
 nats:
   enabled: true
   namespace: ktc-infra
   image: nats:2.11-alpine
-  storage: 10Gi
+  replicas: 3
+  storage: 20Gi
   storageClassName: ""
 
 minio:
-  # Prefer VK Cloud native S3 for teststand; enable only if in-cluster MinIO needed
+  # Prefer VK Cloud native S3 for prod/teststand; enable only if in-cluster MinIO needed
   enabled: false
   image: minio/minio:RELEASE.2025-04-22T22-12-26Z
   rootUser: ktcminio

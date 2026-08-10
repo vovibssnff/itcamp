@@ -1,0 +1,20 @@
+# Production IngressNginxController — pin LB to Terraform floating IP.
+# Apply after bootstrap: replace FLOATING_IP (Ansible edge_tls / deckhouse_modules does this).
+apiVersion: deckhouse.io/v1
+kind: IngressNginxController
+metadata:
+  name: main
+spec:
+  ingressClass: nginx
+  inlet: LoadBalancer
+  loadBalancer:
+    annotations:
+      loadbalancer.openstack.org/floating-ip: "FLOATING_IP"
+  config:
+    use-proxy-protocol: "false"
+    hsts: "true"
+    hsts-max-age: "31536000"
+    hsts-include-subdomains: "true"
+  # Prefer app nodes when available
+  nodeSelector:
+    ktc.role: app

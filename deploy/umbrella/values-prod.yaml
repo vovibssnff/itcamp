@@ -1,0 +1,232 @@
+# Production values for umbrella (ktc-app). Override global.* from Ansible.
+global:
+  domain: ktk.example.ru
+  imageRegistry: ghcr.io/CHANGE_ME/itcamp
+  imageTag: latest
+  s3Endpoint: https://hb.ru-msk.vkcloud-storage.ru
+  s3Region: ru-msk
+  s3Buckets:
+    snapshots: ktc-prod-snapshots
+    reports: ktc-prod-reports
+    icons: ktc-prod-component-icons
+
+auth:
+  ktc-service:
+    name: auth
+    image:
+      repository: ghcr.io/CHANGE_ME/itcamp/auth
+      tag: latest
+    env:
+      - name: AUTH_DB_DSN
+        valueFrom:
+          secretKeyRef:
+            name: ktc-data-secrets
+            key: DB_DSN
+      - name: AUTH_JWT_SIGNING_KEY
+        valueFrom:
+          secretKeyRef:
+            name: ktc-app-secrets
+            key: AUTH_JWT_SIGNING_KEY
+      - name: AUTH_TOTP_ENCRYPTION_KEY
+        valueFrom:
+          secretKeyRef:
+            name: ktc-app-secrets
+            key: AUTH_TOTP_ENCRYPTION_KEY
+    configToml: |
+      [http]
+      addr = ":8080"
+      [auth]
+      mode = "stub"
+      [jwt]
+      signing_method = "HS256"
+      access_ttl = "15m"
+      refresh_ttl = "24h"
+      issuer = "ktc-auth"
+
+gw:
+  ktc-service:
+    name: gw
+    image:
+      repository: ghcr.io/CHANGE_ME/itcamp/gw
+      tag: latest
+    env:
+      - name: GW_AUTH_URL
+        value: http://auth:80/introspect
+    configToml: |
+      [http]
+      addr = ":8080"
+      [auth_client]
+      url = "http://auth:80/introspect"
+      timeout = "3s"
+      [upstreams.auth]
+      url = "http://auth:80"
+      [upstreams.constructor]
+      url = "http://constructor:80"
+      [upstreams.scenario]
+      url = "http://scenario:80"
+      [upstreams.orchestrator]
+      url = "http://orchestrator:80"
+      [upstreams.assessment]
+      url = "http://assessment:80"
+      [upstreams.snapshot]
+      url = "http://snapshot:80"
+      [upstreams.report]
+      url = "http://report:80"
+      [[routes]]
+      prefix = "/api/v1/auth/login"
+      upstream = "auth"
+      strip_prefix = "/api/v1"
+      auth = false
+      [[routes]]
+      prefix = "/api/v1/auth/refresh"
+      upstream = "auth"
+      strip_prefix = "/api/v1"
+      auth = false
+      [[routes]]
+      prefix = "/api/v1/auth"
+      upstream = "auth"
+      strip_prefix = "/api/v1"
+      auth = true
+      [[routes]]
+      prefix = "/api/v1/components"
+      upstream = "constructor"
+      strip_prefix = "/api/v1"
+      auth = true
+      [[routes]]
+      prefix = "/api/v1/templates"
+      upstream = "constructor"
+      strip_prefix = "/api/v1"
+      auth = true
+      [[routes]]
+      prefix = "/api/v1/scenarios"
+      upstream = "scenario"
+      strip_prefix = "/api/v1"
+      auth = true
+      [[routes]]
+      prefix = "/api/v1/sessions"
+      upstream = "orchestrator"
+      strip_prefix = "/api/v1"
+      auth = true
+      [[routes]]
+      prefix = "/api/v1/ws/sessions"
+      upstream = "orchestrator"
+      strip_prefix = "/api/v1"
+      auth = true
+      websocket = true
+      [[routes]]
+      prefix = "/"
+      upstream = "fe"
+      auth = false
+
+constructor:
+  ktc-service:
+    name: constructor
+    image:
+      repository: ghcr.io/CHANGE_ME/itcamp/constructor
+      tag: latest
+    env:
+      - name: CONSTRUCTOR_DB_DSN
+        valueFrom:
+          secretKeyRef:
+            name: ktc-data-secrets
+            key: DB_DSN
+
+scenario:
+  ktc-service:
+    name: scenario
+    image:
+      repository: ghcr.io/CHANGE_ME/itcamp/scenario
+      tag: latest
+    env:
+      - name: SCENARIO_DB_DSN
+        valueFrom:
+          secretKeyRef:
+            name: ktc-data-secrets
+            key: DB_DSN
+
+orchestrator:
+  ktc-service:
+    name: orchestrator
+    image:
+      repository: ghcr.io/CHANGE_ME/itcamp/orchestrator
+      tag: latest
+    env:
+      - name: ORCHESTRATOR_DB_DSN
+        valueFrom:
+          secretKeyRef:
+            name: ktc-data-secrets
+            key: DB_DSN
+      - name: ORCHESTRATOR_NATS_URL
+        value: nats://nats.ktc-infra.svc.cluster.local:4222
+      - name: ORCHESTRATOR_REDIS_ADDR
+        value: radix.ktc-data.svc.cluster.local:7379
+
+assessment:
+  ktc-service:
+    name: assessment
+    image:
+      repository: ghcr.io/CHANGE_ME/itcamp/assessment
+      tag: latest
+    env:
+      - name: ASSESSMENT_DB_DSN
+        valueFrom:
+          secretKeyRef:
+            name: ktc-data-secrets
+            key: DB_DSN
+
+snapshot:
+  ktc-service:
+    name: snapshot
+    image:
+      repository: ghcr.io/CHANGE_ME/itcamp/snapshot
+      tag: latest
+    grpcPort: 50052
+    service:
+      grpcPort: 50052
+    env:
+      - name: SNAPSHOT_DB_DSN
+        valueFrom:
+          secretKeyRef:
+            name: ktc-data-secrets
+            key: DB_DSN
+      - name: SNAPSHOT_S3_ENDPOINT
+        value: https://hb.ru-msk.vkcloud-storage.ru
+      - name: SNAPSHOT_S3_ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: ktc-data-secrets
+            key: S3_ACCESS_KEY
+      - name: SNAPSHOT_S3_SECRET_KEY
+        valueFrom:
+          secretKeyRef:
+            name: ktc-data-secrets
+            key: S3_SECRET_KEY
+
+report:
+  ktc-service:
+    name: report
+    image:
+      repository: ghcr.io/CHANGE_ME/itcamp/report
+      tag: latest
+    env:
+      - name: REPORT_DB_DSN
+        valueFrom:
+          secretKeyRef:
+            name: ktc-data-secrets
+            key: DB_DSN
+      - name: REPORT_NATS_URL
+        value: nats://nats.ktc-infra.svc.cluster.local:4222
+
+fe:
+  ktc-service:
+    name: fe
+    image:
+      repository: ghcr.io/CHANGE_ME/itcamp/frontend
+      tag: latest
+    probes:
+      readyPath: /health
+      livePath: /health
+    hpa:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 4

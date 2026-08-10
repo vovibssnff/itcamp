@@ -1,0 +1,19 @@
+apiVersion: deckhouse.io/v1
+kind: NodeGroup
+metadata:
+  name: sim
+spec:
+  nodeType: Static
+  staticInstances:
+    count: 2
+    labelSelector:
+      matchLabels:
+        ktc-role: sim
+  nodeTemplate:
+    labels:
+      ktc.role: sim
+      node-role.deckhouse.io/worker: ""
+    taints:
+      - key: sim
+        value: "true"
+        effect: NoSchedule

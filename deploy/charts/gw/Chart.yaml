@@ -1,6 +1,10 @@
 apiVersion: v2
 name: gw
-description: Angie API Gateway / BFF for KTC
+description: KTC API Gateway / BFF (Go)
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "0.1.0"
+dependencies:
+  - name: ktc-service
+    version: 0.1.0
+    repository: "file://../_service"

@@ -1,0 +1,65 @@
+---
+- name: Wait until apex domain resolves to floating IP
+  ansible.builtin.command: dig +short {{ ktc_domain }} A
+  register: dig_out
+  until: ktc_ingress_fip in dig_out.stdout
+  retries: 60
+  delay: 30
+  changed_when: false
+  failed_when: false
+
+- name: Warn if DNS not ready (continue for staging)
+  ansible.builtin.debug:
+    msg: >-
+      DNS {{ ktc_domain }} does not yet resolve to {{ ktc_ingress_fip }}.
+      Create A-record before Let's Encrypt HTTP-01 can succeed.
+  when: dig_out.rc != 0 or ktc_ingress_fip not in dig_out.stdout
+
+- name: Apply Ingress for gw (TLS via cert-manager)
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: ktc-gw
+        namespace: ktc-app
+        annotations:
+          cert-manager.io/cluster-issuer: "{{ 'letsencrypt' if ktc_letsencrypt_prod else 'letsencrypt-staging' }}"
+          nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+          nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+          nginx.ingress.kubernetes.io/websocket-services: "gw"
+          nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      spec:
+        ingressClassName: nginx
+        tls:
+          - hosts:
+              - "{{ ktc_domain }}"
+              - "api.{{ ktc_domain }}"
+            secretName: ktc-tls
+        rules:
+          - host: "{{ ktc_domain }}"
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: gw
+                      port:
+                        number: 80
+          - host: "api.{{ ktc_domain }}"
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: gw
+                      port:
+                        number: 80
+
+- name: Note TLS mode
+  ansible.builtin.debug:
+    msg: "TLS mode={{ ktc_tls_mode }}; issuer prod={{ ktc_letsencrypt_prod }}"

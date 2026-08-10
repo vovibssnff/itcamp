@@ -1,0 +1,8 @@
+---
+- name: Bootstrap Deckhouse EE Hybrid control-plane
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [bootstrap]
+  roles:
+    - deckhouse_bootstrap

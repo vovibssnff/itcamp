@@ -1,0 +1,55 @@
+---
+- name: Discover default StorageClass if unset
+  ansible.builtin.command: >
+    kubectl --kubeconfig {{ kubeconfig_path }} get sc
+    -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}'
+  register: sc_discover
+  changed_when: false
+  when: ktc_storage_class | length == 0
+
+- name: Set storage class fact
+  ansible.builtin.set_fact:
+    ktc_storage_class_effective: "{{ ktc_storage_class if ktc_storage_class | length > 0 else (sc_discover.stdout | default('')) }}"
+
+- name: Helm upgrade data-layer
+  kubernetes.core.helm:
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: data-layer
+    chart_ref: "{{ ktc_repo_root }}/deploy/data-layer"
+    release_namespace: ktc-data
+    create_namespace: true
+    wait: true
+    wait_timeout: 15m
+    values:
+      namespace: ktc-data
+      picodata:
+        enabled: true
+        replicas: "{{ ktc_picodata_replicas }}"
+        adminPassword: "{{ vault_picodata_admin_password }}"
+        storage: 50Gi
+        storageClassName: "{{ ktc_storage_class_effective }}"
+      radix:
+        enabled: "{{ ktc_radix_enabled }}"
+        storage: 10Gi
+        storageClassName: "{{ ktc_storage_class_effective }}"
+      nats:
+        enabled: true
+        namespace: ktc-infra
+        replicas: "{{ ktc_nats_replicas }}"
+        storage: 20Gi
+        storageClassName: "{{ ktc_storage_class_effective }}"
+      minio:
+        enabled: false
+  no_log: true
+
+- name: Wait for Picodata pods
+  ansible.builtin.command: >
+    kubectl --kubeconfig {{ kubeconfig_path }} -n ktc-data
+    rollout status sts/picodata --timeout=600s
+  changed_when: false
+
+- name: Apply NATS streams init Job
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition: "{{ lookup('template', 'nats-init-job.yaml.j2') | from_yaml }}"

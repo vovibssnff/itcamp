@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nats-init-streams
+  namespace: ktc-infra
+  labels:
+    app.kubernetes.io/name: nats-init
+spec:
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: nats-box
+          image: natsio/nats-box:0.16.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              NATS_URL=${NATS_URL:-nats://nats.ktc-infra.svc.cluster.local:4222}
+              for s in REPORT_TASKS AI_TASKS SESSION_EVENTS ASSESSMENT_EVENTS; do
+                nats stream add "$s" --subjects="${s,,}.*" --storage=file --replicas={{ ktc_nats_replicas }} --defaults || true
+              done
+              nats stream ls
+          env:
+            - name: NATS_URL
+              value: nats://nats.ktc-infra.svc.cluster.local:4222

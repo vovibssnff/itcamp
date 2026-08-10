@@ -1,0 +1,93 @@
+---
+- name: Check if kubeconfig already works
+  ansible.builtin.command: >
+    kubectl --kubeconfig {{ kubeconfig_path }} get nodes --request-timeout=10s
+  register: existing_cluster
+  changed_when: false
+  failed_when: false
+
+- name: Skip bootstrap when cluster already Ready
+  ansible.builtin.debug:
+    msg: "Cluster already reachable via {{ kubeconfig_path }}; skip dhctl bootstrap"
+  when: existing_cluster.rc == 0 and not deckhouse_bootstrap_force
+
+- name: Ensure vault secrets are defined
+  ansible.builtin.assert:
+    that:
+      - vault_deckhouse_license is defined
+      - vault_os_password is defined
+      - vault_os_username is defined
+      - vault_os_project_id is defined
+    fail_msg: >-
+      Encrypt vault.yml from vault.yml.example and provide Deckhouse/OS secrets.
+  when: existing_cluster.rc != 0 or deckhouse_bootstrap_force
+
+- name: Build Deckhouse registry docker cfg (base64)
+  ansible.builtin.set_fact:
+    deckhouse_registry_dockercfg: >-
+      {{
+        {'auths': {'registry.deckhouse.io': {
+          'auth': ('license-token:' ~ vault_deckhouse_license) | b64encode
+        }}} | to_json | b64encode
+      }}
+  when: existing_cluster.rc != 0 or deckhouse_bootstrap_force
+  no_log: true
+
+- name: Read SSH public key
+  ansible.builtin.slurp:
+    src: "{{ deckhouse_ssh_key }}.pub"
+  register: ssh_pub
+  when: existing_cluster.rc != 0 or deckhouse_bootstrap_force
+
+- name: Render config.prod.yml
+  ansible.builtin.template:
+    src: config.prod.yml.j2
+    dest: "{{ deckhouse_config_dst }}"
+    mode: "0600"
+  when: existing_cluster.rc != 0 or deckhouse_bootstrap_force
+  no_log: true
+
+- name: Docker login to Deckhouse registry
+  ansible.builtin.command: >
+    docker login registry.deckhouse.io
+    -u license-token
+    -p {{ vault_deckhouse_license }}
+  when: existing_cluster.rc != 0 or deckhouse_bootstrap_force
+  no_log: true
+  changed_when: false
+
+- name: Ensure dhctl-tmp directory exists
+  ansible.builtin.file:
+    path: "{{ ktc_infra_root }}/deckhouse/dhctl-tmp"
+    state: directory
+    mode: "0755"
+  when: existing_cluster.rc != 0 or deckhouse_bootstrap_force
+
+- name: Run dhctl bootstrap (long-running)
+  ansible.builtin.command: >
+    docker run --rm
+    -v {{ deckhouse_config_dst }}:/config.yml:ro
+    -v {{ ktc_infra_root }}/deckhouse/dhctl-tmp:/tmp/dhctl
+    -v {{ deckhouse_ssh_key | dirname }}:/tmp/.ssh:ro
+    {{ deckhouse_install_image }}
+    dhctl bootstrap
+    --ssh-user={{ deckhouse_ssh_user }}
+    --ssh-agent-private-keys=/tmp/.ssh/{{ deckhouse_ssh_key | basename }}
+    --config=/config.yml
+  when: existing_cluster.rc != 0 or deckhouse_bootstrap_force
+  register: dhctl_bootstrap
+  async: 7200
+  poll: 30
+
+- name: Ensure kubeconfig directory exists
+  ansible.builtin.file:
+    path: "{{ kubeconfig_path | dirname }}"
+    state: directory
+    mode: "0700"
+
+- name: Remind operator to place kubeconfig
+  ansible.builtin.debug:
+    msg: >-
+      After bootstrap, copy kubeconfig to {{ kubeconfig_path }}
+      (dhctl prints instructions; or scp from master:~/.kube/config).
+  when: existing_cluster.rc != 0 or deckhouse_bootstrap_force

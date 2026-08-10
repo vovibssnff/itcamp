@@ -1,0 +1,23 @@
+---
+# Copy to vault.yml and encrypt:
+#   cp vault.yml.example vault.yml
+#   ansible-vault encrypt vault.yml
+#
+# NEVER commit vault.yml unencrypted.
+
+vault_deckhouse_license: "REPLACE_ME"
+vault_os_username: "REPLACE_ME"
+vault_os_password: "REPLACE_ME"
+vault_os_project_id: "REPLACE_ME"
+
+vault_jwt_signing_key: "REPLACE_ME_GENERATE_64_BYTES_BASE64"
+vault_totp_encryption_key: "REPLACE_ME_GENERATE_32_BYTES_BASE64"
+vault_picodata_admin_password: "REPLACE_ME_STRONG_PASSWORD"
+
+vault_s3_access_key: "REPLACE_ME"
+vault_s3_secret_key: "REPLACE_ME"
+
+vault_ghcr_pat: "REPLACE_ME_GITHUB_PAT_read_packages"
+vault_dns_api_token: "" # only for DNS-01 / wildcard
+
+vault_nats_token: "" # optional NATS auth token

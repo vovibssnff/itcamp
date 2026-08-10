@@ -1,0 +1,16 @@
+apiVersion: deckhouse.io/v1
+kind: IngressNginxController
+metadata:
+  name: main
+spec:
+  ingressClass: nginx
+  inlet: LoadBalancer
+  loadBalancer:
+    annotations:
+      loadbalancer.openstack.org/floating-ip: "{{ ktc_ingress_fip }}"
+  config:
+    use-proxy-protocol: "false"
+    hsts: "true"
+    hsts-max-age: "31536000"
+  nodeSelector:
+    ktc.role: app

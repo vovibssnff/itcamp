@@ -1,0 +1,61 @@
+{{- if .Values.radix.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: radix
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: radix
+spec:
+  selector:
+    app.kubernetes.io/name: radix
+  ports:
+    - name: redis
+      port: 7379
+      targetPort: 7379
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: radix
+  namespace: {{ .Values.namespace }}
+spec:
+  serviceName: radix
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: radix
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: radix
+    spec:
+      nodeSelector:
+        ktc.role: db
+      containers:
+        - name: redis
+          image: {{ .Values.radix.image }}
+          args: ["redis-server", "--port", "7379", "--save", "60", "1", "--loglevel", "warning"]
+          ports:
+            - containerPort: 7379
+              name: redis
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "-p", "7379", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.radix.storageClassName }}
+        storageClassName: {{ .Values.radix.storageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.radix.storage }}
+{{- end }}

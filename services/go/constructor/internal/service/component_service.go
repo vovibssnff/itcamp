@@ -42,6 +42,7 @@ func (s *ComponentService) Create(ctx context.Context, c domain.ComponentType) (
 	if err := s.repo.Create(ctx, c); err != nil {
 		return domain.ComponentType{}, err
 	}
+	IncComponentCreated()
 	audit.Emit(ctx, s.log, "component.created", "id", c.ID)
 	return c, nil
 }

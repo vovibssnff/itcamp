@@ -28,6 +28,15 @@ func (v *TriggerValidator) ValidateScenario(sc domain.Scenario) error {
 }
 
 func (v *TriggerValidator) ValidateTrigger(t domain.Trigger) error {
+	if err := v.validateTrigger(t); err != nil {
+		IncTriggerValidation("invalid")
+		return err
+	}
+	IncTriggerValidation("valid")
+	return nil
+}
+
+func (v *TriggerValidator) validateTrigger(t domain.Trigger) error {
 	switch t.Type {
 	case domain.TriggerTime:
 		if t.AtModelTime == nil {

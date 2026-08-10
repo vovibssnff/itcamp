@@ -54,7 +54,9 @@ func (c *HTTPAssessmentClient) GetScore(ctx context.Context, sessionID string) (
 		return nil, fmt.Errorf("assessment get score: status %d", resp.StatusCode)
 	}
 	var result any
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("assessment get score: decode: %w", err)
+	}
 	return result, nil
 }
 

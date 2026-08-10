@@ -33,6 +33,7 @@ func (s *ReportService) Create(ctx context.Context, sessionID string, reportType
 	if err := s.repo.Create(ctx, rep); err != nil {
 		return domain.Report{}, err
 	}
+	IncReportCreated(string(rep.Type))
 	return rep, nil
 }
 
@@ -54,6 +55,7 @@ func (s *ReportService) ProcessTask(ctx context.Context, task domain.ReportTask)
 	data, err := s.collectSessionData(ctx, task.SessionID)
 	if err != nil {
 		_ = s.repo.UpdateStatus(ctx, task.ReportID, domain.StatusFailed, err.Error())
+		IncReportFailed()
 		return err
 	}
 
@@ -62,6 +64,7 @@ func (s *ReportService) ProcessTask(ctx context.Context, task domain.ReportTask)
 	pdfBytes, err := GeneratePDF(data)
 	if err != nil {
 		_ = s.repo.UpdateStatus(ctx, task.ReportID, domain.StatusFailed, err.Error())
+		IncReportFailed()
 		return err
 	}
 
@@ -70,8 +73,10 @@ func (s *ReportService) ProcessTask(ctx context.Context, task domain.ReportTask)
 	_ = storageKey
 
 	if err := s.repo.SetReady(ctx, task.ReportID, string(canonicalJSON), storageKey); err != nil {
+		IncReportFailed()
 		return err
 	}
+	IncReportGenerated()
 
 	s.log.Info("report generated", "report_id", task.ReportID, "session", task.SessionID)
 	return nil

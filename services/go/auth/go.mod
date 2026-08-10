@@ -9,6 +9,8 @@ require (
 	github.com/itcamp/ktc/shared/go v0.0.0
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/pquerna/otp v1.4.0
+	github.com/prometheus/client_golang v1.20.5
+	github.com/prometheus/client_model v0.6.1
 )
 
 replace github.com/itcamp/ktc/shared/go => ../shared
@@ -25,8 +27,6 @@ require (
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/prometheus/client_golang v1.20.5 // indirect
-	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	golang.org/x/crypto v0.21.0 // indirect

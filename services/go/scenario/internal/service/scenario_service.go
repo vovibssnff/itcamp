@@ -63,6 +63,7 @@ func (s *ScenarioService) Create(ctx context.Context, sc domain.Scenario) (domai
 	if err := s.repo.Create(ctx, sc); err != nil {
 		return domain.Scenario{}, err
 	}
+	IncScenarioCreated(string(sc.Type))
 	audit.Emit(ctx, s.log, "scenario.created", "id", sc.ID, "type", sc.Type)
 	return sc, nil
 }
@@ -74,6 +75,7 @@ func (s *ScenarioService) Update(ctx context.Context, sc domain.Scenario) (domai
 	if err := s.repo.Update(ctx, sc); err != nil {
 		return domain.Scenario{}, err
 	}
+	IncScenarioUpdated()
 	audit.Emit(ctx, s.log, "scenario.updated", "id", sc.ID)
 	return s.repo.GetByID(ctx, sc.ID)
 }
@@ -82,6 +84,7 @@ func (s *ScenarioService) Delete(ctx context.Context, id string) error {
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return err
 	}
+	IncScenarioDeleted()
 	audit.Emit(ctx, s.log, "scenario.deleted", "id", id)
 	return nil
 }
@@ -91,6 +94,7 @@ func (s *ScenarioService) Clone(ctx context.Context, id, newTemplateID string) (
 	if err != nil {
 		return domain.Scenario{}, err
 	}
+	IncScenarioCloned()
 	audit.Emit(ctx, s.log, "scenario.cloned", "source_id", id, "new_id", clone.ID, "template_id", newTemplateID)
 	return clone, nil
 }

@@ -42,7 +42,9 @@ func (c *HTTPSnapshotClient) Save(ctx context.Context, sessionID, name string, i
 		SnapshotID string `json:"snapshot_id"`
 		SHA256     string `json:"sha256"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", "", fmt.Errorf("snapshot save: decode: %w", err)
+	}
 	return result.SnapshotID, result.SHA256, nil
 }
 
@@ -63,7 +65,9 @@ func (c *HTTPSnapshotClient) Restore(ctx context.Context, snapshotID string) (do
 		SHA256Valid   bool            `json:"sha256_valid"`
 		SchemaVersion string          `json:"schema_version"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return domain.SimState{}, fmt.Errorf("snapshot restore: decode: %w", err)
+	}
 	state := result.PayloadJSON
 	if state.ModelTime == 0 {
 		state.ModelTime = result.ModelTime

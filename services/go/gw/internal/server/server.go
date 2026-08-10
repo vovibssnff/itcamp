@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"strings"
 
-	sharedmetrics "github.com/itcamp/ktc/shared/go/pkg/metrics"
 	"github.com/itcamp/ktc/services/gw/internal/auth"
 	"github.com/itcamp/ktc/services/gw/internal/config"
 	"github.com/itcamp/ktc/services/gw/internal/middleware"
 	"github.com/itcamp/ktc/services/gw/internal/proxy"
+	sharedmetrics "github.com/itcamp/ktc/shared/go/pkg/metrics"
 )
 
 type Deps struct {
@@ -50,8 +50,7 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 	for _, route := range d.Cfg.Routes {
 		proxyHandler := d.Registry.ProxyHandler(route)
 
-		var h http.Handler = proxyHandler
-		h = middleware.InjectHeaders(h)
+		h := middleware.InjectHeaders(proxyHandler)
 
 		if route.Auth {
 			h = middleware.AuthMiddleware(d.Auth, d.Log)(h)

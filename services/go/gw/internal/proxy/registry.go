@@ -28,6 +28,7 @@ func NewRegistry(upstreams map[string]config.UpstreamConfig) (*Registry, error) 
 		}
 		proxy := httputil.NewSingleHostReverseProxy(target)
 		proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, err error) {
+			IncUpstreamError(name)
 			http.Error(w, `{"error":"upstream unavailable","code":"upstream_unavailable"}`, http.StatusBadGateway)
 		}
 		r.upstreams[name] = proxy
@@ -55,6 +56,8 @@ func (r *Registry) ProxyHandler(route config.RouteConfig) http.Handler {
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		IncProxiedRequest(route.Upstream)
+
 		if route.StripPrefix != "" {
 			req.URL.Path = strings.TrimPrefix(req.URL.Path, route.StripPrefix)
 			if !strings.HasPrefix(req.URL.Path, "/") {

@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 import threading
-from typing import Callable
+from collections.abc import Callable
 
 
 def _configure_logging() -> None:
@@ -37,7 +36,12 @@ def _serve_rest(app) -> Callable[[], int]:
     from .config import get_settings
 
     settings = get_settings()
-    return lambda: uvicorn.run(create_app(app), host="0.0.0.0", port=settings.rest_port)
+
+    def _run() -> int:
+        uvicorn.run(create_app(app), host="0.0.0.0", port=settings.rest_port)
+        return 0
+
+    return _run
 
 
 def main(argv: list[str] | None = None) -> int:

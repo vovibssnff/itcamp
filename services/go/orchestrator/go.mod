@@ -7,6 +7,8 @@ require (
 	github.com/itcamp/ktc/shared/go v0.0.0
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/nats-io/nats.go v1.36.0
+	github.com/prometheus/client_golang v1.20.5
+	github.com/prometheus/client_model v0.6.1
 	github.com/redis/go-redis/v9 v9.6.1
 	nhooyr.io/websocket v1.8.11
 )
@@ -24,8 +26,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nats-io/nkeys v0.4.7 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
-	github.com/prometheus/client_golang v1.20.5 // indirect
-	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	golang.org/x/crypto v0.18.0 // indirect

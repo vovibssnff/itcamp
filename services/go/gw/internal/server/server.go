@@ -50,8 +50,7 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 	for _, route := range d.Cfg.Routes {
 		proxyHandler := d.Registry.ProxyHandler(route)
 
-		var h http.Handler = proxyHandler
-		h = middleware.InjectHeaders(h)
+		h := middleware.InjectHeaders(proxyHandler)
 
 		if route.Auth {
 			h = middleware.AuthMiddleware(d.Auth, d.Log)(h)

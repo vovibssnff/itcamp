@@ -56,15 +56,18 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.25'
           cache-dependency-path: ${{ matrix.workdir }}/go.sum
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.64.8
+          version: v2.12.2
           working-directory: ${{ matrix.workdir }}
           args: --config=${{ github.workspace }}/.golangci.yml
+
+      - name: golangci-lint fmt (gofmt/goimports)
+        run: golangci-lint fmt --config=${{ github.workspace }}/.golangci.yml --diff ./...
 
       - name: Test
         run: go test ./...

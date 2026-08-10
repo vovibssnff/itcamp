@@ -50,12 +50,12 @@ func TestBizMetrics_SessionCreatedByMode(t *testing.T) {
 
 func TestBizMetrics_PlainCounters(t *testing.T) {
 	counts := map[string]float64{
-		"orchestrator_sessions_started_total":   0,
-		"orchestrator_sessions_stopped_total":   0,
-		"orchestrator_sessions_paused_total":    0,
+		"orchestrator_sessions_started_total":    0,
+		"orchestrator_sessions_stopped_total":    0,
+		"orchestrator_sessions_paused_total":     0,
 		"orchestrator_checkpoints_created_total": 0,
-		"orchestrator_operator_actions_total":   0,
-		"orchestrator_faults_injected_total":    0,
+		"orchestrator_operator_actions_total":    0,
+		"orchestrator_faults_injected_total":     0,
 	}
 	for name := range counts {
 		counts[name] = counterValue(t, name, map[string]string{})
@@ -69,12 +69,12 @@ func TestBizMetrics_PlainCounters(t *testing.T) {
 	IncFaultInjected()
 
 	deltas := map[string]float64{
-		"orchestrator_sessions_started_total":   counterValue(t, "orchestrator_sessions_started_total", map[string]string{}) - counts["orchestrator_sessions_started_total"],
-		"orchestrator_sessions_stopped_total":   counterValue(t, "orchestrator_sessions_stopped_total", map[string]string{}) - counts["orchestrator_sessions_stopped_total"],
-		"orchestrator_sessions_paused_total":    counterValue(t, "orchestrator_sessions_paused_total", map[string]string{}) - counts["orchestrator_sessions_paused_total"],
+		"orchestrator_sessions_started_total":    counterValue(t, "orchestrator_sessions_started_total", map[string]string{}) - counts["orchestrator_sessions_started_total"],
+		"orchestrator_sessions_stopped_total":    counterValue(t, "orchestrator_sessions_stopped_total", map[string]string{}) - counts["orchestrator_sessions_stopped_total"],
+		"orchestrator_sessions_paused_total":     counterValue(t, "orchestrator_sessions_paused_total", map[string]string{}) - counts["orchestrator_sessions_paused_total"],
 		"orchestrator_checkpoints_created_total": counterValue(t, "orchestrator_checkpoints_created_total", map[string]string{}) - counts["orchestrator_checkpoints_created_total"],
-		"orchestrator_operator_actions_total":   counterValue(t, "orchestrator_operator_actions_total", map[string]string{}) - counts["orchestrator_operator_actions_total"],
-		"orchestrator_faults_injected_total":    counterValue(t, "orchestrator_faults_injected_total", map[string]string{}) - counts["orchestrator_faults_injected_total"],
+		"orchestrator_operator_actions_total":    counterValue(t, "orchestrator_operator_actions_total", map[string]string{}) - counts["orchestrator_operator_actions_total"],
+		"orchestrator_faults_injected_total":     counterValue(t, "orchestrator_faults_injected_total", map[string]string{}) - counts["orchestrator_faults_injected_total"],
 	}
 	for name, delta := range deltas {
 		if delta != 1 {

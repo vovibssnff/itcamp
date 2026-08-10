@@ -1,0 +1,197 @@
+{
+  "uid": "ktc-services-business",
+  "title": "KTC Services Business Metrics",
+  "tags": ["ktc", "business"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "editable": true,
+  "time": { "from": "now-30m", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "label": "Data source",
+        "current": { "text": "Prometheus", "value": "Prometheus" }
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(http_requests_total{job=\"ktc-app\"}, instance)",
+        "label": "Instance",
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Constructor: templates created (by status)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum by (status) (rate(constructor_templates_created_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "created {{status}}" },
+        { "expr": "sum(rate(constructor_templates_updated_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "updated" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Constructor: deletions & validations",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum by (force) (rate(constructor_templates_deleted_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "deleted force={{force}}" },
+        { "expr": "sum by (result) (rate(constructor_template_validations_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "validation {{result}}" },
+        { "expr": "sum(rate(constructor_components_created_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "components created" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Scenario: creations & trigger validations",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 7 },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum by (type) (rate(scenario_scenarios_created_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "created {{type}}" },
+        { "expr": "sum(rate(scenario_scenarios_updated_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "updated" },
+        { "expr": "sum(rate(scenario_scenarios_cloned_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "cloned" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Scenario: trigger validation results",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 7 },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum by (result) (rate(scenario_trigger_validations_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "{{result}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Assessment: sessions & events",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 14 },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum(rate(assessment_sessions_started_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "sessions started" },
+        { "expr": "sum by (type) (rate(assessment_events_processed_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "events {{type}}" },
+        { "expr": "sum(rate(assessment_overrides_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "overrides" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Assessment: finalized by verdict",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 14 },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum by (verdict) (rate(assessment_sessions_finalized_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "{{verdict}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Orchestrator: sessions lifecycle",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 21 },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum by (mode) (rate(orchestrator_sessions_created_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "created {{mode}}" },
+        { "expr": "sum(rate(orchestrator_sessions_started_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "started" },
+        { "expr": "sum(rate(orchestrator_sessions_stopped_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "stopped" },
+        { "expr": "sum(rate(orchestrator_sessions_paused_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "paused" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Orchestrator: faults, checkpoints, actions",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 21 },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum(rate(orchestrator_faults_injected_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "faults injected" },
+        { "expr": "sum(rate(orchestrator_checkpoints_created_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "checkpoints" },
+        { "expr": "sum(rate(orchestrator_sessions_restored_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "restored" },
+        { "expr": "sum(rate(orchestrator_operator_actions_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "operator actions" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Snapshot: save / restore",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 28 },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum by (preset) (rate(snapshot_snapshots_saved_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "saved preset={{preset}}" },
+        { "expr": "sum(rate(snapshot_snapshots_restored_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "restored" },
+        { "expr": "sum(rate(snapshot_restore_sha_invalid_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "sha invalid" },
+        { "expr": "sum(rate(snapshot_snapshots_deleted_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "deleted" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Report: generated / failed",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 28 },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum by (type) (rate(report_reports_created_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "created {{type}}" },
+        { "expr": "sum(rate(report_reports_generated_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "generated" },
+        { "expr": "sum(rate(report_reports_failed_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "failed" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "GW: proxied requests & upstream errors",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 35 },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "targets": [
+        { "expr": "sum by (upstream) (rate(gw_proxied_requests_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "proxy {{upstream}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "GW: upstream errors",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 35 },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum by (upstream) (rate(gw_upstream_errors_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "err {{upstream}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Auth: logins by result",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 42 },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum by (result) (rate(auth_logins_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "login {{result}}" },
+        { "expr": "sum by (result) (rate(auth_refreshes_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "refresh {{result}}" },
+        { "expr": "sum(rate(auth_users_created_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "users created" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Auth: MFA activity",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 42 },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum by (result) (rate(auth_mfa_verifications_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "verify {{result}}" },
+        { "expr": "sum(rate(auth_mfa_enabled_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "mfa enabled" },
+        { "expr": "sum(rate(auth_mfa_disabled_total{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "mfa disabled" }
+      ]
+    }
+  ],
+  "nav": [ { "type": "timepicker" } ]
+}

@@ -116,7 +116,6 @@ function EquipmentIcon({
     }
 
     case 'vessel':
-    case 'tank':
       return (
         <>
           <VesselBody

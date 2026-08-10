@@ -256,6 +256,7 @@ export function HmiCanvas({
             <ValveWidget
               key={node.id}
               node={node}
+              shape="valve"
               telemetry={telemetry}
               isSelected={selectedNodeId === node.id}
               onClick={() => handleNodeClick(node)}

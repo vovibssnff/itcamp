@@ -74,7 +74,7 @@ export function EloudAvtScheme({
     x: number
     y: number
     children: string
-    anchor?: string
+    anchor?: 'start' | 'middle' | 'end' | 'inherit'
   }) {
     return (
       <text

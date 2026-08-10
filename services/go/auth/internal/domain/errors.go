@@ -18,4 +18,5 @@ var (
 	ErrLoginTaken         = errors.New("login already taken")
 	ErrPasswordPolicy     = errors.New("password does not meet policy")
 	ErrLDAPUnavailable    = errors.New("ldap is unavailable")
+	ErrForbidden          = errors.New("forbidden")
 )

@@ -26,8 +26,12 @@ func Auth(intro *service.IntrospectService) func(http.Handler) http.Handler {
 				return
 			}
 
+			roles := make([]string, 0, len(res.Claims.Roles))
+			for _, role := range res.Claims.Roles {
+				roles = append(roles, string(role))
+			}
 			ctx := context.WithValue(r.Context(), CtxUserID, res.Claims.UserID)
-			ctx = context.WithValue(ctx, CtxRoles, res.Claims.Roles)
+			ctx = context.WithValue(ctx, CtxRoles, roles)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

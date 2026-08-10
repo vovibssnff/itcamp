@@ -67,3 +67,21 @@ func ContextValue(ctx context.Context, key ctxKey) string {
 func ContextUserID(ctx context.Context) string {
 	return ContextValue(ctx, CtxUserID)
 }
+
+// ContextRoles returns the roles placed in context by Auth middleware.
+func ContextRoles(ctx context.Context) []string {
+	if v, ok := ctx.Value(CtxRoles).([]string); ok {
+		return v
+	}
+	return nil
+}
+
+// HasRole reports whether roles contain the given role name.
+func HasRole(roles []string, role string) bool {
+	for _, r := range roles {
+		if r == role {
+			return true
+		}
+	}
+	return false
+}

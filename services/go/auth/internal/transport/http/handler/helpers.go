@@ -59,6 +59,8 @@ func mapError(err error) (int, string) {
 		return http.StatusBadRequest, "password_policy"
 	case errors.Is(err, domain.ErrLDAPUnavailable):
 		return http.StatusServiceUnavailable, "ldap_unavailable"
+	case errors.Is(err, domain.ErrForbidden):
+		return http.StatusForbidden, "forbidden"
 	default:
 		return http.StatusInternalServerError, "internal"
 	}

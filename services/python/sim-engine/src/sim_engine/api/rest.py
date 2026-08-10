@@ -228,6 +228,10 @@ def create_app(application: Application | None = None) -> FastAPI:
         except KeyError as exc:
             metrics.command(cmd.type, "unknown_target")
             raise HTTPException(status_code=404, detail=str(exc)) from None
+        except ValueError as exc:
+            # Неподдерживаемый тип команды: CommandType(cmd.type) -> ValueError.
+            metrics.command(cmd.type, "invalid_type")
+            raise HTTPException(status_code=400, detail=str(exc)) from None
         return {"ok": True}
 
     @app.get("/v1/faults")

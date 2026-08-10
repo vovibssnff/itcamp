@@ -101,6 +101,11 @@ export interface CanvasTokens {
   readout: string
   valveOpen: string
   valveClosed: string
+  /** Piping/equipment outline strokes (matches ktk.html P&ID-style mnemonic). */
+  line: string
+  lineDim: string
+  vesselFrom: string
+  vesselTo: string
 }
 
 export const canvasTokensDark: CanvasTokens = {
@@ -141,6 +146,10 @@ export const canvasTokensDark: CanvasTokens = {
   readout: '#08090a',
   valveOpen: '#7fd18f',
   valveClosed: '#ff4a4a',
+  line: '#8a9096',
+  lineDim: '#4e545a',
+  vesselFrom: '#1c1f23',
+  vesselTo: '#0e1013',
 }
 
 /** Light-theme mirror of the canvas palette (derived from html[data-theme="light"]). */
@@ -182,6 +191,10 @@ export const canvasTokensLight: CanvasTokens = {
   readout: '#eef0ee',
   valveOpen: '#4f9e63',
   valveClosed: '#d23b3b',
+  line: '#6a7076',
+  lineDim: '#9aa0a6',
+  vesselFrom: '#ffffff',
+  vesselTo: '#e7e8e6',
 }
 
 /** Resolve the canvas palette for a given theme (use outside React). */

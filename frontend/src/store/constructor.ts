@@ -12,6 +12,8 @@ export interface CanvasNode {
   parameters: Record<string, unknown>
   data?: Record<string, unknown>
   validationErrors?: string[]
+  /** Telemetry tags physically read out at this node (e.g. ['LI-301'] for a level gauge on a vessel). */
+  tags?: string[]
 }
 
 export interface CanvasEdge {

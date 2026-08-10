@@ -80,7 +80,7 @@ export const router = createBrowserRouter([
       {
         path: 'components',
         element: (
-          <RoleGuard roles={['instructor', 'admin']}>
+          <RoleGuard roles={['admin']}>
             <Lazy>
               <ComponentLibraryScreen />
             </Lazy>

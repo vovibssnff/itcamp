@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router'
 import { useAuthStore } from '@/store/auth'
 
 interface NavCard {
-  num: string
   title: string
   desc: string
   path: string
@@ -11,31 +10,21 @@ interface NavCard {
 
 const INSTRUCTOR_CARDS: NavCard[] = [
   {
-    num: '01',
-    title: 'Шаблоны',
-    desc: 'Конструктор схем КТК — создание и редактирование технологических шаблонов',
+    title: 'Установки',
+    desc: 'Конструктор технологических схем — создание и редактирование установок КТК',
     path: '/templates',
   },
   {
-    num: '02',
-    title: 'Компоненты',
-    desc: 'Библиотека компонентов КТК для построения технологических схем',
-    path: '/components',
-  },
-  {
-    num: '03',
     title: 'Сценарии',
     desc: 'Управление сценариями обучения: создание, настройка неисправностей и критериев оценки',
     path: '/scenarios',
   },
   {
-    num: '04',
     title: 'Сессии',
     desc: 'Консоль инструктора — запуск и наблюдение за сессиями обучения и аттестации',
     path: '/sessions',
   },
   {
-    num: '05',
     title: 'Отчёты',
     desc: 'Результаты завершённых сессий — оценки, детальный анализ действий оператора',
     path: '/reports',
@@ -44,17 +33,21 @@ const INSTRUCTOR_CARDS: NavCard[] = [
 
 const ADMIN_EXTRA: NavCard[] = [
   {
-    num: '06',
     title: 'Пользователи',
     desc: 'Управление учётными записями, ролями и правами доступа',
     path: '/admin/users',
     roles: ['admin'],
   },
   {
-    num: '07',
     title: 'Система',
     desc: 'Системные настройки, мониторинг состояния сервисов и конфигурация',
     path: '/admin/system',
+    roles: ['admin'],
+  },
+  {
+    title: 'Компоненты',
+    desc: 'Библиотека типов компонентов КТК для построения технологических схем',
+    path: '/components',
     roles: ['admin'],
   },
 ]
@@ -92,7 +85,7 @@ export default function HomeScreen() {
             style={{ animationDelay: `${0.05 + i * 0.04}s` }}
             onClick={() => void navigate(card.path)}
           >
-            <span className="row-num">{card.num}</span>
+            <span className="row-num">{String(i + 1).padStart(2, '0')}</span>
             <div className="row-body">
               <div className="row-title">{card.title}</div>
               <div className="row-desc">{card.desc}</div>

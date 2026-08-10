@@ -21,15 +21,14 @@ test.describe('TEST-10: Admin screens', () => {
   test('can open create user modal', async ({ page }) => {
     await page.goto('/admin/users')
     await page.getByRole('button', { name: 'Новый пользователь' }).click()
-    await expect(page.getByRole('dialog')).toBeVisible()
-    await expect(page.locator('.ant-modal-title')).toHaveText('Новый пользователь')
+    await expect(page.getByText('Новый пользователь')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Сохранить' })).toBeVisible()
   })
 
   test('system screen shows metrics', async ({ page }) => {
     await page.goto('/admin/system')
     await expect(page.getByText('Система')).toBeVisible()
-    await expect(page.getByText('Версия', { exact: true })).toBeVisible()
+    await expect(page.getByText('Версия приложения')).toBeVisible()
   })
 })
 

@@ -1,6 +1,7 @@
 import { useParams } from 'react-router'
 import { useRef, useEffect, useState } from 'react'
 import { HmiCanvas } from '@/canvas/hmi/HmiCanvas'
+import { EloudAvtScheme } from '@/canvas/hmi/EloudAvtScheme'
 import { AlarmBanner } from '@/components/alarms/AlarmBanner'
 import { TrendPanel } from '@/components/trends/TrendPanel'
 import { useWebSocket } from '@/hooks/useWebSocket'
@@ -57,15 +58,24 @@ export default function SessionObserveScreen() {
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <div ref={containerRef} style={{ flex: 1, overflow: 'hidden' }}>
-          <HmiCanvas
-            nodes={template.nodes}
-            edges={template.edges}
-            componentTypes={COMPONENT_TYPES}
-            telemetry={telemetry}
-            width={canvasSize.w}
-            height={canvasSize.h}
-            interactive={false}
-          />
+          {template.scheme === 'elou-avt' ? (
+            <EloudAvtScheme
+              telemetry={telemetry}
+              interactive={false}
+              flowing={status === 'running'}
+            />
+          ) : (
+            <HmiCanvas
+              nodes={template.nodes}
+              edges={template.edges}
+              componentTypes={COMPONENT_TYPES}
+              telemetry={telemetry}
+              width={canvasSize.w}
+              height={canvasSize.h}
+              interactive={false}
+              flowing={status === 'running'}
+            />
+          )}
         </div>
 
         <div className="side" style={{ width: 320 }}>

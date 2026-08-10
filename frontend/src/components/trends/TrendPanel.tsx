@@ -34,7 +34,7 @@ const ZONE_COLORS_LIGHT = [
   '#5fa267',
 ]
 
-const INITIAL_TAGS = ['TI-201', 'TI-202', 'PI-101', 'LI-301', 'FI-101', 'AI-401']
+const INITIAL_TAGS = ['FI-101', 'TI-101', 'LI-101', 'PI-102', 'TI-105', 'LI-102']
 
 interface SparklineRowProps {
   label: string

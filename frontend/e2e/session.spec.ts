@@ -22,10 +22,10 @@ test.describe('TEST-03 / TEST-04: Session lifecycle', () => {
     await expect(page.getByText('Наблюдение')).toBeVisible()
   })
 
-  test('observe screen shows HMI canvas', async ({ page }) => {
+  test('observe screen shows HMI mnemonic', async ({ page }) => {
     await page.goto('/sessions/sess-001/observe')
-    // Konva mounts multiple canvas layers — any one is enough
-    await expect(page.locator('canvas').first()).toBeVisible()
+    await expect(page.locator('svg').first()).toBeVisible()
+    await expect(page.getByText('К-1').first()).toBeVisible()
   })
 })
 
@@ -36,7 +36,7 @@ test.describe('TEST-05: Operator training session', () => {
 
   test('operator can enter training screen', async ({ page }) => {
     await page.goto('/sessions/sess-001/operator')
-    await expect(page.locator('canvas').first()).toBeVisible()
+    await expect(page.locator('svg').first()).toBeVisible()
   })
 
   test('training screen shows start control', async ({ page }) => {

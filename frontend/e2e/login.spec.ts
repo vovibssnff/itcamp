@@ -4,8 +4,8 @@ test.describe('TEST-01: Login flow', () => {
   test('shows login screen on first visit', async ({ page }) => {
     await page.goto('/')
     await expect(page).toHaveURL(/\/login/)
-    await expect(page.getByText('КТК ЭЛОУ-АВТ · Тренажёрный комплекс')).toBeVisible()
-    await expect(page.getByText('ЭЛОУ-АВТ / КТК')).toBeVisible()
+    await expect(page.getByText('Тренажёрный комплекс').first()).toBeVisible()
+    await expect(page.getByText('Авторизация')).toBeVisible()
   })
 
   test('login as operator with correct credentials', async ({ page }) => {
@@ -37,7 +37,6 @@ test.describe('TEST-01: Login flow', () => {
     await page.getByPlaceholder('Ivanov.II').fill('wrong')
     await page.getByPlaceholder('••••••••').fill('wrong')
     await page.getByRole('button', { name: /Войти/ }).click()
-    // Should stay on login page
     await expect(page).toHaveURL(/\/login/)
   })
 

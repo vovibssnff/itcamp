@@ -1,9 +1,10 @@
-import React, { useRef, useState, useCallback } from 'react'
-import { Stage, Layer, Rect, Text, Line } from 'react-konva'
-import type Konva from 'konva'
+import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
+import { Stage, Layer, Rect, Text, Line, Circle, Arrow } from 'react-konva'
+import Konva from 'konva'
 import type { CanvasNode, CanvasEdge } from '@/store/constructor'
 import type { TagValue } from '@/store/session'
 import { NodeWidget, ValveWidget } from './NodeWidget'
+import { getNodeSize, getInAnchor, getOutAnchor } from './nodeGeometry'
 import { useCanvasTokens } from '@/theme/useCanvasTokens'
 import type { ComponentType } from '@/mocks/fixtures/components'
 
@@ -15,8 +16,12 @@ interface HmiCanvasProps {
   width: number
   height: number
   interactive?: boolean
+  /** Animate a marching-dash flow indicator along pipe runs (session running). */
+  flowing?: boolean
   onNodeClick?: (node: CanvasNode) => void
 }
+
+const DOT_SPACING = 26
 
 export function HmiCanvas({
   nodes,
@@ -26,9 +31,11 @@ export function HmiCanvas({
   width,
   height,
   interactive = true,
+  flowing = false,
   onNodeClick,
 }: HmiCanvasProps) {
   const canvasTokens = useCanvasTokens()
+  const edgesLayerRef = useRef<Konva.Layer>(null)
 
   const ZONE_AREAS = [
     {
@@ -98,11 +105,45 @@ export function HmiCanvas({
     onNodeClick?.(node)
   }
 
-  // Determine if a node is a valve (has valve shape in component type)
-  function isValve(node: CanvasNode) {
-    const ct = componentTypes.find((c) => c.id === node.typeId)
-    return ct?.shape === 'valve'
+  function shapeOf(node: CanvasNode) {
+    return componentTypes.find((c) => c.id === node.typeId)?.shape
   }
+
+  // Marching-dash flow indicator on active pipe runs (reference idea: animated
+  // flow direction on live pipes, reimplemented here as a Konva.Animation
+  // ticking each pipe's dashOffset rather than mutating React state per frame).
+  useEffect(() => {
+    if (!flowing) return
+    const layer = edgesLayerRef.current
+    if (!layer) return
+    const anim = new Konva.Animation((frame) => {
+      if (!frame) return
+      const shapes = layer.find('.pipe-flow')
+      shapes.forEach((shape) => {
+        const arrow = shape as Konva.Arrow
+        arrow.dashOffset(arrow.dashOffset() - frame.timeDiff * 0.03)
+      })
+    }, layer)
+    anim.start()
+    return () => {
+      anim.stop()
+    }
+  }, [flowing])
+
+  // Dot grid background (reference: ktk.html `.bg-grid` / `hmiGrid` pattern)
+  const dots = useMemo(() => {
+    const pts: { x: number; y: number }[] = []
+    const cols = Math.ceil(width / zoom / DOT_SPACING) + 2
+    const rows = Math.ceil(height / zoom / DOT_SPACING) + 2
+    const startX = Math.floor(-pan.x / DOT_SPACING) * DOT_SPACING
+    const startY = Math.floor(-pan.y / DOT_SPACING) * DOT_SPACING
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        pts.push({ x: startX + c * DOT_SPACING, y: startY + r * DOT_SPACING })
+      }
+    }
+    return pts
+  }, [width, height, zoom, pan.x, pan.y])
 
   return (
     <Stage
@@ -129,25 +170,46 @@ export function HmiCanvas({
           fill={canvasTokens.bg.canvas}
         />
 
-        {/* Zone separators */}
+        {dots.map((d, i) => (
+          <Circle key={i} x={d.x} y={d.y} radius={1} fill={canvasTokens.gridDot} />
+        ))}
+
+        {/* Zone panels — full-height tinted area with a border box and eyebrow label */}
         {ZONE_AREAS.map((zone, i) => {
           const x = zone.x1 * (width / zoom) - pan.x
           const zoneWidth = (zone.x2 - zone.x1) * (width / zoom)
+          const y = -pan.y
+          const h = height / zoom
           return (
             <React.Fragment key={zone.id}>
-              <Rect x={x} y={-pan.y} width={zoneWidth} height={24} fill={zone.color + '1a'} />
+              <Rect x={x} y={y} width={zoneWidth} height={h} fill={zone.color + '0d'} />
+              <Rect
+                x={x}
+                y={y}
+                width={zoneWidth}
+                height={h}
+                stroke={zone.color + '59'}
+                strokeWidth={1}
+                listening={false}
+              />
+              <Rect x={x + 10} y={y + 10} width={6} height={6} fill={zone.color} />
               <Text
-                x={x + 8}
-                y={-pan.y + 6}
+                x={x + 22}
+                y={y + 8}
                 text={zone.label}
                 fontSize={9}
                 fill={zone.color}
                 fontFamily={canvasTokens.font.mono}
                 letterSpacing={1}
               />
+              <Line
+                points={[x + 10, y + 22, x + zoneWidth - 10, y + 22]}
+                stroke={zone.color + '4d'}
+                strokeWidth={1}
+              />
               {i > 0 && (
                 <Line
-                  points={[x, -pan.y, x, height / zoom - pan.y]}
+                  points={[x, y, x, y + h]}
                   stroke={zone.color + '40'}
                   strokeWidth={1}
                   dash={[4, 4]}
@@ -158,24 +220,29 @@ export function HmiCanvas({
         })}
       </Layer>
 
-      {/* Edges */}
-      <Layer listening={false}>
+      {/* Edges — orthogonal pipe runs with a flow-direction arrowhead */}
+      <Layer listening={false} ref={edgesLayerRef}>
         {edges.map((edge) => {
           const src = nodes.find((n) => n.id === edge.sourceNodeId)
           const dst = nodes.find((n) => n.id === edge.targetNodeId)
           if (!src || !dst) return null
-          const x1 = src.x + 80
-          const y1 = src.y + 30
-          const x2 = dst.x
-          const y2 = dst.y + 30
+          const srcSize = getNodeSize(shapeOf(src))
+          const dstSize = getNodeSize(shapeOf(dst))
+          const { x: x1, y: y1 } = getOutAnchor(src.x, src.y, srcSize)
+          const { x: x2, y: y2 } = getInAnchor(dst.x, dst.y, dstSize)
           const cpx = (x1 + x2) / 2
           return (
-            <Line
+            <Arrow
               key={edge.id}
+              name={flowing ? 'pipe-flow' : undefined}
               points={[x1, y1, cpx, y1, cpx, y2, x2, y2]}
-              stroke={canvasTokens.border.medium}
-              strokeWidth={2}
+              stroke={canvasTokens.line}
+              fill={canvasTokens.line}
+              strokeWidth={1.5}
+              pointerLength={7}
+              pointerWidth={6}
               tension={0}
+              dash={flowing ? [8, 6] : undefined}
             />
           )
         })}
@@ -183,11 +250,13 @@ export function HmiCanvas({
 
       {/* Nodes */}
       <Layer>
-        {nodes.map((node) =>
-          isValve(node) ? (
+        {nodes.map((node) => {
+          const shape = shapeOf(node)
+          return shape === 'valve' ? (
             <ValveWidget
               key={node.id}
               node={node}
+              shape="valve"
               telemetry={telemetry}
               isSelected={selectedNodeId === node.id}
               onClick={() => handleNodeClick(node)}
@@ -197,13 +266,14 @@ export function HmiCanvas({
             <NodeWidget
               key={node.id}
               node={node}
+              shape={shape}
               telemetry={telemetry}
               isSelected={selectedNodeId === node.id}
               onClick={() => handleNodeClick(node)}
               interactive={interactive}
             />
-          ),
-        )}
+          )
+        })}
       </Layer>
     </Stage>
   )

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { Modal } from 'antd'
 import { HmiCanvas } from '@/canvas/hmi/HmiCanvas'
+import { EloudAvtScheme } from '@/canvas/hmi/EloudAvtScheme'
 import { Faceplate } from '@/canvas/hmi/Faceplate'
 import { AlarmBanner } from '@/components/alarms/AlarmBanner'
 import { FloatingAiChat } from '@/components/ai/FloatingAiChat'
@@ -143,23 +144,37 @@ export default function ExamScreen() {
       </div>
 
       <div ref={containerRef} style={{ flex: 1, overflow: 'hidden' }}>
-        <HmiCanvas
-          nodes={template.nodes}
-          edges={template.edges}
-          componentTypes={COMPONENT_TYPES}
-          telemetry={telemetry}
-          width={canvasSize.w}
-          height={canvasSize.h}
-          interactive={true}
-          onNodeClick={(node) => {
-            setSelectedNode(node)
-            setFaceplateOpen(true)
-          }}
-        />
+        {template.scheme === 'elou-avt' ? (
+          <EloudAvtScheme
+            telemetry={telemetry}
+            interactive
+            flowing
+            onNodeClick={(node) => {
+              setSelectedNode(node)
+              setFaceplateOpen(true)
+            }}
+          />
+        ) : (
+          <HmiCanvas
+            nodes={template.nodes}
+            edges={template.edges}
+            componentTypes={COMPONENT_TYPES}
+            telemetry={telemetry}
+            width={canvasSize.w}
+            height={canvasSize.h}
+            interactive={true}
+            flowing
+            onNodeClick={(node) => {
+              setSelectedNode(node)
+              setFaceplateOpen(true)
+            }}
+          />
+        )}
       </div>
 
       <Faceplate
         node={selectedNode}
+        componentTypes={COMPONENT_TYPES}
         open={faceplateOpen}
         onClose={() => setFaceplateOpen(false)}
         telemetry={telemetry}

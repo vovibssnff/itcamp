@@ -9,7 +9,6 @@ test.describe('TEST-06 / TEST-07: Exam flow', () => {
   test('exam screen shows title and timer', async ({ page }) => {
     await page.goto('/sessions/sess-001/exam')
     await expect(page.getByText('Квалификационный экзамен')).toBeVisible()
-    // Timer format MM:SS
     await expect(
       page
         .locator('span')
@@ -23,9 +22,11 @@ test.describe('TEST-06 / TEST-07: Exam flow', () => {
     await expect(page.getByRole('button', { name: 'Завершить' })).toBeVisible()
   })
 
-  test('exam has HMI canvas', async ({ page }) => {
+  test('exam has HMI mnemonic', async ({ page }) => {
     await page.goto('/sessions/sess-001/exam')
-    await expect(page.locator('canvas').first()).toBeVisible()
+    // Default template uses the SVG ЭЛОУ-АВТ scheme (not Konva canvas)
+    await expect(page.locator('svg').first()).toBeVisible()
+    await expect(page.getByText('К-1').first()).toBeVisible()
   })
 
   test('exam finish button triggers confirmation', async ({ page }) => {
@@ -47,7 +48,6 @@ test.describe('TEST-08 / TEST-09: Report and replay', () => {
   test('report screen shows score', async ({ page }) => {
     await page.goto('/reports/sess-002')
     await expect(page.getByText('Результаты обучения')).toBeVisible()
-    // Score value visible
     await expect(
       page
         .locator('div')

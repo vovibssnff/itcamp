@@ -63,7 +63,7 @@ export default function LoginScreen() {
                 flexShrink: 0,
               }}
             />
-            АВТОР · КТК ЭЛОУ-АВТ
+            АВТОР · Компьютерный тренажёрный комплекс
           </div>
 
           <div className="seg seg-mono">
@@ -88,9 +88,11 @@ export default function LoginScreen() {
           </div>
         </div>
 
-        <div style={{ padding: '48px 0' }}>
+        <div
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
+        >
           <div className="kick rise d1" style={{ marginBottom: 18 }}>
-            КТК ЭЛОУ-АВТ · Тренажёрный комплекс
+            Тренажёрный комплекс
           </div>
           <h1 className="auth-display rise d2">
             <span style={{ color: 'var(--acc)' }}>АВТ</span>ОР
@@ -99,21 +101,6 @@ export default function LoginScreen() {
             Компьютерный тренажёрный комплекс для подготовки операторов технологического процесса:
             мнемосхема установки, отработка нештатных ситуаций и разбор действий по регламенту.
           </p>
-        </div>
-
-        <div className="auth-meta rise d4">
-          <div>
-            <span>Установка</span>
-            <b>ЭЛОУ-АВТ / КТК</b>
-          </div>
-          <div>
-            <span>Платформа</span>
-            <b>Astra Linux SE 1.8</b>
-          </div>
-          <div>
-            <span>Аутентификация</span>
-            <b>Корпоративный LDAP</b>
-          </div>
         </div>
       </div>
 
@@ -174,10 +161,6 @@ export default function LoginScreen() {
             >
               {loading ? '...' : 'Войти в тренажёр'}
             </button>
-          </div>
-
-          <div className="note rise d6" style={{ marginTop: 18, fontSize: 11 }}>
-            Доступ фиксируется в журнале безопасности. Учётные данные — корпоративные.
           </div>
         </div>
       </div>

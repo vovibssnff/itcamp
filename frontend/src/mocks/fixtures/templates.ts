@@ -9,6 +9,13 @@ export interface Template {
   nodes: CanvasNode[]
   edges: CanvasEdge[]
   isValid: boolean
+  /**
+   * Built-in hand-drawn mnemonic to render on the operator HMI instead of the
+   * generic constructor-driven canvas — used for the one default installation
+   * that ships with the trainer. Templates built via the constructor (no
+   * value here) always render through the generic `HmiCanvas`.
+   */
+  scheme?: 'elou-avt'
 }
 
 export const TEMPLATES: Template[] = [
@@ -19,6 +26,7 @@ export const TEMPLATES: Template[] = [
     createdAt: '2026-01-10T09:00:00Z',
     updatedAt: '2026-01-15T14:30:00Z',
     isValid: true,
+    scheme: 'elou-avt',
     nodes: [
       {
         id: 'n-desalter',
@@ -27,6 +35,7 @@ export const TEMPLATES: Template[] = [
         y: 200,
         label: 'ЭД-101',
         parameters: { temp: 120, pressure: 1.2, voltage: 25 },
+        tags: ['TI-101'],
       },
       {
         id: 'n-pump1',
@@ -35,6 +44,7 @@ export const TEMPLATES: Template[] = [
         y: 200,
         label: 'Н-101А',
         parameters: { flow_nominal: 120, head: 80, power: 55 },
+        tags: ['FI-101'],
       },
       {
         id: 'n-heatex',
@@ -59,6 +69,7 @@ export const TEMPLATES: Template[] = [
         y: 150,
         label: 'К-2',
         parameters: { temp_top: 120, temp_bot: 350, pressure: 0.15, trays: 42, reflux_ratio: 2.5 },
+        tags: ['TI-201', 'TI-202', 'PI-101', 'LI-201'],
       },
       {
         id: 'n-condenser',
@@ -75,6 +86,7 @@ export const TEMPLATES: Template[] = [
         y: 200,
         label: 'Е-301',
         parameters: { level_sp: 50 },
+        tags: ['LI-301', 'FI-301'],
       },
       {
         id: 'n-trc',

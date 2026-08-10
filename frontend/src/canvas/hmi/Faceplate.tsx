@@ -1,9 +1,13 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { CanvasNode } from '@/store/constructor'
 import type { TagValue, RegulatorState } from '@/store/session'
+import type { ComponentType } from '@/mocks/fixtures/components'
+import { getEquipmentReference } from './equipmentReference'
 
 interface FaceplateProps {
   node: CanvasNode | null
+  componentTypes: ComponentType[]
   open: boolean
   onClose: () => void
   telemetry: Record<string, TagValue>
@@ -13,6 +17,7 @@ interface FaceplateProps {
 
 export function Faceplate({
   node,
+  componentTypes,
   open,
   onClose,
   telemetry,
@@ -20,14 +25,17 @@ export function Faceplate({
   onSendCommand,
 }: FaceplateProps) {
   const { t } = useTranslation()
+  const [refOpen, setRefOpen] = useState(false)
 
   if (!open || !node) return null
 
   const nodeTag = node.label
   const regulator = regulators[nodeTag]
-  const tagValues = Object.values(telemetry).filter((tv) =>
-    tv.tag.startsWith(nodeTag.split('-')[0] ?? ''),
-  )
+  const tagValues = (node.tags ?? [])
+    .map((tag) => telemetry[tag])
+    .filter((tv): tv is TagValue => Boolean(tv))
+  const shape = componentTypes.find((c) => c.id === node.typeId)?.shape
+  const reference = getEquipmentReference(node.typeId, shape)
 
   return (
     <div className="scrim" onClick={onClose}>
@@ -162,6 +170,70 @@ export function Faceplate({
             >
               {t('faceplate.close')}
             </button>
+          </div>
+
+          {/* Справка — grounded in the real эксплуатационный регламент установки */}
+          <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--ln2)' }}>
+            <div
+              onClick={() => setRefOpen((o) => !o)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+              }}
+            >
+              <span className="sec">Справка по узлу</span>
+              <span className="sec">{refOpen ? '▴' : '▾'}</span>
+            </div>
+
+            {refOpen && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--tx)' }}>
+                  {reference.purpose}
+                </div>
+
+                {reference.safetyRules.length > 0 && (
+                  <div style={{ marginTop: 14 }}>
+                    <div className="sec" style={{ marginBottom: 6 }}>
+                      Меры безопасности
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {reference.safetyRules.map((rule, i) => (
+                        <li
+                          key={i}
+                          style={{ fontSize: 12.5, lineHeight: 1.55, color: 'var(--tx2)' }}
+                        >
+                          {rule}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {reference.failureConsequences.length > 0 && (
+                  <div className="box-alarm" style={{ marginTop: 14 }}>
+                    <div
+                      className="sec"
+                      style={{ marginBottom: 6, color: 'inherit', opacity: 0.85 }}
+                    >
+                      Возможные последствия отказа
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {reference.failureConsequences.map((item, i) => (
+                        <li key={i} style={{ lineHeight: 1.55 }}>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="note" style={{ marginTop: 12, fontSize: 11 }}>
+                  Источник: {reference.regulation}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

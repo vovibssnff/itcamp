@@ -10,7 +10,7 @@ const { Content } = Layout
 
 const ROUTE_LABELS: Record<string, string> = {
   '/home': 'Главная',
-  '/templates': 'Шаблоны',
+  '/templates': 'Установки',
   '/components': 'Компоненты',
   '/scenarios': 'Сценарии',
   '/sessions': 'Сессии',

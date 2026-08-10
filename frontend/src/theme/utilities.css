@@ -803,6 +803,18 @@ kbd {
   animation: pulseAlarm 1.2s ease-in-out infinite;
 }
 
+/* ─── ЭЛОУ-АВТ mnemonic — marching-dash flow indicator on live pipe runs ──── */
+@keyframes eloudFlow {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+
+.eloud-pipe-flow {
+  stroke-dasharray: 8 6;
+  animation: eloudFlow 0.6s linear infinite;
+}
+
 .alarm-banner-blink {
   animation: blinkBanner 1.5s ease-in-out infinite;
 }
@@ -896,7 +908,6 @@ kbd {
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   padding: 56px 60px;
   border-right: 1px solid var(--ln);
   overflow: hidden;

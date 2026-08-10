@@ -57,6 +57,7 @@ func (s *MFAService) Enable(ctx context.Context, userID, code string) error {
 		return err
 	}
 	s.audit.Log(ctx, AuditMFAEnabled, userID, "")
+	IncMFAEnabled()
 	return nil
 }
 
@@ -65,12 +66,14 @@ func (s *MFAService) Disable(ctx context.Context, userID string) error {
 		return err
 	}
 	s.audit.Log(ctx, AuditMFADisabled, userID, "")
+	IncMFADisabled()
 	return nil
 }
 
 func (s *MFAService) Verify(ctx context.Context, userID, code string) error {
 	rec, err := s.repo.Get(ctx, userID)
 	if err != nil {
+		IncMFAVerification("invalid")
 		return domain.ErrMFAInvalid
 	}
 	secret, err := s.totp.Decrypt(rec.SecretEnc)
@@ -78,8 +81,10 @@ func (s *MFAService) Verify(ctx context.Context, userID, code string) error {
 		return fmt.Errorf("decrypt mfa: %w", err)
 	}
 	if !s.totp.Validate(code, secret) {
+		IncMFAVerification("invalid")
 		return domain.ErrMFAInvalid
 	}
+	IncMFAVerification("valid")
 	return nil
 }
 

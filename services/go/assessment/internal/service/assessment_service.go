@@ -57,6 +57,7 @@ func (s *AssessmentService) loadScenario(ctx context.Context, sessionID, scenari
 	s.mu.Lock()
 	s.sessions[sessionID] = state
 	s.mu.Unlock()
+	IncAssessmentSessionStarted()
 	return nil
 }
 
@@ -80,6 +81,7 @@ func (s *AssessmentService) ProcessEvent(ctx context.Context, event domain.Asses
 	case "alarm":
 		s.processAlarm(ctx, state, event)
 	}
+	IncAssessmentEventProcessed(event.Type)
 
 	state.score.TotalScore = state.engine.ApplyPenalties(
 		state.scenario.Criteria.MaxScore,
@@ -160,6 +162,7 @@ func (s *AssessmentService) Finalize(ctx context.Context, sessionID string) (dom
 	if err := s.repo.SetVerdict(ctx, sessionID, verdict, state.score.TotalScore); err != nil {
 		return domain.Score{}, err
 	}
+	IncAssessmentSessionFinalized(string(verdict))
 	return state.score, nil
 }
 
@@ -170,6 +173,7 @@ func (s *AssessmentService) Override(ctx context.Context, req domain.Override) (
 	if err := s.repo.SetOverride(ctx, req.SessionID, req.NewScore, req.Verdict, req.ByUserID, req.Comment); err != nil {
 		return domain.Score{}, err
 	}
+	IncAssessmentOverride()
 	return s.repo.GetBySession(ctx, req.SessionID)
 }
 

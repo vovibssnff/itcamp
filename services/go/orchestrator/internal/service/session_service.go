@@ -79,6 +79,7 @@ func (s *SessionService) Create(ctx context.Context, instructorID string, in Cre
 	if err := s.repo.Create(ctx, sess); err != nil {
 		return domain.Session{}, err
 	}
+	IncSessionCreated(string(sess.Mode))
 	audit.Emit(ctx, s.log, "session.created", "id", sess.ID, "instructor_id", instructorID, "mode", sess.Mode)
 	return sess, nil
 }
@@ -116,6 +117,7 @@ func (s *SessionService) Start(ctx context.Context, id string) (domain.Session, 
 	if err := s.repo.SetStarted(ctx, id); err != nil {
 		return domain.Session{}, err
 	}
+	IncSessionStarted()
 
 	runner := newSessionRunner(id, sess.ScenarioID, s, s.log)
 	s.mu.Lock()
@@ -140,6 +142,7 @@ func (s *SessionService) Pause(ctx context.Context, id string) (domain.Session, 
 	if err := s.repo.UpdateStatus(ctx, id, domain.StatusPaused, 0); err != nil {
 		return domain.Session{}, err
 	}
+	IncSessionPaused()
 	_ = s.publisher.PublishSessionEvent(ctx, id, "paused", nil)
 	audit.Emit(ctx, s.log, "session.paused", "id", id)
 	return s.repo.GetByID(ctx, id)
@@ -166,6 +169,7 @@ func (s *SessionService) Stop(ctx context.Context, id string) (domain.Session, e
 	if err := s.repo.UpdateStatus(ctx, id, domain.StatusStopped, modelTime); err != nil {
 		return domain.Session{}, err
 	}
+	IncSessionStopped()
 	_ = s.publisher.PublishSessionEvent(ctx, id, "stopped", nil)
 	audit.Emit(ctx, s.log, "session.stopped", "id", id, "model_time", modelTime)
 	return s.repo.GetByID(ctx, id)
@@ -192,6 +196,7 @@ func (s *SessionService) Checkpoint(ctx context.Context, id, name string) (strin
 	if err != nil {
 		return "", err
 	}
+	IncCheckpointCreated()
 	audit.Emit(ctx, s.log, "session.checkpoint_created", "id", id, "snapshot_id", snapID)
 	return snapID, nil
 }
@@ -215,6 +220,7 @@ func (s *SessionService) Restore(ctx context.Context, id, snapshotID, userID str
 	if err := s.sim.SetState(ctx, id, state); err != nil {
 		return domain.Session{}, err
 	}
+	IncSessionRestored()
 	audit.Emit(ctx, s.log, "session.restored", "id", id, "snapshot_id", snapshotID)
 	return s.repo.GetByID(ctx, id)
 }
@@ -232,6 +238,7 @@ func (s *SessionService) HandleActuator(ctx context.Context, id, userID, target 
 	if err := s.repo.RecordAction(ctx, action); err != nil {
 		return err
 	}
+	IncOperatorAction()
 	s.hub.BroadcastOperatorAction(id, action)
 	_ = s.assessment.SendEvent(ctx, id, "action", action)
 	_ = s.publisher.PublishSessionEvent(ctx, id, "operator_action", action)

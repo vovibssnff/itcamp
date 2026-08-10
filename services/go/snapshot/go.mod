@@ -7,6 +7,8 @@ require (
 	github.com/itcamp/ktc/shared/go v0.0.0
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/minio/minio-go/v7 v7.0.74
+	github.com/prometheus/client_golang v1.20.5
+	github.com/prometheus/client_model v0.6.1
 )
 
 replace github.com/itcamp/ktc/shared/go => ../shared
@@ -25,8 +27,6 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/prometheus/client_golang v1.20.5 // indirect
-	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rs/xid v1.5.0 // indirect

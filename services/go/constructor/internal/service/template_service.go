@@ -50,6 +50,7 @@ func (s *TemplateService) Create(ctx context.Context, t domain.Template) (domain
 	if err := s.repo.Create(ctx, t); err != nil {
 		return domain.Template{}, err
 	}
+	IncTemplateCreated(string(t.Status))
 	audit.Emit(ctx, s.log, "template.created", "id", t.ID, "status", t.Status)
 	return t, nil
 }
@@ -64,6 +65,7 @@ func (s *TemplateService) Update(ctx context.Context, t domain.Template) (domain
 	if err := s.repo.Update(ctx, t); err != nil {
 		return domain.Template{}, err
 	}
+	IncTemplateUpdated()
 	audit.Emit(ctx, s.log, "template.updated", "id", t.ID)
 	return s.repo.GetByID(ctx, t.ID)
 }
@@ -73,12 +75,14 @@ func (s *TemplateService) Delete(ctx context.Context, id string, force bool) err
 		if err := s.repo.UpdateStatus(ctx, id, domain.StatusArchived); err != nil {
 			return err
 		}
+		IncTemplateDeleted(false)
 		audit.Emit(ctx, s.log, "template.archived", "id", id)
 		return nil
 	}
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return err
 	}
+	IncTemplateDeleted(true)
 	audit.Emit(ctx, s.log, "template.deleted", "id", id)
 	return nil
 }
@@ -97,7 +101,13 @@ func (s *TemplateService) Validate(ctx context.Context, id string) (domain.Valid
 	if err != nil {
 		return domain.ValidationResult{}, err
 	}
-	return s.validator.Validate(t.Graph), nil
+	result := s.validator.Validate(t.Graph)
+	if result.Valid {
+		IncTemplateValidation("valid")
+	} else {
+		IncTemplateValidation("invalid")
+	}
+	return result, nil
 }
 
 func (s *TemplateService) Export(ctx context.Context, id string) (map[string]any, error) {

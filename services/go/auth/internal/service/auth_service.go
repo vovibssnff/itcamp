@@ -63,8 +63,10 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginResult, er
 	if err != nil {
 		s.recordFailedAttempt(ctx, in.Login, in.IP, "")
 		if errors.Is(err, domain.ErrInvalidCredentials) {
+			IncAuthLogin("fail")
 			return LoginResult{}, domain.ErrInvalidCredentials
 		}
+		IncAuthLogin("fail")
 		return LoginResult{}, err
 	}
 
@@ -74,6 +76,7 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginResult, er
 		if err := s.userRepo.Create(ctx, user); err != nil && !errors.Is(err, domain.ErrLoginTaken) {
 			return LoginResult{}, err
 		}
+		IncAuthUserCreated()
 	} else if err != nil {
 		return LoginResult{}, err
 	} else {
@@ -96,6 +99,7 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginResult, er
 		}
 		if err := s.mfa.Verify(ctx, user.ID, in.MFACode); err != nil {
 			s.recordFailedAttempt(ctx, in.Login, in.IP, user.ID)
+			IncAuthLogin("fail")
 			return LoginResult{}, err
 		}
 	}
@@ -107,6 +111,7 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginResult, er
 
 	s.recordSuccessfulAttempt(ctx, in.Login, in.IP, user.ID)
 	s.audit.Log(ctx, AuditLoginSuccess, user.ID, in.IP)
+	IncAuthLogin("success")
 	return LoginResult{Tokens: tokens, User: user}, nil
 }
 
@@ -115,7 +120,13 @@ func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
 }
 
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (domain.TokenPair, error) {
-	return s.token.Refresh(ctx, refreshToken)
+	tokens, err := s.token.Refresh(ctx, refreshToken)
+	if err != nil {
+		IncAuthRefresh("fail")
+		return domain.TokenPair{}, err
+	}
+	IncAuthRefresh("success")
+	return tokens, nil
 }
 
 func (s *AuthService) isLocked(ctx context.Context, login string) (bool, error) {

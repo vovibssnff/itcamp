@@ -134,6 +134,7 @@ func (e *TriggerEngine) CheckTriggers(
 		if publisher != nil {
 			_ = publisher.PublishSessionEvent(ctx, sessionID, "fault_fired", faultEvent)
 		}
+		IncFaultInjected()
 
 		e.log.Info("fault injected", "session", sessionID, "fault", fault.FaultID, "trigger", triggerType, "model_time", modelTime)
 	}

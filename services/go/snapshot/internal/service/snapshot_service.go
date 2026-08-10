@@ -64,6 +64,7 @@ func (s *SnapshotService) Save(ctx context.Context, req domain.SaveRequest, auth
 		_ = s.storage.Delete(ctx, storageKey)
 		return domain.SaveResponse{}, err
 	}
+	IncSnapshotSaved(req.IsPreset)
 
 	s.log.Info("snapshot saved", "id", snapshotID, "session", req.SessionID, "sha256", sha[:12]+"...")
 	return domain.SaveResponse{SnapshotID: snapshotID, SHA256: sha, StorageKey: storageKey}, nil
@@ -83,8 +84,10 @@ func (s *SnapshotService) Restore(ctx context.Context, snapshotID string) (domai
 
 	shaValid := storage.ValidateSHA256(data, meta.SHA256)
 	if !shaValid {
+		IncSnapshotRestoreInvalid()
 		s.log.Error("sha256 mismatch", "snapshot", snapshotID, "expected", meta.SHA256)
 	}
+	IncSnapshotRestored()
 
 	return domain.RestoreResponse{
 		PayloadJSON:   data,
@@ -116,5 +119,6 @@ func (s *SnapshotService) Delete(ctx context.Context, id string) error {
 	if err := s.storage.Delete(ctx, meta.StorageKey); err != nil {
 		s.log.Warn("s3 delete failed", "error", err)
 	}
+	IncSnapshotDeleted()
 	return s.repo.Delete(ctx, id)
 }

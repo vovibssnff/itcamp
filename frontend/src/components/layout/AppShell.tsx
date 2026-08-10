@@ -146,24 +146,24 @@ export function AppShell() {
       {/* ── Content ── */}
       <Layout className={styles.layout}>
         <Content className={styles.content}>
-          {/* Breadcrumb bar */}
-          {breadcrumbs.length > 0 && (
-            <div className={styles.breadcrumbBar}>
-              {canGoBack && (
-                <button className={styles.backBtn} onClick={() => navigate(-1)}>
-                  ← Назад
-                </button>
-              )}
-              {!isRoot && (
-                <button
-                  className={styles.backBtn}
-                  onClick={() =>
-                    void navigate(role === 'operator' ? '/sessions/sess-001/mode' : '/home')
-                  }
-                >
-                  ⌂
-                </button>
-              )}
+          {/* Navigation bar — back on every non-home screen */}
+          <div className={styles.breadcrumbBar}>
+            {canGoBack && (
+              <button className={styles.backBtn} onClick={() => navigate(-1)}>
+                ← Назад
+              </button>
+            )}
+            {!isRoot && (
+              <button
+                className={styles.backBtn}
+                onClick={() =>
+                  void navigate(role === 'operator' ? '/sessions/sess-001/mode' : '/home')
+                }
+              >
+                ⌂
+              </button>
+            )}
+            {breadcrumbs.length > 0 && (
               <nav
                 style={{
                   display: 'flex',
@@ -192,8 +192,8 @@ export function AppShell() {
                   </span>
                 ))}
               </nav>
-            </div>
-          )}
+            )}
+          </div>
 
           <div
             style={{

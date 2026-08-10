@@ -11,6 +11,7 @@ import {
 import { ConstructorCanvas } from '@/canvas/constructor/ConstructorCanvas'
 import { ComponentPalette } from '@/canvas/constructor/ComponentPalette'
 import { PropertiesPanel } from '@/canvas/constructor/PropertiesPanel'
+import { EloudAvtScheme } from '@/canvas/hmi/EloudAvtScheme'
 import { useConstructorStore } from '@/store/constructor'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { useUndo } from '@/hooks/useUndo'
@@ -155,6 +156,41 @@ export default function ConstructorScreen() {
   }
 
   if (loading) return <div className="loading-spinner" />
+
+  // The default ЭЛОУ-АВТ template renders its fixed hand-drawn mnemonic at
+  // runtime (see EloudAvtScheme) instead of this generic node/edge graph —
+  // editing the graph here would silently have no effect on what operators
+  // actually see, so show the same mnemonic (read-only) instead of the editor.
+  const isFixedMnemonic = template?.scheme === 'elou-avt'
+
+  if (isFixedMnemonic) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '6px 12px',
+            borderBottom: `1px solid ${tokens.border.subtle}`,
+            background: tokens.bg.elevated,
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ fontFamily: tokens.font.mono, fontSize: 12, color: tokens.accent.cyan }}>
+            {template?.name}
+          </span>
+          <span style={{ fontSize: 11, color: tokens.text.muted }}>
+            Эталонная мнемосхема установки — та же, что видит оператор. Редактирование графа узлов
+            недоступно для этого шаблона.
+          </span>
+        </div>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <EloudAvtScheme telemetry={{}} interactive={false} flowing />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>

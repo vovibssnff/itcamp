@@ -66,7 +66,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <div className="wrap-n">
+    <div className="wrap-n mode-select-screen">
       <div style={{ marginBottom: 32 }} className="rise">
         <div className="sec">{roleLabel[role] ?? role}</div>
         <h1 className="h1" style={{ marginTop: 12 }}>

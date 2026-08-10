@@ -44,9 +44,9 @@ test.describe('TEST-05: Operator training session', () => {
     await expect(page.getByRole('button', { name: 'Начать тренировку' })).toBeVisible()
   })
 
-  test('training screen shows alarm journal and trends', async ({ page }) => {
+  test('training screen shows AI assistant and trends', async ({ page }) => {
     await page.goto('/sessions/sess-001/operator')
-    await expect(page.getByText('Журнал аварий').first()).toBeVisible()
-    await expect(page.getByText(/Тренды/)).toBeVisible()
+    await expect(page.getByText('ИИ-ассистент').first()).toBeVisible()
+    await expect(page.getByText(/Параметры|Тренды/)).toBeVisible()
   })
 })

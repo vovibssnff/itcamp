@@ -25,7 +25,7 @@ export function Faceplate({
   onSendCommand,
 }: FaceplateProps) {
   const { t } = useTranslation()
-  const [refOpen, setRefOpen] = useState(false)
+  const [refOpen, setRefOpen] = useState(true)
 
   if (!open || !node) return null
 
@@ -155,22 +155,6 @@ export function Faceplate({
               ))}
             </div>
           )}
-
-          <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => onSendCommand('actuator', `${nodeTag}_OPEN`, 100)}
-            >
-              {t('faceplate.open')}
-            </button>
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ borderColor: 'rgba(255,74,74,0.35)', color: 'var(--alarm)' }}
-              onClick={() => onSendCommand('actuator', `${nodeTag}_CLOSE`, 0)}
-            >
-              {t('faceplate.close')}
-            </button>
-          </div>
 
           {/* Справка — grounded in the real эксплуатационный регламент установки */}
           <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--ln2)' }}>

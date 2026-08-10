@@ -100,6 +100,12 @@ export default function ExamScreen() {
 
       <div className="topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => void navigate(`/sessions/${sessionId ?? 'sess-001'}/mode`)}
+          >
+            ← Назад
+          </button>
           <div className="mark">
             <i />
           </div>

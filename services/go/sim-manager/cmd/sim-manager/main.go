@@ -34,7 +34,7 @@ func main() {
 	var p provider.RuntimeProvider
 	switch cfg.Provider.Type {
 	case "docker":
-		dp, err := provider.NewDockerProvider(ctx, cfg.Provider.DockerHost, cfg.Provider.WorkerImage, cfg.Provider.WorkerPort, log)
+		dp, err := provider.NewDockerProvider(ctx, cfg.Provider.DockerHost, cfg.Provider.WorkerImage, cfg.Provider.Network, cfg.Provider.CPURequest, cfg.Provider.MemRequest, cfg.Provider.WorkerPort, log)
 		if err != nil {
 			log.Error("docker provider init failed", "error", err)
 			os.Exit(1)

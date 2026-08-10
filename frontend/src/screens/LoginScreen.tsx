@@ -4,6 +4,7 @@ import { Input, message } from 'antd'
 import QRCode from 'qrcode'
 import { useAuthStore } from '@/store/auth'
 import { authApi, isMfaRequired } from '@/api/auth'
+import { toErrorMessage } from '@/api/errors'
 import { useTranslation } from 'react-i18next'
 import { useUIStore } from '@/store/ui'
 
@@ -42,9 +43,14 @@ export default function LoginScreen() {
 
   async function completeLogin(access: string, refresh: string) {
     setTokens(access, refresh)
-    const user = await authApi.me()
-    setUser(user)
-    void navigate('/', { replace: true })
+    try {
+      const user = await authApi.me()
+      setUser(user)
+      void navigate('/', { replace: true })
+    } catch (err) {
+      useAuthStore.getState().logout()
+      throw err
+    }
   }
 
   async function handleSubmit() {
@@ -55,18 +61,25 @@ export default function LoginScreen() {
       const result = await authApi.login(username, password, mfaRequired ? mfaCode : undefined)
       if (isMfaRequired(result)) {
         setMfaRequired(true)
-        setMfaSecret(result.secret ?? null)
-        setOtpauthUri(result.otpauth_uri ?? null)
+        let secret = result.secret ?? null
+        let uri = result.otpauth_uri ?? null
+        if (result.enrollment_token) {
+          const enroll = await authApi.enrollmentSetup(result.enrollment_token)
+          secret = enroll.secret
+          uri = enroll.otpauth_uri
+        }
+        setMfaSecret(secret)
+        setOtpauthUri(uri)
         void message.info(
-          result.secret
+          secret
             ? t('auth.mfaSetup', { defaultValue: 'Отсканируйте QR и введите код из приложения' })
             : t('auth.mfaRequired', { defaultValue: 'Введите код MFA' }),
         )
         return
       }
       await completeLogin(result.access_token, result.refresh_token)
-    } catch {
-      void message.error(t('auth.loginError'))
+    } catch (err) {
+      void message.error(toErrorMessage(err, t('auth.loginError')))
     } finally {
       setLoading(false)
     }

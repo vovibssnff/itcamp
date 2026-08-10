@@ -43,12 +43,17 @@ components:
         mfa_required: { type: boolean, example: true }
         user_id: { type: string, description: ID пользователя (для enrollment) }
         login: { type: string }
-        secret:
+        enrollment_token:
           type: string
-          description: Base32 TOTP-секрет — только если MFA ещё не включён (для QR)
-        otpauth_uri:
-          type: string
-          description: otpauth:// URI для приложения-аутентификатора / QR
+          description: Короткоживущий токен для POST /mfa/enrollment (секрет не отдаётся на login)
+
+    MFAEnrollmentResponse:
+      type: object
+      required: [secret, otpauth_uri]
+      properties:
+        secret: { type: string, description: Base32 TOTP-секрет для QR }
+        otpauth_uri: { type: string, description: otpauth:// URI }
+        login: { type: string }
 
     IntrospectRequest:
       type: object
@@ -146,6 +151,19 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/TokenResponse' }
         '401': { description: Токен отозван/истёк }
+
+  /mfa/enrollment:
+    post:
+      summary: Получить TOTP-секрет по enrollment_token (после password-step login)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Секрет для QR / ручного ввода
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MFAEnrollmentResponse' }
+        '401': { description: Невалидный enrollment_token }
 
   /logout:
     post:

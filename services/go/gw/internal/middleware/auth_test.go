@@ -210,3 +210,33 @@ func TestRequireRoles_NoRolesConstraint(t *testing.T) {
 		t.Errorf("code = %d, want 200", rec.Code)
 	}
 }
+
+// Auth must wrap RequireRoles (outermost) so introspect populates CtxRoles first.
+func TestAuthThenRequireRoles_Composition(t *testing.T) {
+	c := newAuthClient(t, introspectHandler(true, "u-1", []string{"instructor"}))
+	inner := RequireRoles("instructor", "admin")(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	h := AuthMiddleware(c, discardLogger())(inner)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer tok")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("correct order: code = %d, want 200", rec.Code)
+	}
+
+	// Wrong order (roles before auth) leaves CtxRoles empty → 403.
+	wrong := AuthMiddleware(c, discardLogger())(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	wrong = RequireRoles("instructor", "admin")(wrong)
+	req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+	req2.Header.Set("Authorization", "Bearer tok")
+	rec2 := httptest.NewRecorder()
+	wrong.ServeHTTP(rec2, req2)
+	if rec2.Code != http.StatusForbidden {
+		t.Fatalf("wrong order: code = %d, want 403", rec2.Code)
+	}
+}

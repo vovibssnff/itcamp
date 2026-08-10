@@ -110,6 +110,17 @@ func (r *UserRepo) UpdateStatus(ctx context.Context, id string, status domain.Us
 	return nil
 }
 
+func (r *UserRepo) SetMFAEnabled(ctx context.Context, id string, enabled bool) error {
+	tag, err := r.db.Pool.Exec(ctx, `UPDATE users SET mfa_enabled = $2, updated_at = now() WHERE id = $1`, id, enabled)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrUserNotFound
+	}
+	return nil
+}
+
 func (r *UserRepo) GetRoles(ctx context.Context, userID string) ([]domain.Role, error) {
 	rows, err := r.db.Pool.Query(ctx, `SELECT r.name FROM roles r JOIN user_roles ur ON ur.role_id = r.id WHERE ur.user_id = $1`, userID)
 	if err != nil {

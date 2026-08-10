@@ -21,7 +21,11 @@ func (s *UserService) GetByID(ctx context.Context, id string) (domain.User, erro
 	if err != nil {
 		return domain.User{}, err
 	}
-	u.Roles, _ = s.repo.GetRoles(ctx, id)
+	roles, err := s.repo.GetRoles(ctx, id)
+	if err != nil {
+		return domain.User{}, err
+	}
+	u.Roles = roles
 	return u, nil
 }
 
@@ -31,7 +35,11 @@ func (s *UserService) List(ctx context.Context) ([]domain.User, error) {
 		return nil, err
 	}
 	for i := range users {
-		users[i].Roles, _ = s.repo.GetRoles(ctx, users[i].ID)
+		roles, err := s.repo.GetRoles(ctx, users[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		users[i].Roles = roles
 	}
 	return users, nil
 }

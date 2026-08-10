@@ -15,8 +15,18 @@ func gwValidConfig() Config {
 		},
 		Routes: []RouteConfig{
 			{Prefix: "/api/v1/auth", Upstream: "auth"},
-			{Prefix: "/api/v1/sessions", Upstream: "sim", Roles: []string{"instructor"}},
+			{Prefix: "/api/v1/sessions", Upstream: "sim", Auth: true, Roles: []string{"instructor"}},
 		},
+	}
+}
+
+func TestGWConfig_Validate_RolesRequireAuth(t *testing.T) {
+	c := gwValidConfig()
+	c.Routes = append(c.Routes, RouteConfig{
+		Prefix: "/api/v1/x", Upstream: "auth", Roles: []string{"admin"},
+	})
+	if err := c.validate(); err == nil {
+		t.Fatal("expected error when roles set without auth")
 	}
 }
 

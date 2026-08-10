@@ -38,6 +38,8 @@ func mapError(err error) (int, string) {
 		return http.StatusBadRequest, "invalid_speed"
 	case errors.Is(err, domain.ErrExamRestoreForbidden):
 		return http.StatusForbidden, "exam_restore_forbidden"
+	case errors.Is(err, domain.ErrForbidden):
+		return http.StatusForbidden, "forbidden"
 	case errors.Is(err, domain.ErrSimUnavailable):
 		return http.StatusServiceUnavailable, "sim_unavailable"
 	default:
@@ -61,15 +63,31 @@ func NewSessionHandler(svc *service.SessionService, hub *service.WSHub) *Session
 func (h *SessionHandler) List(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	operatorID := r.URL.Query().Get("operator_id")
+	roles := rolesFromHeader(r)
+	uid := userIDFromHeader(r)
+	// Operators may only list their own sessions.
+	if !isPrivileged(roles) {
+		if uid == "" {
+			writeError(w, domain.ErrForbidden)
+			return
+		}
+		operatorID = uid
+	}
 	sessions, err := h.svc.List(r.Context(), status, operatorID)
 	if err != nil {
 		writeError(w, err)
 		return
 	}
+	if sessions == nil {
+		sessions = []domain.Session{}
+	}
 	writeJSON(w, http.StatusOK, sessions)
 }
 
 func (h *SessionHandler) Create(w http.ResponseWriter, r *http.Request) {
+	if !requirePrivileged(w, r) {
+		return
+	}
 	var in service.CreateSessionInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, err)
@@ -85,9 +103,8 @@ func (h *SessionHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionHandler) Get(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	sess, err := h.svc.Get(r.Context(), id)
-	if err != nil {
-		writeError(w, err)
+	sess, ok := loadSessionOrDeny(h, w, r, id)
+	if !ok {
 		return
 	}
 	writeJSON(w, http.StatusOK, sess)
@@ -95,6 +112,9 @@ func (h *SessionHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionHandler) Start(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if _, ok := loadSessionOrDeny(h, w, r, id); !ok {
+		return
+	}
 	sess, err := h.svc.Start(r.Context(), id)
 	if err != nil {
 		writeError(w, err)
@@ -105,6 +125,9 @@ func (h *SessionHandler) Start(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionHandler) Pause(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if _, ok := loadSessionOrDeny(h, w, r, id); !ok {
+		return
+	}
 	sess, err := h.svc.Pause(r.Context(), id)
 	if err != nil {
 		writeError(w, err)
@@ -115,6 +138,9 @@ func (h *SessionHandler) Pause(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionHandler) Resume(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if _, ok := loadSessionOrDeny(h, w, r, id); !ok {
+		return
+	}
 	sess, err := h.svc.Resume(r.Context(), id)
 	if err != nil {
 		writeError(w, err)
@@ -125,6 +151,9 @@ func (h *SessionHandler) Resume(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionHandler) Stop(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if _, ok := loadSessionOrDeny(h, w, r, id); !ok {
+		return
+	}
 	sess, err := h.svc.Stop(r.Context(), id)
 	if err != nil {
 		writeError(w, err)
@@ -135,6 +164,9 @@ func (h *SessionHandler) Stop(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionHandler) Speed(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if _, ok := loadSessionOrDeny(h, w, r, id); !ok {
+		return
+	}
 	var req struct {
 		Factor float64 `json:"factor"`
 	}
@@ -152,6 +184,9 @@ func (h *SessionHandler) Speed(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionHandler) Checkpoint(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if _, ok := loadSessionOrDeny(h, w, r, id); !ok {
+		return
+	}
 	var req struct {
 		Name string `json:"name"`
 	}
@@ -166,6 +201,9 @@ func (h *SessionHandler) Checkpoint(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionHandler) Restore(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if _, ok := loadSessionOrDeny(h, w, r, id); !ok {
+		return
+	}
 	var req struct {
 		SnapshotID string `json:"snapshot_id"`
 	}
@@ -183,6 +221,9 @@ func (h *SessionHandler) Restore(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionHandler) Actuator(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if _, ok := loadSessionOrDeny(h, w, r, id); !ok {
+		return
+	}
 	var req struct {
 		Tag   string `json:"tag"`
 		Value any    `json:"value"`
@@ -200,6 +241,9 @@ func (h *SessionHandler) Actuator(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionHandler) AckAlarm(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if _, ok := loadSessionOrDeny(h, w, r, id); !ok {
+		return
+	}
 	alarmID := r.PathValue("alarm_id")
 	if err := h.svc.AckAlarm(r.Context(), id, alarmID, userIDFromHeader(r)); err != nil {
 		writeError(w, err)
@@ -210,22 +254,30 @@ func (h *SessionHandler) AckAlarm(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionHandler) WSOperator(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if _, ok := loadSessionOrDeny(h, w, r, id); !ok {
+		return
+	}
 	h.handleWS(w, r, id, "operator")
 }
 
 func (h *SessionHandler) WSObserve(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if _, ok := loadSessionOrDeny(h, w, r, id); !ok {
+		return
+	}
 	h.handleWS(w, r, id, "observer")
 }
 
 func (h *SessionHandler) handleWS(w http.ResponseWriter, r *http.Request, sessionID, role string) {
 	userID := userIDFromHeader(r)
 	if userID == "" {
-		userID = "anonymous"
+		writeError(w, domain.ErrForbidden)
+		return
 	}
 
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		InsecureSkipVerify: true,
+		// Matched against Origin host (filepath.Match). Same request host is always allowed.
+		OriginPatterns: []string{"localhost", "127.0.0.1"},
 	})
 	if err != nil {
 		return

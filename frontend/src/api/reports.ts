@@ -1,6 +1,7 @@
 import { apiClient } from './client'
 import { unwrap } from './request'
 import { mapReport, type ReportMeta } from './mappers'
+import { useAuthStore } from '@/store/auth'
 
 const BASE_URL =
   import.meta.env.VITE_MOCK_API === 'true' ? '' : (import.meta.env.VITE_API_BASE_URL ?? '')
@@ -33,5 +34,22 @@ export const reportsApi = {
 
   downloadUrl(id: string): string {
     return `${BASE_URL}/api/v1/reports/${id}/download`
+  },
+
+  async download(id: string): Promise<void> {
+    const token = useAuthStore.getState().accessToken
+    const res = await fetch(this.downloadUrl(id), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!res.ok) {
+      throw new Error(`Download failed: HTTP ${res.status}`)
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `report-${id}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
   },
 }

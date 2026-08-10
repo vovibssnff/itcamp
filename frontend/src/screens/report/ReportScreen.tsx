@@ -5,8 +5,22 @@ import { DownloadOutlined, PlayCircleOutlined, ReloadOutlined } from '@ant-desig
 import { MetricGrid, BoxAcc, Pill } from '@/components/ui'
 import { assessmentApi } from '@/api/assessment'
 import { reportsApi } from '@/api/reports'
+import { toErrorMessage } from '@/api/errors'
 import type { ScoreData } from '@/api/mappers'
 import type { ReportMeta } from '@/api/mappers'
+import { useAuthStore } from '@/store/auth'
+
+function emptyScore(sessionId: string, note: string): ScoreData {
+  return {
+    sessionId,
+    score: 0,
+    maxScore: 100,
+    penalties: [],
+    criticalErrors: [],
+    aiAnalysis: note,
+    completedAt: new Date().toISOString(),
+  }
+}
 
 export default function ReportScreen() {
   const { id } = useParams<{ id: string }>()
@@ -14,39 +28,72 @@ export default function ReportScreen() {
   const [reportMeta, setReportMeta] = useState<ReportMeta | null>(null)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const role = useAuthStore((s) => s.user?.role)
 
   useEffect(() => {
     if (!id) return
     void (async () => {
       setLoading(true)
       try {
-        // Route param may be report id or session id. Try report meta first.
         let sessionId = id
+        let meta: ReportMeta | null = null
         try {
-          const meta = await reportsApi.get(id)
+          meta = await reportsApi.get(id)
           setReportMeta(meta)
           sessionId = meta.sessionId || id
         } catch {
           setReportMeta(null)
+          try {
+            const listed = await reportsApi.list(id)
+            meta = listed[0] ?? null
+            if (meta) {
+              setReportMeta(meta)
+              sessionId = meta.sessionId || id
+            }
+          } catch {
+            /* no report meta */
+          }
         }
-        const data = await assessmentApi.getScore(sessionId)
-        setReport(data)
-      } catch {
-        void message.error('Ошибка загрузки отчёта')
+
+        try {
+          setReport(await assessmentApi.getScore(sessionId))
+        } catch {
+          if (role === 'instructor' || role === 'admin') {
+            throw new Error('assessment score unavailable')
+          }
+          setReport(
+            emptyScore(
+              sessionId,
+              'Детальная оценка доступна инструктору. PDF-отчёт можно скачать, если он уже сформирован.',
+            ),
+          )
+        }
+      } catch (err) {
+        void message.error(toErrorMessage(err, 'Ошибка загрузки отчёта'))
       } finally {
         setLoading(false)
       }
     })()
-  }, [id])
+  }, [id, role])
 
   async function refreshStatus() {
     if (!id) return
     try {
-      const meta = await reportsApi.get(id)
+      const meta = await reportsApi.get(reportMeta?.id ?? id)
       setReportMeta(meta)
       void message.info(`Статус: ${meta.status}`)
-    } catch {
-      void message.error('Не удалось обновить статус')
+    } catch (err) {
+      void message.error(toErrorMessage(err, 'Не удалось обновить статус'))
+    }
+  }
+
+  async function handleDownload() {
+    const downloadId = reportMeta?.id ?? id
+    if (!downloadId) return
+    try {
+      await reportsApi.download(downloadId)
+    } catch (err) {
+      void message.error(toErrorMessage(err, 'Не удалось скачать PDF'))
     }
   }
 
@@ -62,7 +109,6 @@ export default function ReportScreen() {
     return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
   }
 
-  const downloadId = reportMeta?.id ?? id
   const replaySessionId = report.sessionId || reportMeta?.sessionId || id
 
   return (
@@ -98,10 +144,7 @@ export default function ReportScreen() {
           >
             <PlayCircleOutlined /> Воспроизведение
           </button>
-          <button
-            className="btn btn-acc"
-            onClick={() => window.open(reportsApi.downloadUrl(downloadId!))}
-          >
+          <button className="btn btn-acc" onClick={() => void handleDownload()}>
             <DownloadOutlined /> Скачать PDF
           </button>
         </div>

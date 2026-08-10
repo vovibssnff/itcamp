@@ -44,4 +44,7 @@ func TestRolesEqual(t *testing.T) {
 	if rolesEqual(a, []domain.Role{domain.RoleAdmin}) {
 		t.Fatal("expected not equal")
 	}
+	if !rolesEqual(a, []domain.Role{domain.RoleInstructor, domain.RoleAdmin}) {
+		t.Fatal("expected order-insensitive equal")
+	}
 }

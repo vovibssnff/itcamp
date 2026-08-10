@@ -63,6 +63,7 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /login", authH.Login)
 	mux.HandleFunc("POST /refresh", authH.Refresh)
 	mux.HandleFunc("POST /logout", authH.Logout)
+	mux.HandleFunc("POST /mfa/enrollment", authH.Enrollment)
 
 	mux.Handle("GET /me", auth(http.HandlerFunc(meH.Me)))
 
@@ -71,10 +72,10 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 	mux.Handle("GET /users", auth(http.HandlerFunc(userH.List)))
 	mux.Handle("GET /users/{id}", auth(http.HandlerFunc(userH.Get)))
 
-	mux.HandleFunc("POST /users/{userID}/mfa/setup", mfaH.Setup)
-	mux.HandleFunc("POST /users/{userID}/mfa/enable", mfaH.Enable)
-	mux.HandleFunc("POST /users/{userID}/mfa/disable", mfaH.Disable)
-	mux.HandleFunc("GET /users/{userID}/mfa", mfaH.Status)
+	mux.Handle("POST /users/{userID}/mfa/setup", auth(http.HandlerFunc(mfaH.Setup)))
+	mux.Handle("POST /users/{userID}/mfa/enable", auth(http.HandlerFunc(mfaH.Enable)))
+	mux.Handle("POST /users/{userID}/mfa/disable", auth(http.HandlerFunc(mfaH.Disable)))
+	mux.Handle("GET /users/{userID}/mfa", auth(http.HandlerFunc(mfaH.Status)))
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)

@@ -136,7 +136,8 @@ func (s *SessionService) Start(ctx context.Context, id string) (domain.Session, 
 	s.runners[id] = runner
 	s.mu.Unlock()
 
-	go runner.run(ctx)
+	// Request ctx is canceled when ServeHTTP returns; runner must outlive the handler.
+	go runner.run(context.WithoutCancel(ctx))
 
 	sess.Status = domain.StatusRunning
 	_ = s.publisher.PublishSessionEvent(ctx, id, "started", nil)
@@ -173,7 +174,16 @@ func (s *SessionService) Resume(ctx context.Context, id string) (domain.Session,
 	runner, ok := s.runners[id]
 	s.mu.Unlock()
 	if !ok {
-		return domain.Session{}, domain.ErrSessionNotRunning
+		// Process restart or prior request-ctx cancellation dropped the runner.
+		runner = newSessionRunner(id, sess.ScenarioID, s, s.log)
+		if err := runner.loadScenario(ctx); err != nil {
+			s.log.WarnContext(ctx, "scenario load for resume failed", "session", id, "error", err)
+		}
+		runner.pause()
+		s.mu.Lock()
+		s.runners[id] = runner
+		s.mu.Unlock()
+		go runner.run(context.WithoutCancel(ctx))
 	}
 	runner.resume()
 

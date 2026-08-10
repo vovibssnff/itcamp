@@ -365,7 +365,22 @@ function ScenarioEditor({ id }: { id: string }) {
       } else {
         setLoading(true)
         const data = (await scenariosApi.get(id!)) as Scenario
-        setScenario(data)
+        setScenario({
+          ...data,
+          status: data.status ?? 'draft',
+          faults: data.faults ?? [],
+          reference_actions: data.reference_actions ?? [],
+          criteria: data.criteria ?? {
+            max_score: 100,
+            penalty_late: 0.5,
+            penalty_miss: 10,
+            penalty_forbidden: 5,
+            critical_actions: [],
+            pass_threshold: 60,
+          },
+          created_at: data.created_at || data.updated_at || new Date().toISOString(),
+          updated_at: data.updated_at || data.created_at || new Date().toISOString(),
+        })
         setLoading(false)
       }
     })()

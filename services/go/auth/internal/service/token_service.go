@@ -15,6 +15,11 @@ import (
 	"github.com/itcamp/ktc/services/auth/internal/domain"
 )
 
+const (
+	purposeEnrollment = "mfa_enroll"
+	enrollmentTTL     = 10 * time.Minute
+)
+
 type RefreshStore interface {
 	Create(ctx context.Context, t domain.RefreshToken) error
 	GetByHash(ctx context.Context, hash string) (domain.RefreshToken, error)
@@ -23,13 +28,20 @@ type RefreshStore interface {
 	RevokeAllForUser(ctx context.Context, userID string) error
 }
 
+// UserLookup loads current user roles for refresh (optional; nil keeps refresh-row roles).
+type UserLookup interface {
+	GetByID(ctx context.Context, id string) (domain.User, error)
+	GetRoles(ctx context.Context, userID string) ([]domain.Role, error)
+}
+
 type TokenService struct {
 	cfg     config.JWTConfig
 	refresh RefreshStore
+	users   UserLookup
 }
 
-func NewTokenService(cfg config.JWTConfig, refresh RefreshStore) *TokenService {
-	return &TokenService{cfg: cfg, refresh: refresh}
+func NewTokenService(cfg config.JWTConfig, refresh RefreshStore, users UserLookup) *TokenService {
+	return &TokenService{cfg: cfg, refresh: refresh, users: users}
 }
 
 func (s *TokenService) Issue(ctx context.Context, user domain.User) (domain.TokenPair, error) {
@@ -84,12 +96,26 @@ func (s *TokenService) Refresh(ctx context.Context, refreshPlain string) (domain
 	}
 
 	user := domain.User{ID: stored.UserID, Login: stored.Login, Roles: stored.Roles}
+	if s.users != nil {
+		if u, err := s.users.GetByID(ctx, stored.UserID); err == nil {
+			user.Login = u.Login
+			user.Status = u.Status
+		}
+		if roles, err := s.users.GetRoles(ctx, stored.UserID); err == nil {
+			user.Roles = roles
+		}
+	}
+
 	newPair, err := s.Issue(ctx, user)
 	if err != nil {
 		return domain.TokenPair{}, err
 	}
 
-	if err := s.refresh.RevokeAndReplace(ctx, stored.ID, newPair.AccessToken); err != nil {
+	claims, err := s.parseAccess(newPair.AccessToken)
+	if err != nil {
+		return domain.TokenPair{}, err
+	}
+	if err := s.refresh.RevokeAndReplace(ctx, stored.ID, claims.TokenID); err != nil {
 		return domain.TokenPair{}, domain.ErrTokenRevoked
 	}
 	return newPair, nil
@@ -116,7 +142,39 @@ func (s *TokenService) Introspect(ctx context.Context, accessToken string) (doma
 		}
 		return domain.IntrospectionResult{Active: false}, domain.ErrTokenInvalid
 	}
+	if claims.Purpose != "" && claims.Purpose != "access" {
+		return domain.IntrospectionResult{Active: false}, domain.ErrTokenInvalid
+	}
 	return domain.IntrospectionResult{Active: true, Claims: claims}, nil
+}
+
+// IssueEnrollment returns a short-lived token used only to fetch MFA enrollment secrets.
+func (s *TokenService) IssueEnrollment(userID, login string) (string, error) {
+	now := time.Now().UTC()
+	claims := jwt.MapClaims{
+		"uid":     userID,
+		"login":   login,
+		"purpose": purposeEnrollment,
+		"iss":     s.cfg.Issuer,
+		"iat":     now.Unix(),
+		"exp":     now.Add(enrollmentTTL).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.GetSigningMethod(s.cfg.SigningMethod), claims)
+	return token.SignedString([]byte(s.cfg.SigningKey))
+}
+
+func (s *TokenService) ParseEnrollment(tokenStr string) (userID, login string, err error) {
+	claims, err := s.parseAccess(tokenStr)
+	if err != nil {
+		return "", "", domain.ErrTokenInvalid
+	}
+	if claims.Purpose != purposeEnrollment {
+		return "", "", domain.ErrTokenInvalid
+	}
+	if claims.UserID == "" {
+		return "", "", domain.ErrTokenInvalid
+	}
+	return claims.UserID, claims.Login, nil
 }
 
 func (s *TokenService) signAccess(user domain.User) (string, string, error) {
@@ -126,13 +184,14 @@ func (s *TokenService) signAccess(user domain.User) (string, string, error) {
 		return "", "", err
 	}
 	claims := jwt.MapClaims{
-		"uid":   user.ID,
-		"login": user.Login,
-		"roles": user.Roles,
-		"jti":   tokenID,
-		"iss":   s.cfg.Issuer,
-		"iat":   now.Unix(),
-		"exp":   now.Add(s.cfg.AccessTTL.Std()).Unix(),
+		"uid":     user.ID,
+		"login":   user.Login,
+		"roles":   user.Roles,
+		"jti":     tokenID,
+		"purpose": "access",
+		"iss":     s.cfg.Issuer,
+		"iat":     now.Unix(),
+		"exp":     now.Add(s.cfg.AccessTTL.Std()).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.GetSigningMethod(s.cfg.SigningMethod), claims)
 	signed, err := token.SignedString([]byte(s.cfg.SigningKey))
@@ -170,6 +229,9 @@ func (s *TokenService) parseAccess(tokenStr string) (*domain.Claims, error) {
 	}
 	if v, ok := (*claims)["jti"].(string); ok {
 		result.TokenID = v
+	}
+	if v, ok := (*claims)["purpose"].(string); ok {
+		result.Purpose = v
 	}
 	if roles, ok := (*claims)["roles"].([]any); ok {
 		for _, r := range roles {

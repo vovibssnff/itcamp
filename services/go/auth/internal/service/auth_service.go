@@ -50,9 +50,9 @@ type LoginResult struct {
 	Tokens    domain.TokenPair
 	MFANeeded bool
 	User      domain.User
-	// MFASecret is set when MFA is required and the user still needs to enroll
-	// (scan QR / enter secret). Empty when MFA is already enabled.
-	MFASecret string
+	// EnrollmentToken is a short-lived token to fetch MFA QR/secret when the
+	// user is not yet enrolled. Empty when MFA is already enabled.
+	EnrollmentToken string
 }
 
 func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginResult, error) {
@@ -99,10 +99,19 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginResult, er
 		}
 	}
 
-	// Always sync IdP/stub roles into user_roles so /me and admin list stay correct.
-	user.Roles = authUser.Roles
-	if err := s.userRepo.SetRoles(ctx, user.ID, user.Roles); err != nil {
-		return LoginResult{}, err
+	// Sync IdP/stub roles only when the authenticator returned a non-empty set.
+	// Empty IdP groups must not wipe DB roles.
+	if len(authUser.Roles) > 0 {
+		user.Roles = authUser.Roles
+		if err := s.userRepo.SetRoles(ctx, user.ID, user.Roles); err != nil {
+			return LoginResult{}, err
+		}
+	} else {
+		roles, err := s.userRepo.GetRoles(ctx, user.ID)
+		if err != nil {
+			return LoginResult{}, err
+		}
+		user.Roles = roles
 	}
 
 	if user.Status == domain.UserStatusDisabled {
@@ -114,20 +123,36 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginResult, er
 
 	if user.MFAEnabled || user.IsPrivileged() {
 		if in.MFACode == "" {
-			secret, err := s.mfa.EnsureEnrollmentSecret(ctx, user.ID)
-			if err != nil {
-				return LoginResult{}, err
+			result := LoginResult{MFANeeded: true, User: user}
+			if !user.MFAEnabled {
+				// Ensure secret exists server-side; client fetches it with enrollment token.
+				// Empty secret means MFA secret row is already enabled — only ask for code.
+				secret, err := s.mfa.EnsureEnrollmentSecret(ctx, user.ID)
+				if err != nil {
+					return LoginResult{}, err
+				}
+				if secret != "" {
+					tok, err := s.token.IssueEnrollment(user.ID, user.Login)
+					if err != nil {
+						return LoginResult{}, err
+					}
+					result.EnrollmentToken = tok
+				}
 			}
 			s.audit.Log(ctx, AuditLoginMFARequired, user.ID, in.IP)
-			return LoginResult{MFANeeded: true, User: user, MFASecret: secret}, domain.ErrMFARequired
+			return result, domain.ErrMFARequired
 		}
 		if err := s.mfa.Verify(ctx, user.ID, in.MFACode); err != nil {
 			s.recordFailedAttempt(ctx, in.Login, in.IP, user.ID)
 			IncAuthLogin("fail")
 			return LoginResult{}, err
 		}
-		// First successful code after enrollment marks MFA as enabled.
-		_ = s.mfa.Enable(ctx, user.ID, in.MFACode)
+		// First successful code after enrollment marks MFA as enabled on the user row.
+		if !user.MFAEnabled {
+			if err := s.mfa.Enable(ctx, user.ID, in.MFACode); err != nil {
+				return LoginResult{}, err
+			}
+		}
 	}
 
 	tokens, err := s.token.Issue(ctx, user)
@@ -212,10 +237,31 @@ func rolesEqual(a, b []domain.Role) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	for i := range a {
-		if a[i] != b[i] {
+	set := make(map[domain.Role]int, len(a))
+	for _, r := range a {
+		set[r]++
+	}
+	for _, r := range b {
+		set[r]--
+		if set[r] < 0 {
 			return false
 		}
 	}
 	return true
+}
+
+// EnrollmentSecret returns the TOTP secret for a valid enrollment token.
+func (s *AuthService) EnrollmentSecret(ctx context.Context, enrollmentToken string) (secret, login string, err error) {
+	userID, login, err := s.token.ParseEnrollment(enrollmentToken)
+	if err != nil {
+		return "", "", err
+	}
+	secret, err = s.mfa.EnsureEnrollmentSecret(ctx, userID)
+	if err != nil {
+		return "", "", err
+	}
+	if secret == "" {
+		return "", "", domain.ErrMFANotEnabled
+	}
+	return secret, login, nil
 }

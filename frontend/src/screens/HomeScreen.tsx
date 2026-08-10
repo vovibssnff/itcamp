@@ -54,7 +54,7 @@ const ADMIN_EXTRA: NavCard[] = [
 export default function HomeScreen() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const role = user?.role ?? 'instructor'
+  const role = user?.role ?? 'operator'
 
   const cards = role === 'admin' ? [...INSTRUCTOR_CARDS, ...ADMIN_EXTRA] : INSTRUCTOR_CARDS
 

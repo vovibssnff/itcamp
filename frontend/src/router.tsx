@@ -161,7 +161,7 @@ export const router = createBrowserRouter([
       {
         path: 'sessions/:id/exam',
         element: (
-          <RoleGuard roles={['operator']}>
+          <RoleGuard roles={['operator', 'instructor', 'admin']}>
             <Lazy>
               <ExamScreen />
             </Lazy>

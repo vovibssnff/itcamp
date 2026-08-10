@@ -36,6 +36,7 @@ import { templatesApi } from '@/api/templates'
 import { isMockApi } from '@/utils/env'
 import { scenariosApi } from '@/api/scenarios'
 import { usersApi } from '@/api/users'
+import { toErrorMessage } from '@/api/errors'
 import type { SnapshotMeta } from '@/api/mappers'
 import type { TemplateSummary } from '@/api/mappers'
 import type { UserProfile } from '@/store/auth'
@@ -136,7 +137,7 @@ export default function InstructorConsole() {
     void (async () => {
       try {
         const [users, scens] = await Promise.all([usersApi.list(), scenariosApi.list()])
-        setOperators(users.filter((u) => u.role === 'operator'))
+        setOperators(users.filter((u) => (u.roles ?? []).includes('operator')))
         setExamScenarios(
           (scens as { id?: string; name?: string }[]).map((s) => ({
             id: s.id ?? '',
@@ -220,7 +221,7 @@ export default function InstructorConsole() {
           name: s.name ?? s.id ?? '',
         })),
       )
-      setOperators(users.filter((u) => u.role === 'operator'))
+      setOperators(users.filter((u) => (u.roles ?? []).includes('operator')))
       createForm.resetFields()
       createForm.setFieldsValue({ mode: 'training' })
       setCreateOpen(true)
@@ -248,33 +249,54 @@ export default function InstructorConsole() {
   }
 
   async function sessionAction(id: string, action: 'start' | 'pause' | 'resume' | 'stop') {
-    await sessionsApi.action(id, action)
-    void fetchSessions()
+    try {
+      await sessionsApi.action(id, action)
+      void fetchSessions()
+    } catch (err) {
+      void message.error(toErrorMessage(err, 'Ошибка действия над сессией'))
+    }
   }
 
   async function setSpeed(id: string, speed: number) {
-    await sessionsApi.setSpeed(id, speed)
-    void fetchSessions()
+    try {
+      await sessionsApi.setSpeed(id, speed)
+      void fetchSessions()
+    } catch (err) {
+      void message.error(toErrorMessage(err, 'Не удалось изменить скорость'))
+    }
   }
 
   async function saveSnapshot() {
     if (!snapshotModal.sessionId || !snapshotLabel) return
-    await sessionsApi.checkpoint(snapshotModal.sessionId, snapshotLabel)
-    void message.success('Снимок сохранён')
-    setSnapshotModal({ open: false, sessionId: null })
-    setSnapshotLabel('')
+    try {
+      await sessionsApi.checkpoint(snapshotModal.sessionId, snapshotLabel)
+      void message.success('Снимок сохранён')
+      setSnapshotModal({ open: false, sessionId: null })
+      setSnapshotLabel('')
+    } catch (err) {
+      void message.error(toErrorMessage(err, 'Не удалось сохранить снимок'))
+    }
   }
 
   async function submitOverride() {
     if (!overrideModal.sessionId) return
-    await assessmentApi.override({
-      sessionId: overrideModal.sessionId,
-      newScore: overrideScore,
-      verdict: overrideScore >= 60 ? 'pass' : 'fail',
-      comment: overrideComment,
-    })
-    void message.success('Оценка скорректирована')
-    setOverrideModal({ open: false, sessionId: null })
+    if (!overrideComment.trim()) {
+      void message.warning('Укажите комментарий к корректировке')
+      return
+    }
+    try {
+      const threshold = 60
+      await assessmentApi.override({
+        sessionId: overrideModal.sessionId,
+        newScore: overrideScore,
+        verdict: overrideScore >= threshold ? 'pass' : 'fail',
+        comment: overrideComment.trim(),
+      })
+      void message.success('Оценка скорректирована')
+      setOverrideModal({ open: false, sessionId: null })
+    } catch (err) {
+      void message.error(toErrorMessage(err, 'Не удалось скорректировать оценку'))
+    }
   }
 
   async function openRestore(sessionId: string) {

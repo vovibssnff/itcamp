@@ -43,10 +43,15 @@ export function mapUser(raw: unknown): UserProfile {
     id: str(u.id),
     username: str(u.login ?? u.username),
     displayName: str(u.full_name ?? u.displayName ?? u.login ?? u.username),
-    // Never invent "operator" when the backend omitted roles — caller may fill from JWT.
+    // Typed fallback only — prefer `roles` / JWT when present; do not treat as real RBAC.
     role: primary ?? 'operator',
     roles: ROLES.filter((r) => roles.includes(r)),
   }
+}
+
+function padBase64(s: string): string {
+  const pad = (4 - (s.length % 4)) % 4
+  return s + '='.repeat(pad)
 }
 
 /** Decode roles claim from a JWT access token (payload only; no signature check). */
@@ -55,7 +60,7 @@ export function rolesFromAccessToken(token: string | null | undefined): UserRole
   const parts = token.split('.')
   if (parts.length < 2 || !parts[1]) return []
   try {
-    const json = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'))
+    const json = atob(padBase64(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
     const payload = JSON.parse(json) as { roles?: unknown }
     const roles = Array.isArray(payload.roles) ? payload.roles.map(String) : []
     return ROLES.filter((r) => roles.includes(r))

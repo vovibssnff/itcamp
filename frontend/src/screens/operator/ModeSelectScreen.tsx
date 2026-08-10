@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router'
 import { useAuthStore } from '@/store/auth'
 import type { ExamAssignment } from '@/mocks/fixtures/assignments'
 import { isMockApi } from '@/utils/env'
+import { sessionsApi } from '@/api/sessions'
 
 interface ModeCard {
   key: string
@@ -44,35 +45,38 @@ export default function ModeSelectScreen() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const [examAssignment, setExamAssignment] = useState<ExamAssignment | null>(null)
+  const [sessionMode, setSessionMode] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    if (!user?.id || !isMockApi()) {
-      setLoaded(true)
-      return
-    }
     void (async () => {
       try {
-        const res = await fetch('/api/assignments')
-        const data = (await res.json()) as ExamAssignment[]
-        const active = data
-          .filter((a) => a.operatorId === user.id && a.status === 'scheduled')
-          .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0]
-        setExamAssignment(active ?? null)
+        if (id && !isMockApi()) {
+          const session = await sessionsApi.get(id)
+          setSessionMode(session.mode)
+        }
+        if (user?.id && isMockApi()) {
+          const res = await fetch('/api/assignments')
+          const data = (await res.json()) as ExamAssignment[]
+          const active = data
+            .filter((a) => a.operatorId === user.id && a.status === 'scheduled')
+            .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0]
+          setExamAssignment(active ?? null)
+        }
       } catch {
         setExamAssignment(null)
       } finally {
         setLoaded(true)
       }
     })()
-  }, [user?.id])
+  }, [user?.id, id])
 
   const modes: ModeCard[] = []
   let num = 1
   modes.push({ ...BASE_MODES[0]!, num: String(num++).padStart(2, '0') })
 
-  // Exam is always available for this session in real mode (instructor created exam session).
-  if (!isMockApi()) {
+  // Real API: exam only when the session was created in exam mode.
+  if (!isMockApi() && sessionMode === 'exam') {
     modes.push({
       key: 'exam',
       num: String(num++).padStart(2, '0'),
@@ -80,7 +84,7 @@ export default function ModeSelectScreen() {
       desc: 'Экзаменационный режим без подсказок ИИ',
       route: 'exam',
     })
-  } else if (examAssignment) {
+  } else if (isMockApi() && examAssignment) {
     const overdue = examAssignment.dueDate.slice(0, 10) < new Date().toISOString().slice(0, 10)
     modes.push({
       key: 'exam',

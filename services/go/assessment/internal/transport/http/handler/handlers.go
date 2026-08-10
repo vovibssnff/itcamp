@@ -25,7 +25,7 @@ func writeError(w http.ResponseWriter, err error) {
 
 func mapError(err error) (int, string) {
 	switch {
-	case errors.Is(err, domain.ErrAssessmentNotFound), errors.Is(err, domain.ErrSessionNotFound):
+	case errors.Is(err, domain.ErrAssessmentNotFound), errors.Is(err, domain.ErrSessionNotFound), errors.Is(err, domain.ErrScenarioNotFound):
 		return http.StatusNotFound, "not_found"
 	case errors.Is(err, domain.ErrAlreadyFinalized):
 		return http.StatusConflict, "already_finalized"

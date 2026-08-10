@@ -14,14 +14,14 @@ func NewTriggerValidator() *TriggerValidator {
 
 func (v *TriggerValidator) ValidateScenario(sc domain.Scenario) error {
 	if sc.Name == "" {
-		return fmt.Errorf("scenario name is required")
+		return fmt.Errorf("%w: scenario name is required", domain.ErrValidationFailed)
 	}
 	for i := range sc.Faults {
 		if err := v.ValidateTrigger(sc.Faults[i].Trigger); err != nil {
 			return fmt.Errorf("fault %s: %w", sc.Faults[i].ID, err)
 		}
 		if sc.Faults[i].FaultID == "" {
-			return fmt.Errorf("fault %d: fault_id is required", i)
+			return fmt.Errorf("%w: fault %d: fault_id is required", domain.ErrValidationFailed, i)
 		}
 	}
 	return nil

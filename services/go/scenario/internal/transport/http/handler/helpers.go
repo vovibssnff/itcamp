@@ -28,7 +28,7 @@ func mapError(err error) (int, string) {
 	switch {
 	case errors.Is(err, domain.ErrScenarioNotFound), errors.Is(err, domain.ErrFaultNotFound):
 		return http.StatusNotFound, "not_found"
-	case errors.Is(err, domain.ErrInvalidTrigger):
+	case errors.Is(err, domain.ErrInvalidTrigger), errors.Is(err, domain.ErrValidationFailed):
 		return http.StatusUnprocessableEntity, "validation_failed"
 	case errors.Is(err, domain.ErrCloneFailed):
 		return http.StatusInternalServerError, "clone_failed"

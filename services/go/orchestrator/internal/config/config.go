@@ -44,6 +44,7 @@ type NATSConfig struct {
 }
 
 type ClientsConfig struct {
+	UseMock        bool   `toml:"use_mock"`
 	ConstructorURL string `toml:"constructor_url"`
 	ScenarioURL    string `toml:"scenario_url"`
 	SimURL         string `toml:"sim_url"`

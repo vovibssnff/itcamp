@@ -55,9 +55,25 @@ func main() {
 	}
 	defer publisher.Close()
 
-	simClient := client.NewMockSimClient()
-	assessmentClient := client.NewMockAssessmentClient()
-	snapshotClient := client.NewMockSnapshotClient()
+	var simClient client.SimClient
+	var assessmentClient client.AssessmentClient
+	var snapshotClient client.SnapshotClient
+	var constructorClient client.ConstructorClient
+	var scenarioClient client.ScenarioClient
+
+	if cfg.Clients.UseMock {
+		log.Info("using mock clients (no real service connections)")
+		simClient = client.NewMockSimClient()
+		assessmentClient = client.NewMockAssessmentClient()
+		snapshotClient = client.NewMockSnapshotClient()
+	} else {
+		log.Info("using real HTTP clients", "assessment", cfg.Clients.AssessmentURL, "snapshot", cfg.Clients.SnapshotURL)
+		simClient = client.NewMockSimClient()
+		assessmentClient = client.NewHTTPAssessmentClient(cfg.Clients.AssessmentURL)
+		snapshotClient = client.NewHTTPSnapshotClient(cfg.Clients.SnapshotURL)
+		constructorClient = client.NewHTTPConstructorClient(cfg.Clients.ConstructorURL)
+		scenarioClient = client.NewHTTPScenarioClient(cfg.Clients.ScenarioURL)
+	}
 
 	hub := service.NewWSHub()
 	sessionRepo := repository.NewSessionRepo(pg)
@@ -65,7 +81,7 @@ func main() {
 	sessionSvc := service.NewSessionService(
 		sessionRepo, redisCache, publisher,
 		simClient, assessmentClient, snapshotClient,
-		nil, nil,
+		scenarioClient, constructorClient,
 		hub, log,
 	)
 

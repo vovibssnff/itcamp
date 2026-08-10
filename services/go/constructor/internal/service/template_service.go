@@ -55,17 +55,33 @@ func (s *TemplateService) Create(ctx context.Context, t domain.Template) (domain
 }
 
 func (s *TemplateService) Update(ctx context.Context, t domain.Template) (domain.Template, error) {
-	if t.Status == "" {
-		t.Status = domain.StatusDraft
+	existing, err := s.repo.GetByID(ctx, t.ID)
+	if err != nil {
+		return domain.Template{}, err
 	}
-	if t.Graph.SchemaVersion == "" {
-		t.Graph.SchemaVersion = "2.0"
-	}
+	// PUT body omits status; preserve the stored lifecycle state instead of
+	// silently demoting published/archived templates back to draft.
+	t = mergeTemplateUpdate(existing, t)
 	if err := s.repo.Update(ctx, t); err != nil {
 		return domain.Template{}, err
 	}
 	audit.Emit(ctx, s.log, "template.updated", "id", t.ID)
 	return s.repo.GetByID(ctx, t.ID)
+}
+
+// mergeTemplateUpdate fills blank update fields from the persisted template.
+func mergeTemplateUpdate(existing, incoming domain.Template) domain.Template {
+	if incoming.Status == "" {
+		incoming.Status = existing.Status
+	}
+	if incoming.Graph.SchemaVersion == "" {
+		if existing.Graph.SchemaVersion != "" {
+			incoming.Graph.SchemaVersion = existing.Graph.SchemaVersion
+		} else {
+			incoming.Graph.SchemaVersion = "2.0"
+		}
+	}
+	return incoming
 }
 
 func (s *TemplateService) Delete(ctx context.Context, id string, force bool) error {

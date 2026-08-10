@@ -3,19 +3,23 @@
 # который ломает сборку при контексте = каталог сервиса.
 # Миграции в рантайме auth не нужны (применяются центральным migrator).
 FROM golang:1.22-alpine AS builder
-WORKDIR /src
+# Контекст сборки = services/go (содержит auth/ + shared/),
+# поэтому replace ../shared резолвится корректно.
+WORKDIR /src/auth
 
-COPY go.mod go.sum* ./
+COPY auth/go.mod auth/go.sum* ./
+COPY shared/go.mod shared/go.sum* /src/shared/
 RUN go mod download
 
-COPY . .
+COPY auth/ .
+COPY shared/ /src/shared/
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/auth ./cmd/auth
 
 # runtime stage
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 COPY --from=builder /out/auth /app/auth
-COPY deploy/config.example.toml /app/config.toml
+COPY auth/deploy/config.example.toml /app/config.toml
 
 USER nonroot:nonroot
 EXPOSE 8080

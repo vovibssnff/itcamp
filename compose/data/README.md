@@ -1,11 +1,11 @@
 # Local data-plane (KTК)
 
-Picodata **Community Edition** + Redis (stand-in for commercial **Radix**) + MinIO + NATS JetStream.
+PostgreSQL (stand-in for Picodata CE) + Redis (stand-in for commercial **Radix**) + MinIO + NATS JetStream.
 
 ## Quick start
 
 ```bash
-cd infra/local
+cd compose/data
 cp .env.example .env
 make pull
 make up
@@ -22,7 +22,6 @@ make smoke
 | 9001 | MinIO Console | `http://127.0.0.1:9001` |
 | 4222 | NATS | `nats://127.0.0.1:4222` |
 | 8222 | NATS monitor | `http://127.0.0.1:8222` |
-| 5173 | Frontend (Angie) | `http://127.0.0.1:5173` (mocks enabled by default) |
 
 From other containers on network `ktc-data`:
 
@@ -33,26 +32,15 @@ S3_ENDPOINT=http://minio:9000
 NATS_URL=nats://nats:4222
 ```
 
-Frontend is on network `ktc-app` (for future `gw`); open `http://127.0.0.1:5173` after `make up`.
-
-Rebuild after frontend code changes:
-
-```bash
-make build-frontend
-docker compose up -d frontend
-```
-
-Demo logins (mock auth): `operator`/`operator`, `instructor`/`instructor`, `admin`/`admin`, or register on the login screen.
-
 ## Images
 
 | Component | Image |
 |-----------|--------|
-| Picodata CE | `docker.binary.picodata.io/picodata:25.5.9` (also on `docker-public.binary.picodata.io`) |
+| PostgreSQL (Picodata stand-in) | `postgres:16-alpine` (compat-имя `picodata`, порт 4327) |
 | Cache | `redis:7.4-alpine` on port **7379** (Radix-compatible address; swap to Radix when licensed) |
 | MinIO | `minio/minio:RELEASE.2025-04-22T22-12-26Z` |
 | NATS | `nats:2.11-alpine` |
-| Frontend | `ktc-frontend:local` (built from `../../frontend`, Angie 1.12.1) |
+| migrator | строится из `tools/migrator` |
 
 ## Buckets / streams
 

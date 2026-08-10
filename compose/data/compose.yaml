@@ -1,34 +1,32 @@
-# Local data-plane: Picodata (CE) + Redis-as-Radix + MinIO + NATS JetStream
+# Local data-plane: PostgreSQL + Redis-as-Radix + MinIO + NATS JetStream
 # Usage: cp .env.example .env && docker compose up -d
+#
+# ПРИМЕЧАНИЕ: ранее здесь был Picodata CE, но его Community Edition не
+# поддерживает часть SQL-схемы сервисов (UNIQUE, current_schema и т.п.) и
+# golang-migrate не может подключаться. Для dev используется настоящий
+# PostgreSQL. Имя сервиса оставлено "picodata", чтобы не менять DSN в dev/.env
+# (сервисы ходят по postgres://admin:...@picodata:4327/postgres).
 
 name: ktc-local
 
 services:
+  # PostgreSQL stand-in для dev (compat-имя "picodata").
+  # Слушает внутри сети на 4327; наружу — PICODATA_HOST_PORT:4327.
   picodata:
-    image: ${PICODATA_IMAGE:-docker.binary.picodata.io/picodata:25.5.9}
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     hostname: picodata
-    # Image USER is 1000; named volume is root-owned — run as root locally.
-    user: "0:0"
+    command: ["-p", "4327"]
     environment:
-      PICODATA_ADMIN_PASSWORD: ${PICODATA_ADMIN_PASSWORD:-T0psecret}
-      PICODATA_CLUSTER_NAME: ${PICODATA_CLUSTER_NAME:-ktc}
-      PICODATA_INSTANCE_DIR: /var/lib/picodata/data
-      PICODATA_INSTANCE_NAME: picodata-1
-      PICODATA_IPROTO_LISTEN: 0.0.0.0:3301
-      PICODATA_IPROTO_ADVERTISE: picodata:3301
-      PICODATA_PG_LISTEN: 0.0.0.0:4327
-      PICODATA_PG_ADVERTISE: picodata:4327
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${PICODATA_ADMIN_PASSWORD:-T0psecret}
+      POSTGRES_DB: postgres
     volumes:
-      - picodata-data:/var/lib/picodata/data
+      - postgres-data:/var/lib/postgresql/data
     ports:
       - "${PICODATA_HOST_PORT:-5432}:4327"
     networks: [ktc-data]
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/4327'",
-        ]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 4327 -U admin"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -120,72 +118,28 @@ services:
     networks: [ktc-data]
     restart: "no"
 
-  picodata-init:
-    image: ${PSQL_IMAGE:-postgres:16-alpine}
+  # Применение централизованных миграций БД (golang-migrate).
+  # Зависит от postgres (service_healthy); миграции монтируются из ../../../db/migrations.
+  migrate:
+    build:
+      context: ../../../tools/migrator
+      dockerfile: ./migrator/Dockerfile
+    command: ["up", "-dsn", "postgres://admin:${PICODATA_ADMIN_PASSWORD:-T0psecret}@picodata:4327/postgres?sslmode=disable", "-migrations", "/migrations"]
+    volumes:
+      - ../../../db/migrations:/migrations:ro
     depends_on:
       picodata:
         condition: service_healthy
-    environment:
-      PGPASSWORD: ${PICODATA_ADMIN_PASSWORD:-T0psecret}
-    volumes:
-      - ./init/sql/0001_bootstrap.sql:/sql/0001_bootstrap.sql:ro
-      - ./init/wait-for.sh:/wait-for.sh:ro
-    entrypoint:
-      [
-        "/bin/sh",
-        "-c",
-        "psql -h picodata -p 4327 -U admin -d postgres -v ON_ERROR_STOP=1 -f /sql/0001_bootstrap.sql",
-      ]
     networks: [ktc-data]
     restart: "no"
-
-  # Применение централизованных миграций БД (golang-migrate).
-  # Зависит от picodata после bootstrap; миграции монтируются из ../../db/migrations.
-  migrate:
-    build:
-      context: ../../tools/migrator
-      dockerfile: ../infra/local/migrator/Dockerfile
-    command: ["up", "-dsn", "postgres://admin:${PICODATA_ADMIN_PASSWORD:-T0psecret}@picodata:4327/postgres", "-migrations", "/migrations"]
-    volumes:
-      - ../../db/migrations:/migrations:ro
-    depends_on:
-      picodata-init:
-        condition: service_completed_successfully
-    networks: [ktc-data]
-    restart: "no"
-
-  # React SPA (Angie). Default build uses in-browser mocks (MSW + mock WebSocket).
-  frontend:
-    build:
-      context: ../../frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_MOCK_API: ${VITE_MOCK_API:-true}
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
-        VITE_WS_BASE_URL: ${VITE_WS_BASE_URL:-}
-    image: ${FRONTEND_IMAGE:-ktc-frontend:local}
-    hostname: frontend
-    ports:
-      - "${FRONTEND_HOST_PORT:-5173}:8080"
-    networks: [ktc-app]
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
-    restart: unless-stopped
 
 networks:
   ktc-data:
     name: ktc-data
     driver: bridge
-  ktc-app:
-    name: ktc-app
-    driver: bridge
 
 volumes:
-  picodata-data:
+  postgres-data:
   radix-data:
   minio-data:
   nats-data:

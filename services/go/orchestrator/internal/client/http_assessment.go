@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -18,13 +19,21 @@ func NewHTTPAssessmentClient(url string) *HTTPAssessmentClient {
 	return &HTTPAssessmentClient{url: url, client: &http.Client{Timeout: 10 * time.Second}}
 }
 
-func (c *HTTPAssessmentClient) SendEvent(ctx context.Context, sessionID, eventType string, data any) error {
-	payload, _ := json.Marshal(map[string]any{
-		"session_id": sessionID,
-		"type":       eventType,
-		"data":       data,
-	})
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url+"/assessment/event", bytes.NewReader(payload))
+func (c *HTTPAssessmentClient) SendEvent(ctx context.Context, sessionID, scenarioID, eventType string, data any) error {
+	event, err := buildAssessmentEvent(sessionID, eventType, data)
+	if err != nil {
+		return fmt.Errorf("assessment send event: %w", err)
+	}
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("assessment send event: marshal: %w", err)
+	}
+
+	endpoint := c.url + "/assessment/event"
+	if scenarioID != "" {
+		endpoint += "?scenario_id=" + url.QueryEscape(scenarioID)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}
@@ -38,6 +47,29 @@ func (c *HTTPAssessmentClient) SendEvent(ctx context.Context, sessionID, eventTy
 		return fmt.Errorf("assessment send event: status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+// buildAssessmentEvent flattens orchestrator domain events into AssessmentEvent fields.
+// Alarm events use raised_model_time; assessment expects model_time.
+func buildAssessmentEvent(sessionID, eventType string, data any) (map[string]any, error) {
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	fields := map[string]any{}
+	if len(raw) > 0 && string(raw) != "null" {
+		if err := json.Unmarshal(raw, &fields); err != nil {
+			return nil, err
+		}
+	}
+	fields["session_id"] = sessionID
+	fields["type"] = eventType
+	if _, ok := fields["model_time"]; !ok {
+		if raised, ok := fields["raised_model_time"]; ok {
+			fields["model_time"] = raised
+		}
+	}
+	return fields, nil
 }
 
 func (c *HTTPAssessmentClient) GetScore(ctx context.Context, sessionID string) (any, error) {
@@ -54,7 +86,9 @@ func (c *HTTPAssessmentClient) GetScore(ctx context.Context, sessionID string) (
 		return nil, fmt.Errorf("assessment get score: status %d", resp.StatusCode)
 	}
 	var result any
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("assessment get score: decode: %w", err)
+	}
 	return result, nil
 }
 

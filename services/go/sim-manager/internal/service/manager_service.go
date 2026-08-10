@@ -46,8 +46,13 @@ func (s *ManagerService) CreateSession(ctx context.Context, req domain.CreateSes
 
 	s.mu.Lock()
 	if existing, ok := s.sessions[req.SessionID]; ok {
-		s.mu.Unlock()
-		return existing, nil
+		// A prior failed create must not poison retries with a false success.
+		if existing.Phase == domain.PhaseFailed {
+			delete(s.sessions, req.SessionID)
+		} else {
+			s.mu.Unlock()
+			return existing, nil
+		}
 	}
 	if len(s.sessions) >= s.maxInstances {
 		s.mu.Unlock()
@@ -56,14 +61,11 @@ func (s *ManagerService) CreateSession(ctx context.Context, req domain.CreateSes
 	s.sessions[req.SessionID] = domain.InstanceStatus{SessionID: req.SessionID, Phase: domain.PhaseCreated}
 	s.mu.Unlock()
 
-	image := s.workerImage
-	if req.Image != "" {
-		image = req.Image
-	}
-
+	// Never honor client-supplied image: sim-manager runs with docker.sock and
+	// must only start the configured worker image.
 	spec := domain.InstanceSpec{
 		SessionID:    req.SessionID,
-		Image:        image,
+		Image:        s.workerImage,
 		InitStateRef: req.InitStateRef,
 		CPURequest:   s.cpuRequest,
 		MemRequest:   s.memRequest,

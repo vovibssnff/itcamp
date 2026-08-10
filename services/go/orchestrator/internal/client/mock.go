@@ -81,8 +81,8 @@ func NewMockAssessmentClient() *MockAssessmentClient {
 	}
 }
 
-func (m *MockAssessmentClient) SendEvent(_ context.Context, sessionID, eventType string, _ any) error {
-	m.Events = append(m.Events, sessionID+":"+eventType)
+func (m *MockAssessmentClient) SendEvent(_ context.Context, sessionID, scenarioID, eventType string, _ any) error {
+	m.Events = append(m.Events, sessionID+":"+scenarioID+":"+eventType)
 	return nil
 }
 

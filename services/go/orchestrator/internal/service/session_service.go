@@ -233,7 +233,7 @@ func (s *SessionService) HandleActuator(ctx context.Context, id, userID, target 
 		return err
 	}
 	s.hub.BroadcastOperatorAction(id, action)
-	_ = s.assessment.SendEvent(ctx, id, "action", action)
+	_ = s.assessment.SendEvent(ctx, id, sess.ScenarioID, "action", action)
 	_ = s.publisher.PublishSessionEvent(ctx, id, "operator_action", action)
 	return nil
 }
@@ -324,7 +324,7 @@ func (r *SessionRunner) tick(ctx context.Context, engine *TriggerEngine) {
 	for _, alarm := range state.Alarms {
 		if alarm.AckModelTime == nil {
 			_ = r.svc.repo.RecordAlarm(ctx, alarm)
-			_ = r.svc.assessment.SendEvent(ctx, r.sessionID, "alarm", alarm)
+			_ = r.svc.assessment.SendEvent(ctx, r.sessionID, r.scenarioID, "alarm", alarm)
 		}
 	}
 

@@ -21,16 +21,29 @@ func NewHTTPSnapshotClient(url string) *HTTPSnapshotClient {
 }
 
 func (c *HTTPSnapshotClient) Save(ctx context.Context, sessionID, name string, isPreset bool, state domain.SimState) (string, string, error) {
-	payload, _ := json.Marshal(map[string]any{
+	stateJSON, err := json.Marshal(state)
+	if err != nil {
+		return "", "", fmt.Errorf("snapshot save: marshal state: %w", err)
+	}
+	payload, err := json.Marshal(map[string]any{
 		"session_id":     sessionID,
 		"name":           name,
 		"is_preset":      isPreset,
 		"schema_version": state.SchemaVersion,
 		"model_time":     state.ModelTime,
 		"seed":           state.Seed,
-		"payload_json":   state,
+		// Snapshot service decodes payload_json as []byte (JSON base64), not a nested object.
+		"payload_json": stateJSON,
 	})
-	resp, err := c.client.Post(c.url+"/snapshots/save", "application/json", bytes.NewReader(payload))
+	if err != nil {
+		return "", "", fmt.Errorf("snapshot save: marshal request: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url+"/snapshots/save", bytes.NewReader(payload))
+	if err != nil {
+		return "", "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return "", "", fmt.Errorf("snapshot save: %w", err)
 	}
@@ -42,13 +55,26 @@ func (c *HTTPSnapshotClient) Save(ctx context.Context, sessionID, name string, i
 		SnapshotID string `json:"snapshot_id"`
 		SHA256     string `json:"sha256"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", "", fmt.Errorf("snapshot save: decode response: %w", err)
+	}
+	if result.SnapshotID == "" {
+		return "", "", fmt.Errorf("snapshot save: empty snapshot_id")
+	}
 	return result.SnapshotID, result.SHA256, nil
 }
 
 func (c *HTTPSnapshotClient) Restore(ctx context.Context, snapshotID string) (domain.SimState, error) {
-	payload, _ := json.Marshal(map[string]string{"snapshot_id": snapshotID})
-	resp, err := c.client.Post(c.url+"/snapshots/restore", "application/json", bytes.NewReader(payload))
+	payload, err := json.Marshal(map[string]string{"snapshot_id": snapshotID})
+	if err != nil {
+		return domain.SimState{}, fmt.Errorf("snapshot restore: marshal request: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url+"/snapshots/restore", bytes.NewReader(payload))
+	if err != nil {
+		return domain.SimState{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return domain.SimState{}, fmt.Errorf("snapshot restore: %w", err)
 	}
@@ -57,14 +83,25 @@ func (c *HTTPSnapshotClient) Restore(ctx context.Context, snapshotID string) (do
 		return domain.SimState{}, fmt.Errorf("snapshot restore: status %d", resp.StatusCode)
 	}
 	var result struct {
-		PayloadJSON   domain.SimState `json:"payload_json"`
-		ModelTime     float64         `json:"model_time"`
-		Seed          int64           `json:"seed"`
-		SHA256Valid   bool            `json:"sha256_valid"`
-		SchemaVersion string          `json:"schema_version"`
+		PayloadJSON   []byte  `json:"payload_json"`
+		ModelTime     float64 `json:"model_time"`
+		Seed          int64   `json:"seed"`
+		SHA256Valid   bool    `json:"sha256_valid"`
+		SchemaVersion string  `json:"schema_version"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
-	state := result.PayloadJSON
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return domain.SimState{}, fmt.Errorf("snapshot restore: decode response: %w", err)
+	}
+	if !result.SHA256Valid {
+		return domain.SimState{}, fmt.Errorf("snapshot restore: sha256 mismatch")
+	}
+	if len(result.PayloadJSON) == 0 {
+		return domain.SimState{}, fmt.Errorf("snapshot restore: empty payload")
+	}
+	var state domain.SimState
+	if err := json.Unmarshal(result.PayloadJSON, &state); err != nil {
+		return domain.SimState{}, fmt.Errorf("snapshot restore: decode payload: %w", err)
+	}
 	if state.ModelTime == 0 {
 		state.ModelTime = result.ModelTime
 	}

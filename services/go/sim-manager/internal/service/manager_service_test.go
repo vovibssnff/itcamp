@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/itcamp/ktc/services/sim-manager/internal/domain"
@@ -15,6 +17,39 @@ var testLog = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level
 func testService(maxInstances int) *ManagerService {
 	p := provider.NewInMemoryProvider(50060)
 	return NewManagerService(p, maxInstances, "sim-worker:latest", "1000m", "512Mi", testLog)
+}
+
+// recordingProvider wraps InMemoryProvider and records the last EnsureInstance spec.
+type recordingProvider struct {
+	mu       sync.Mutex
+	failOnce bool
+	calls    int
+	lastSpec domain.InstanceSpec
+	inner    *provider.InMemoryProvider
+}
+
+func (p *recordingProvider) EnsureInstance(ctx context.Context, sessionID string, spec domain.InstanceSpec) (domain.InstanceStatus, error) {
+	p.mu.Lock()
+	p.calls++
+	p.lastSpec = spec
+	shouldFail := p.failOnce && p.calls == 1
+	p.mu.Unlock()
+	if shouldFail {
+		return domain.InstanceStatus{}, errors.New("pull timeout")
+	}
+	return p.inner.EnsureInstance(ctx, sessionID, spec)
+}
+
+func (p *recordingProvider) StopInstance(ctx context.Context, sessionID string) error {
+	return p.inner.StopInstance(ctx, sessionID)
+}
+
+func (p *recordingProvider) GetStatus(ctx context.Context, sessionID string) (domain.InstanceStatus, error) {
+	return p.inner.GetStatus(ctx, sessionID)
+}
+
+func (p *recordingProvider) ListInstances(ctx context.Context) ([]domain.InstanceStatus, error) {
+	return p.inner.ListInstances(ctx)
 }
 
 func mustCreate(t *testing.T, svc *ManagerService, sessionID string) domain.InstanceStatus {
@@ -46,6 +81,40 @@ func TestCreateSession_Idempotent(t *testing.T) {
 	status2 := mustCreate(t, svc, "sess-1")
 	if status1.Endpoint != status2.Endpoint {
 		t.Error("idempotent create should return same endpoint")
+	}
+}
+
+func TestCreateSession_FailedCreateAllowsRetry(t *testing.T) {
+	p := &recordingProvider{failOnce: true, inner: provider.NewInMemoryProvider(50100)}
+	svc := NewManagerService(p, 50, "sim-worker:latest", "1000m", "512Mi", testLog)
+
+	_, err := svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-1"})
+	if err == nil {
+		t.Fatal("expected first create to fail")
+	}
+
+	status, err := svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-1"})
+	if err != nil {
+		t.Fatalf("retry after failure should succeed, got %v", err)
+	}
+	if status.Phase != domain.PhaseReady {
+		t.Fatalf("expected ready after retry, got %s", status.Phase)
+	}
+}
+
+func TestCreateSession_IgnoresClientImage(t *testing.T) {
+	rec := &recordingProvider{inner: provider.NewInMemoryProvider(50200)}
+	svc := NewManagerService(rec, 50, "sim-worker:pinned", "1000m", "512Mi", testLog)
+
+	_, err := svc.CreateSession(context.Background(), domain.CreateSessionRequest{
+		SessionID: "sess-1",
+		Image:     "evil/payload:latest",
+	})
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	if rec.lastSpec.Image != "sim-worker:pinned" {
+		t.Fatalf("expected configured worker image, got %q", rec.lastSpec.Image)
 	}
 }
 

@@ -235,7 +235,7 @@ func (p *DockerProvider) statusFromContainer(c types.Container, sessionID string
 }
 
 func (p *DockerProvider) statusFromFields(sessionID, state string, port int) domain.InstanceStatus {
-	phase := domain.PhaseReady
+	var phase domain.Phase
 	switch state {
 	case "running":
 		phase = domain.PhaseReady

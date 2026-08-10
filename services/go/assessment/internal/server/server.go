@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	sharedmetrics "github.com/itcamp/ktc/shared/go/pkg/metrics"
 	"github.com/itcamp/ktc/services/assessment/internal/config"
 	"github.com/itcamp/ktc/services/assessment/internal/service"
 	"github.com/itcamp/ktc/services/assessment/internal/transport/http/handler"
+	sharedmetrics "github.com/itcamp/ktc/shared/go/pkg/metrics"
 )
 
 type Deps struct {

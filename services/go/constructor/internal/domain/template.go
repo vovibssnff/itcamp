@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 type TemplateStatus string
 
 const (
@@ -58,6 +60,6 @@ type Template struct {
 	AuthorID    string         `json:"author_id"`
 	Status      TemplateStatus `json:"status"`
 	Graph       Graph          `json:"graph"`
-	CreatedAt   string         `json:"created_at"`
-	UpdatedAt   string         `json:"updated_at"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
 }

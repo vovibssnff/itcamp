@@ -55,6 +55,12 @@ func (s *TemplateService) Create(ctx context.Context, t domain.Template) (domain
 }
 
 func (s *TemplateService) Update(ctx context.Context, t domain.Template) (domain.Template, error) {
+	if t.Status == "" {
+		t.Status = domain.StatusDraft
+	}
+	if t.Graph.SchemaVersion == "" {
+		t.Graph.SchemaVersion = "2.0"
+	}
 	if err := s.repo.Update(ctx, t); err != nil {
 		return domain.Template{}, err
 	}

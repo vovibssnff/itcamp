@@ -145,7 +145,7 @@ func (r *ComponentRepo) IsUsedInTemplates(ctx context.Context, id string) (bool,
 	var count int
 	err := r.db.Pool.QueryRow(ctx, `
 		SELECT COUNT(*) FROM installation_templates
-		WHERE graph @> jsonb_build_object('nodes', jsonb_build_array(jsonb_build_object('component_type_id', $1)))`,
+		WHERE graph @> jsonb_build_object('nodes', jsonb_build_array(jsonb_build_object('component_type_id', $1::text)))`,
 		id).Scan(&count)
 	if err != nil {
 		return false, err

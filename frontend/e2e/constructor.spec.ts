@@ -4,9 +4,14 @@ import { loginAs } from './helpers'
 async function openEditableTemplate(page: Page) {
   await page.goto('/templates')
   await page.getByRole('button', { name: 'Новый шаблон' }).click()
-  await page.getByPlaceholder('ЭЛОУ-АВТ №1').fill('Test Template E2E')
+  const nameInput = page.getByPlaceholder('ЭЛОУ-АВТ №1')
+  await expect(nameInput).toBeVisible()
+  await nameInput.fill('Test Template E2E')
   await page.getByRole('button', { name: 'Создать' }).click()
-  await expect(page).toHaveURL(/\/templates\/.+\/edit/)
+  // New mocks use `tmpl-${Date.now()}` — never the fixed `tmpl-elou-avt` mnemonic.
+  await expect(page).toHaveURL(/\/templates\/tmpl-\d+\/edit/)
+  await expect(page.getByText('Палитра компонентов')).toBeVisible()
+  await expect(page.getByText('Test Template E2E')).toBeVisible()
 }
 
 test.describe('TEST-02: Constructor canvas', () => {
@@ -38,8 +43,6 @@ test.describe('TEST-02: Constructor canvas', () => {
 
   test('constructor screen shows palette and canvas', async ({ page }) => {
     await openEditableTemplate(page)
-    await expect(page.getByText('Палитра компонентов')).toBeVisible()
-    await expect(page.getByText('Test Template E2E')).toBeVisible()
   })
 
   test('constructor shows toolbar buttons', async ({ page }) => {
@@ -56,7 +59,10 @@ test.describe('TEST-02: Constructor canvas', () => {
 
   test('can filter palette by category', async ({ page }) => {
     await openEditableTemplate(page)
-    await page.getByText('ЭЛОУ').first().click()
+    await page
+      .locator('.ant-tag')
+      .filter({ hasText: /^ЭЛОУ$/ })
+      .click()
     await expect(page.getByText('Электродесольватор')).toBeVisible()
   })
 })

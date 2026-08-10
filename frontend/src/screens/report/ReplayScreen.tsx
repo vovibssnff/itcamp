@@ -1,37 +1,72 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'react-router'
-import { Slider, Button, Typography } from 'antd'
+import { Slider, Button, Typography, Spin, message } from 'antd'
 import { PlayCircleOutlined, PauseCircleOutlined, StepBackwardOutlined } from '@ant-design/icons'
+import { assessmentApi } from '@/api/assessment'
+import type { ReplayEvent } from '@/api/mappers'
 import { tokens } from '@/theme/tokens'
 
 const { Text } = Typography
-
-const REPLAY_EVENTS = [
-  { time: 120, type: 'alarm', description: 'HH по TI-201', severity: 'critical' },
-  { time: 180, type: 'action', description: 'Переключение на ручной режим TRC-201' },
-  { time: 240, type: 'penalty', description: 'Задержка реакции > 60с' },
-  { time: 360, type: 'action', description: 'Стабилизация температуры' },
-]
 
 export default function ReplayScreen() {
   const { id } = useParams<{ id: string }>()
   const [position, setPosition] = useState(0)
   const [playing, setPlaying] = useState(false)
-  const duration = 900
+  const [duration, setDuration] = useState(900)
+  const [events, setEvents] = useState<ReplayEvent[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!id) return
+    void (async () => {
+      setLoading(true)
+      try {
+        const data = await assessmentApi.getReplay(id)
+        setEvents(data.events)
+        setDuration(data.duration || 900)
+      } catch {
+        void message.error('Не удалось загрузить данные воспроизведения')
+        setEvents([])
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [id])
+
+  useEffect(() => {
+    if (!playing) return
+    const timer = setInterval(() => {
+      setPosition((p) => {
+        if (p >= duration) {
+          setPlaying(false)
+          return p
+        }
+        return p + 1
+      })
+    }, 200)
+    return () => clearInterval(timer)
+  }, [playing, duration])
 
   const timeStr = `${Math.floor(position / 60)
     .toString()
     .padStart(2, '0')}:${(position % 60).toString().padStart(2, '0')}`
 
-  const currentEvents = REPLAY_EVENTS.filter((e) => e.time <= position)
+  const currentEvents = events.filter((e) => e.time <= position)
+
+  if (loading) {
+    return (
+      <div style={{ padding: 48, display: 'flex', justifyContent: 'center' }}>
+        <Spin />
+      </div>
+    )
+  }
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
       <Typography.Title level={4} style={{ color: tokens.text.primary }}>
-        Воспроизведение · Отчёт {id}
+        Воспроизведение · {id}
       </Typography.Title>
 
-      {/* Timeline */}
       <div
         style={{
           background: tokens.bg.surface,
@@ -66,26 +101,26 @@ export default function ReplayScreen() {
             formatter: (v) =>
               `${Math.floor((v ?? 0) / 60)}:${String((v ?? 0) % 60).padStart(2, '0')}`,
           }}
-          marks={REPLAY_EVENTS.reduce<
-            Record<number, { style: React.CSSProperties; label: string }>
-          >((acc, e) => {
-            acc[e.time] = {
-              style: {
-                color:
-                  e.type === 'alarm'
-                    ? tokens.accent.red
-                    : e.type === 'penalty'
-                      ? tokens.accent.amber
-                      : tokens.accent.cyan,
-              },
-              label: '|',
-            }
-            return acc
-          }, {})}
+          marks={events.reduce<Record<number, { style: React.CSSProperties; label: string }>>(
+            (acc, e) => {
+              acc[e.time] = {
+                style: {
+                  color:
+                    e.type === 'alarm'
+                      ? tokens.accent.red
+                      : e.type === 'penalty'
+                        ? tokens.accent.amber
+                        : tokens.accent.cyan,
+                },
+                label: '|',
+              }
+              return acc
+            },
+            {},
+          )}
         />
       </div>
 
-      {/* Event log */}
       <div
         style={{
           background: tokens.bg.surface,

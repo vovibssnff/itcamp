@@ -4,15 +4,17 @@ import { HmiCanvas } from '@/canvas/hmi/HmiCanvas'
 import { EloudAvtScheme } from '@/canvas/hmi/EloudAvtScheme'
 import { Faceplate } from '@/canvas/hmi/Faceplate'
 import { AlarmBanner } from '@/components/alarms/AlarmBanner'
-import { AlarmList } from '@/components/alarms/AlarmList'
 import { TrendPanel } from '@/components/trends/TrendPanel'
-import { FloatingAiChat } from '@/components/ai/FloatingAiChat'
+import { AiAlarmChat } from '@/components/ai/AiAlarmChat'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useSessionStore } from '@/store/session'
 import { useUIStore } from '@/store/ui'
 import type { CanvasNode } from '@/store/constructor'
-import { COMPONENT_TYPES } from '@/mocks/fixtures/components'
-import { TEMPLATES } from '@/mocks/fixtures/templates'
+import { COMPONENT_TYPES, type ComponentType } from '@/mocks/fixtures/components'
+import { TEMPLATES, type Template } from '@/mocks/fixtures/templates'
+import { sessionsApi } from '@/api/sessions'
+import { templatesApi } from '@/api/templates'
+import { componentsApi } from '@/api/components'
 
 const STATUS_LABELS: Record<string, string> = {
   idle: 'Ожидание',
@@ -28,7 +30,6 @@ export default function TrainingScreen() {
   const containerRef = useRef<HTMLDivElement>(null)
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 500 })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [showLog, setShowLog] = useState(true)
   const [selectedNode, setSelectedNode] = useState<CanvasNode | null>(null)
   const [faceplateOpen, setFaceplateOpen] = useState(false)
   const [started, setStarted] = useState(false)
@@ -49,13 +50,32 @@ export default function TrainingScreen() {
   const theme = useUIStore((s) => s.theme)
   const setTheme = useUIStore((s) => s.setTheme)
 
+  const [template, setTemplate] = useState<Template>(TEMPLATES[0]!)
+  const [componentTypes, setComponentTypes] = useState<ComponentType[]>(COMPONENT_TYPES)
+
   useEffect(() => {
     clearSession()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Use demo template layout
-  const template = TEMPLATES[0]!
+  useEffect(() => {
+    if (!sessionId) return
+    void (async () => {
+      try {
+        const [session, components] = await Promise.all([
+          sessionsApi.get(sessionId),
+          componentsApi.list(),
+        ])
+        if (components.length) setComponentTypes(components)
+        if (session.templateId) {
+          setTemplate(await templatesApi.get(session.templateId))
+        }
+      } catch {
+        // Fall back to demo template when session/template unavailable.
+      }
+    })()
+  }, [sessionId])
+
   const nodes = template.nodes
   const edges = template.edges
 
@@ -170,7 +190,7 @@ export default function TrainingScreen() {
               <HmiCanvas
                 nodes={nodes}
                 edges={edges}
-                componentTypes={COMPONENT_TYPES}
+                componentTypes={componentTypes}
                 telemetry={telemetry}
                 width={canvasSize.w}
                 height={canvasSize.h}
@@ -185,7 +205,7 @@ export default function TrainingScreen() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-end',
               gap: 16,
               padding: '11px 18px',
               borderTop: '1px solid var(--ln)',
@@ -193,23 +213,6 @@ export default function TrainingScreen() {
               background: 'var(--srf)',
             }}
           >
-            <label
-              style={{
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 12.5,
-                color: 'var(--tx2)',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={showLog}
-                onChange={(e) => setShowLog(e.target.checked)}
-              />
-              Журнал аварий
-            </label>
             <button className="btn btn-acc btn-sm" onClick={handleFinish} disabled={!started}>
               Завершить тренировку
             </button>
@@ -239,46 +242,41 @@ export default function TrainingScreen() {
             {/* 01 · Trends with sparklines */}
             <TrendPanel />
 
-            {/* 02 · Alarms journal */}
-            {showLog && (
+            {/* 02 · Merged AI assistant — proactive alarm hints + free-form Q&A */}
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
               <div
-                style={{
-                  flex: 1,
-                  minHeight: 0,
-                  overflow: 'hidden',
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
+                className="side-hd"
+                style={{ borderBottom: '1px solid var(--ln)', cursor: 'default' }}
               >
-                <div
-                  className="side-hd"
-                  style={{ borderBottom: '1px solid var(--ln)', cursor: 'default' }}
-                >
-                  <span className="sec">
-                    <span style={{ color: 'var(--tx4)' }}>02</span>&nbsp;&nbsp;Журнал аварий
-                  </span>
-                </div>
-                <div style={{ flex: 1, overflow: 'auto' }}>
-                  <AlarmList maxHeight={999} />
-                </div>
+                <span className="sec">
+                  <span style={{ color: 'var(--tx4)' }}>02</span>&nbsp;&nbsp;ИИ-ассистент
+                </span>
               </div>
-            )}
+              <div style={{ flex: 1, minHeight: 0 }}>
+                <AiAlarmChat />
+              </div>
+            </div>
           </div>
         )}
       </div>
 
       <Faceplate
         node={selectedNode}
-        componentTypes={COMPONENT_TYPES}
+        componentTypes={componentTypes}
         open={faceplateOpen}
         onClose={() => setFaceplateOpen(false)}
         telemetry={telemetry}
         regulators={regulators}
         onSendCommand={handleSendCommand}
       />
-
-      {/* Floating ИИ-ассистент (reference: плавающий чат ИИ-ассистента) */}
-      <FloatingAiChat />
     </div>
   )
 }

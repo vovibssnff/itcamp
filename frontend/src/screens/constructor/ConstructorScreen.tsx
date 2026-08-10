@@ -11,11 +11,14 @@ import {
 import { ConstructorCanvas } from '@/canvas/constructor/ConstructorCanvas'
 import { ComponentPalette } from '@/canvas/constructor/ComponentPalette'
 import { PropertiesPanel } from '@/canvas/constructor/PropertiesPanel'
+import { EloudAvtScheme } from '@/canvas/hmi/EloudAvtScheme'
 import { useConstructorStore } from '@/store/constructor'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { useUndo } from '@/hooks/useUndo'
-import { COMPONENT_TYPES, type ComponentType } from '@/mocks/fixtures/components'
+import { type ComponentType } from '@/mocks/fixtures/components'
 import type { Template } from '@/mocks/fixtures/templates'
+import { templatesApi } from '@/api/templates'
+import { componentsApi } from '@/api/components'
 import { tokens } from '@/theme/tokens'
 
 const CANVAS_PADDING = 240 // palette width
@@ -24,7 +27,7 @@ export default function ConstructorScreen() {
   const { id } = useParams<{ id: string }>()
   const [loading, setLoading] = useState(true)
   const [template, setTemplate] = useState<Template | null>(null)
-  const [componentTypes] = useState<ComponentType[]>(COMPONENT_TYPES)
+  const [componentTypes, setComponentTypes] = useState<ComponentType[]>([])
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 })
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -59,9 +62,9 @@ export default function ConstructorScreen() {
     void (async () => {
       setLoading(true)
       try {
-        const res = await fetch(`/api/templates/${id}`)
-        const tmpl = (await res.json()) as Template
+        const [tmpl, components] = await Promise.all([templatesApi.get(id), componentsApi.list()])
         setTemplate(tmpl)
+        setComponentTypes(components)
         setStoreTemplate(id)
         setNodes(tmpl.nodes)
         setEdges(tmpl.edges)
@@ -91,11 +94,7 @@ export default function ConstructorScreen() {
   const saveTemplate = useCallback(async () => {
     if (!id || !template) return
     try {
-      await fetch(`/api/templates/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...template, nodes, edges }),
-      })
+      await templatesApi.update(id, { ...template, nodes, edges })
       markClean()
       void message.success('Шаблон сохранён')
     } catch {
@@ -108,11 +107,7 @@ export default function ConstructorScreen() {
   async function handleValidate() {
     if (!id) return
     try {
-      const res = await fetch(`/api/templates/${id}/validate`, { method: 'POST' })
-      const result = (await res.json()) as {
-        valid: boolean
-        errors: { nodeId: string | null; message: string }[]
-      }
+      const result = await templatesApi.validate(id)
       if (result.valid) {
         void message.success('Граф валиден')
         setValidationErrors([])
@@ -161,6 +156,41 @@ export default function ConstructorScreen() {
   }
 
   if (loading) return <div className="loading-spinner" />
+
+  // The default ЭЛОУ-АВТ template renders its fixed hand-drawn mnemonic at
+  // runtime (see EloudAvtScheme) instead of this generic node/edge graph —
+  // editing the graph here would silently have no effect on what operators
+  // actually see, so show the same mnemonic (read-only) instead of the editor.
+  const isFixedMnemonic = template?.scheme === 'elou-avt'
+
+  if (isFixedMnemonic) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '6px 12px',
+            borderBottom: `1px solid ${tokens.border.subtle}`,
+            background: tokens.bg.elevated,
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ fontFamily: tokens.font.mono, fontSize: 12, color: tokens.accent.cyan }}>
+            {template?.name}
+          </span>
+          <span style={{ fontSize: 11, color: tokens.text.muted }}>
+            Эталонная мнемосхема установки — та же, что видит оператор. Редактирование графа узлов
+            недоступно для этого шаблона.
+          </span>
+        </div>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <EloudAvtScheme telemetry={{}} interactive={false} flowing />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>

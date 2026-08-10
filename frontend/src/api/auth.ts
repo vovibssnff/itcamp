@@ -1,38 +1,51 @@
-import type { UserProfile, UserRole } from '@/store/auth'
+import { apiClient } from './client'
+import { unwrap } from './request'
+import { mapUser } from './mappers'
+import type { UserProfile } from '@/store/auth'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
-
-interface LoginResponse {
+export interface TokenResponse {
   access_token: string
   refresh_token: string
-  user: UserProfile
+  expires_in?: number
+  token_type?: string
 }
 
-export interface RegisterRequest {
-  username: string
-  password: string
-  displayName: string
-  role: UserRole
+export interface MfaRequiredResponse {
+  mfa_required: true
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(text || `HTTP ${res.status}`)
-  }
-  return res.json() as Promise<T>
+export type LoginResult = TokenResponse | MfaRequiredResponse
+
+export function isMfaRequired(result: LoginResult): result is MfaRequiredResponse {
+  return 'mfa_required' in result && result.mfa_required === true
 }
 
 export const authApi = {
-  login: (username: string, password: string) =>
-    post<LoginResponse>('/api/auth/login', { username, password }),
+  async login(login: string, password: string, mfaCode?: string): Promise<LoginResult> {
+    const body: { login: string; password: string; mfa_code?: string } = { login, password }
+    if (mfaCode) body.mfa_code = mfaCode
+    return unwrap<LoginResult>(apiClient.POST('/api/v1/auth/login', { body }))
+  },
 
-  register: (data: RegisterRequest) => post<LoginResponse>('/api/auth/register', data),
+  async refresh(refreshToken: string): Promise<TokenResponse> {
+    // Gateway OpenAPI omits the request body schema; auth service expects refresh_token.
+    return unwrap<TokenResponse>(
+      apiClient.POST('/api/v1/auth/refresh', {
+        body: { refresh_token: refreshToken } as never,
+      }),
+    )
+  },
 
-  refresh: (refresh_token: string) => post<LoginResponse>('/api/auth/refresh', { refresh_token }),
+  async logout(refreshToken: string | null): Promise<void> {
+    await unwrap<unknown>(
+      apiClient.POST('/api/v1/auth/logout', {
+        body: { refresh_token: refreshToken ?? undefined } as never,
+      }),
+    )
+  },
+
+  async me(): Promise<UserProfile> {
+    const raw = await unwrap<unknown>(apiClient.GET('/api/v1/auth/me'))
+    return mapUser(raw)
+  },
 }

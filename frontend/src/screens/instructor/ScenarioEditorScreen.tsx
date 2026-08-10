@@ -22,6 +22,9 @@ import type {
 } from '@/mocks/fixtures/scenarios'
 import { DataTable, Pill, Modal, Field, TextArea, Seg, SectionLabel } from '@/components/ui'
 import { useAutoSave } from '@/hooks/useAutoSave'
+import { scenariosApi } from '@/api/scenarios'
+import { templatesApi } from '@/api/templates'
+import { snapshotsApi } from '@/api/snapshots'
 
 const STATUS_LABELS: Record<ScenarioStatus, string> = {
   draft: 'Черновик',
@@ -53,12 +56,11 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
   const fetch_ = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (filterStatus) params.set('status', filterStatus)
-      if (filterType) params.set('type', filterType)
-      if (q) params.set('q', q)
-      const res = await fetch(`/api/scenarios?${params}`)
-      const data = (await res.json()) as typeof scenarios
+      const query: Record<string, string> = {}
+      if (filterStatus) query.status = filterStatus
+      if (filterType) query.type = filterType
+      if (q) query.q = q
+      const data = (await scenariosApi.list(query)) as typeof scenarios
       setScenarios(data)
     } catch {
       void message.error('Ошибка загрузки сценариев')
@@ -72,23 +74,20 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
   }, [fetch_])
 
   async function doDelete(id: string) {
-    await fetch(`/api/scenarios/${id}`, { method: 'DELETE' })
+    await scenariosApi.remove(id)
     void fetch_()
     void message.success('Сценарий удалён')
   }
 
   async function doClone(id: string) {
-    await fetch(`/api/scenarios/${id}/clone`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    })
+    await scenariosApi.clone(id, {})
     void fetch_()
     void message.success('Сценарий скопирован')
   }
 
   async function doModerate(id: string, action: 'publish' | 'archive' | 'unpublish') {
-    await fetch(`/api/scenarios/${id}/${action}`, { method: 'POST' })
+    // Moderation endpoints are mock-only (not in gateway OpenAPI).
+    await fetch(`/api/v1/scenarios/${id}/${action}`, { method: 'POST' })
     void fetch_()
     void message.success(
       action === 'publish'
@@ -101,12 +100,10 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
 
   async function doAiGenerate() {
     if (!aiTemplateId) return
-    const res = await fetch('/api/scenarios/ai-generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template_id: aiTemplateId, description: aiDesc }),
-    })
-    const sc = (await res.json()) as Scenario
+    const sc = (await scenariosApi.aiGenerate({
+      template_id: aiTemplateId,
+      description: aiDesc,
+    })) as Scenario
     setAiModal(false)
     setAiDesc('')
     void fetch_()
@@ -357,24 +354,17 @@ function ScenarioEditor({ id }: { id: string }) {
         setLoading(false)
       } else {
         setLoading(true)
-        const res = await fetch(`/api/scenarios/${id}`)
-        const data = (await res.json()) as Scenario
+        const data = (await scenariosApi.get(id!)) as Scenario
         setScenario(data)
         setLoading(false)
       }
     })()
 
-    void fetch('/api/faults')
-      .then((r) => r.json())
-      .then((d: FaultCatalogItem[]) => setFaultCatalog(d))
+    void scenariosApi.listFaults().then((d) => setFaultCatalog(d as FaultCatalogItem[]))
 
-    void fetch('/api/templates')
-      .then((r) => r.json())
-      .then((d: { id: string; name: string }[]) => setTemplates(d))
+    void templatesApi.list().then((d) => setTemplates(d.map((t) => ({ id: t.id, name: t.name }))))
 
-    void fetch('/api/snapshots')
-      .then((r) => r.json())
-      .then((d: { id: string; label: string }[]) => setPresets(d))
+    void snapshotsApi.list().then((d) => setPresets(d.map((s) => ({ id: s.id, label: s.name }))))
   }, [id, isNew])
 
   // Load the bound template's node instances so faults can target concrete nodes (FR-FLT-01)
@@ -384,10 +374,10 @@ function ScenarioEditor({ id }: { id: string }) {
       setTemplateNodes([])
       return
     }
-    void fetch(`/api/templates/${boundTemplateId}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((tmpl: { nodes?: { id: string; label: string; typeId: string }[] } | null) => {
-        setTemplateNodes(tmpl?.nodes ?? [])
+    void templatesApi
+      .get(boundTemplateId)
+      .then((tmpl) => {
+        setTemplateNodes(tmpl.nodes.map((n) => ({ id: n.id, label: n.label, typeId: n.typeId })))
       })
       .catch(() => setTemplateNodes([]))
   }, [boundTemplateId])
@@ -400,21 +390,12 @@ function ScenarioEditor({ id }: { id: string }) {
   const save = useCallback(async () => {
     if (!scenario) return
     if (isNew) {
-      const res = await fetch('/api/scenarios', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(scenario),
-      })
-      const created = (await res.json()) as Scenario
+      const created = (await scenariosApi.create(scenario)) as Scenario
       void message.success('Сценарий создан')
       setDirty(false)
       void navigate(`/scenarios/${created.id}`)
     } else {
-      await fetch(`/api/scenarios/${scenario.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(scenario),
-      })
+      await scenariosApi.update(scenario.id, scenario)
       void message.success('Сохранено')
       setDirty(false)
     }
@@ -424,7 +405,7 @@ function ScenarioEditor({ id }: { id: string }) {
 
   async function doModerate(action: 'publish' | 'archive' | 'unpublish') {
     if (!scenario) return
-    await fetch(`/api/scenarios/${scenario.id}/${action}`, { method: 'POST' })
+    await fetch(`/api/v1/scenarios/${scenario.id}/${action}`, { method: 'POST' })
     patch({
       status: action === 'publish' ? 'published' : action === 'archive' ? 'archived' : 'draft',
     })

@@ -2,27 +2,40 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Input, message } from 'antd'
 import { useAuthStore } from '@/store/auth'
-import { authApi } from '@/api/auth'
+import { authApi, isMfaRequired } from '@/api/auth'
 import { useTranslation } from 'react-i18next'
 import { useUIStore } from '@/store/ui'
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [mfaCode, setMfaCode] = useState('')
+  const [mfaRequired, setMfaRequired] = useState(false)
   const [loading, setLoading] = useState(false)
   const { setTokens, setUser } = useAuthStore()
   const { theme, setTheme } = useUIStore()
   const navigate = useNavigate()
   const { t } = useTranslation()
 
+  async function completeLogin(access: string, refresh: string) {
+    setTokens(access, refresh)
+    const user = await authApi.me()
+    setUser(user)
+    void navigate('/', { replace: true })
+  }
+
   async function handleSubmit() {
     if (!username || !password) return
+    if (mfaRequired && !mfaCode) return
     setLoading(true)
     try {
-      const result = await authApi.login(username, password)
-      setTokens(result.access_token, result.refresh_token)
-      setUser(result.user)
-      void navigate('/', { replace: true })
+      const result = await authApi.login(username, password, mfaRequired ? mfaCode : undefined)
+      if (isMfaRequired(result)) {
+        setMfaRequired(true)
+        void message.info(t('auth.mfaRequired', { defaultValue: 'Введите код MFA' }))
+        return
+      }
+      await completeLogin(result.access_token, result.refresh_token)
     } catch {
       void message.error(t('auth.loginError'))
     } finally {
@@ -126,6 +139,7 @@ export default function LoginScreen() {
               onKeyDown={handleKeyDown}
               autoFocus
               autoComplete="username"
+              disabled={mfaRequired}
             />
           </div>
 
@@ -139,6 +153,7 @@ export default function LoginScreen() {
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={handleKeyDown}
               autoComplete="current-password"
+              disabled={mfaRequired}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -153,11 +168,26 @@ export default function LoginScreen() {
             />
           </div>
 
+          {mfaRequired && (
+            <div className="rise d4" style={{ marginTop: 22 }}>
+              <label className="fld-lbl">{t('auth.mfaCode', { defaultValue: 'Код MFA' })}</label>
+              <input
+                className="fld"
+                placeholder="123456"
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value)}
+                onKeyDown={handleKeyDown}
+                autoFocus
+                autoComplete="one-time-code"
+              />
+            </div>
+          )}
+
           <div className="rise d5" style={{ marginTop: 34 }}>
             <button
               className="btn btn-acc btn-w"
               onClick={() => void handleSubmit()}
-              disabled={loading || !username || !password}
+              disabled={loading || !username || !password || (mfaRequired && !mfaCode)}
             >
               {loading ? '...' : 'Войти в тренажёр'}
             </button>

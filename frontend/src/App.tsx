@@ -38,9 +38,10 @@ export default function App() {
     if (accessToken || !refreshToken) return
     authApi
       .refresh(refreshToken)
-      .then((res) => {
+      .then(async (res) => {
         useAuthStore.getState().setTokens(res.access_token, res.refresh_token)
-        useAuthStore.getState().setUser(res.user)
+        const user = await authApi.me()
+        useAuthStore.getState().setUser(user)
       })
       .catch(() => useAuthStore.getState().logout())
   }, [])

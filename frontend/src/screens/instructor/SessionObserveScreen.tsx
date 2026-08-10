@@ -6,13 +6,18 @@ import { AlarmBanner } from '@/components/alarms/AlarmBanner'
 import { TrendPanel } from '@/components/trends/TrendPanel'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useSessionStore } from '@/store/session'
-import { COMPONENT_TYPES } from '@/mocks/fixtures/components'
-import { TEMPLATES } from '@/mocks/fixtures/templates'
+import { COMPONENT_TYPES, type ComponentType } from '@/mocks/fixtures/components'
+import { TEMPLATES, type Template } from '@/mocks/fixtures/templates'
+import { sessionsApi } from '@/api/sessions'
+import { templatesApi } from '@/api/templates'
+import { componentsApi } from '@/api/components'
 
 export default function SessionObserveScreen() {
   const { id: sessionId } = useParams<{ id: string }>()
   const containerRef = useRef<HTMLDivElement>(null)
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 500 })
+  const [template, setTemplate] = useState<Template>(TEMPLATES[0]!)
+  const [componentTypes, setComponentTypes] = useState<ComponentType[]>(COMPONENT_TYPES)
 
   useWebSocket({ sessionId: sessionId ?? null, channel: 'observe', enabled: !!sessionId })
 
@@ -21,7 +26,23 @@ export default function SessionObserveScreen() {
   const modelTime = useSessionStore((s) => s.modelTime)
   const speed = useSessionStore((s) => s.speed)
 
-  const template = TEMPLATES[0]!
+  useEffect(() => {
+    if (!sessionId) return
+    void (async () => {
+      try {
+        const [session, components] = await Promise.all([
+          sessionsApi.get(sessionId),
+          componentsApi.list(),
+        ])
+        if (components.length) setComponentTypes(components)
+        if (session.templateId) {
+          setTemplate(await templatesApi.get(session.templateId))
+        }
+      } catch {
+        // Fall back to demo template.
+      }
+    })()
+  }, [sessionId])
 
   useEffect(() => {
     const el = containerRef.current
@@ -68,7 +89,7 @@ export default function SessionObserveScreen() {
             <HmiCanvas
               nodes={template.nodes}
               edges={template.edges}
-              componentTypes={COMPONENT_TYPES}
+              componentTypes={componentTypes}
               telemetry={telemetry}
               width={canvasSize.w}
               height={canvasSize.h}

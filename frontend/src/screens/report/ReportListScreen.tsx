@@ -1,54 +1,54 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router'
-import { Input, Select, Pagination, Empty, Spin } from 'antd'
-import { SearchOutlined, DownloadOutlined } from '@ant-design/icons'
+import { Input, Select, Pagination, Empty, Spin, message } from 'antd'
+import { SearchOutlined, DownloadOutlined, PlusOutlined } from '@ant-design/icons'
 import { Pill } from '@/components/ui'
-
-interface ReportSummary {
-  id: string
-  sessionId: string
-  operatorName: string
-  scenario: string
-  score: number
-  maxScore: number
-  mode: 'practice' | 'exam'
-  completedAt: string
-  duration: number
-  passed: boolean
-}
+import { reportsApi } from '@/api/reports'
+import type { ReportMeta } from '@/api/mappers'
 
 const PAGE_SIZE = 20
 
 export default function ReportListScreen() {
   const navigate = useNavigate()
-  const [reports, setReports] = useState<ReportSummary[]>([])
+  const [reports, setReports] = useState<ReportMeta[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [modeFilter, setModeFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'date' | 'score'>('date')
+  const [generateSessionId, setGenerateSessionId] = useState('')
 
   const fetchReports = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        pageSize: String(PAGE_SIZE),
-        search,
-        mode: modeFilter !== 'all' ? modeFilter : '',
-        sortBy,
+      let items = await reportsApi.list()
+      if (modeFilter !== 'all') {
+        const want = modeFilter === 'exam' ? 'exam' : 'session'
+        items = items.filter((r) => r.type === want)
+      }
+      if (search.trim()) {
+        const q = search.toLowerCase()
+        items = items.filter(
+          (r) =>
+            r.id.toLowerCase().includes(q) ||
+            r.sessionId.toLowerCase().includes(q) ||
+            r.status.toLowerCase().includes(q),
+        )
+      }
+      items = [...items].sort((a, b) => {
+        if (sortBy === 'date') {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        }
+        return a.id.localeCompare(b.id)
       })
-      const res = await fetch(`/api/assessment/reports?${params.toString()}`)
-      if (!res.ok) throw new Error('fetch failed')
-      const data = (await res.json()) as { items: ReportSummary[]; total: number }
-      setReports(data.items)
-      setTotal(data.total)
+      setTotal(items.length)
+      const start = (page - 1) * PAGE_SIZE
+      setReports(items.slice(start, start + PAGE_SIZE))
     } catch {
-      // Fallback to mock data if API unavailable
-      const mock = generateMockReports(PAGE_SIZE)
-      setReports(mock)
-      setTotal(87)
+      void message.error('Ошибка загрузки отчётов')
+      setReports([])
+      setTotal(0)
     } finally {
       setLoading(false)
     }
@@ -58,20 +58,25 @@ export default function ReportListScreen() {
     void fetchReports()
   }, [fetchReports])
 
-  // Reset page on filter change
   useEffect(() => {
     setPage(1)
   }, [search, modeFilter, sortBy])
 
-  function fmtDuration(sec: number) {
-    const m = Math.floor(sec / 60)
-    const s = sec % 60
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  async function queueReport() {
+    if (!generateSessionId.trim()) return
+    try {
+      const report = await reportsApi.create(generateSessionId.trim(), 'session')
+      void message.success(`Отчёт создан (${report.status})`)
+      setGenerateSessionId('')
+      void fetchReports()
+      void navigate(`/reports/${report.id}`)
+    } catch {
+      void message.error('Не удалось поставить отчёт в очередь')
+    }
   }
 
   return (
     <div className="wrap">
-      {/* Header */}
       <div className="rise" style={{ marginBottom: 28 }}>
         <div className="sec">База данных · Отчёты</div>
         <div
@@ -90,14 +95,13 @@ export default function ReportListScreen() {
         </div>
       </div>
 
-      {/* Filters */}
       <div
         className="rise d1"
         style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}
       >
         <Input
           prefix={<SearchOutlined style={{ color: 'var(--tx4)' }} />}
-          placeholder="Оператор, сценарий…"
+          placeholder="ID отчёта, сессия…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ flex: '1 1 220px', maxWidth: 340 }}
@@ -108,8 +112,8 @@ export default function ReportListScreen() {
           onChange={setModeFilter}
           style={{ width: 160 }}
           options={[
-            { value: 'all', label: 'Все режимы' },
-            { value: 'practice', label: 'Тренировка' },
+            { value: 'all', label: 'Все типы' },
+            { value: 'practice', label: 'Сессия' },
             { value: 'exam', label: 'Экзамен' },
           ]}
         />
@@ -119,25 +123,32 @@ export default function ReportListScreen() {
           style={{ width: 180 }}
           options={[
             { value: 'date', label: 'По дате (нов.)' },
-            { value: 'score', label: 'По оценке' },
+            { value: 'score', label: 'По ID' },
           ]}
         />
+        <Input
+          placeholder="session_id для генерации"
+          value={generateSessionId}
+          onChange={(e) => setGenerateSessionId(e.target.value)}
+          style={{ width: 220 }}
+        />
+        <button className="btn btn-acc btn-sm" onClick={() => void queueReport()}>
+          <PlusOutlined /> Сформировать
+        </button>
       </div>
 
-      {/* Table */}
       <div className="cell rise d2" style={{ padding: 0, overflow: 'hidden', marginBottom: 18 }}>
         <div
           className="tbl-hd"
           style={{
-            gridTemplateColumns: '1.4fr 1.8fr 120px 80px 100px 90px',
+            gridTemplateColumns: '1.2fr 1.4fr 120px 120px 100px',
             background: 'var(--srf)',
           }}
         >
-          <div>Оператор</div>
-          <div>Сценарий</div>
+          <div>Отчёт</div>
+          <div>Сессия</div>
+          <div>Тип</div>
           <div>Дата</div>
-          <div>Время</div>
-          <div>Оценка</div>
           <div>Статус</div>
         </div>
 
@@ -150,58 +161,53 @@ export default function ReportListScreen() {
             <Empty description="Отчётов не найдено" />
           </div>
         ) : (
-          reports.map((r) => {
-            const scoreColor =
-              r.score >= 80 ? 'var(--ok)' : r.score >= 60 ? 'var(--warn)' : 'var(--alarm)'
-            return (
+          reports.map((r) => (
+            <div
+              key={r.id}
+              className="tbl-row"
+              style={{ gridTemplateColumns: '1.2fr 1.4fr 120px 120px 100px' }}
+              onClick={() => void navigate(`/reports/${r.id}`)}
+            >
               <div
-                key={r.id}
-                className="tbl-row"
-                style={{ gridTemplateColumns: '1.4fr 1.8fr 120px 80px 100px 90px' }}
-                onClick={() => void navigate(`/reports/${r.id}`)}
+                style={{
+                  fontWeight: 500,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  fontFamily: 'var(--mono)',
+                  fontSize: 12,
+                }}
               >
-                <div
-                  style={{
-                    fontWeight: 500,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {r.operatorName}
-                </div>
-                <div
-                  className="dim"
-                  style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                >
-                  {r.scenario}
-                </div>
-                <div className="mono dim" style={{ fontSize: 11 }}>
-                  {new Date(r.completedAt).toLocaleDateString('ru-RU', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: '2-digit',
-                  })}
-                </div>
-                <div className="mono dim" style={{ fontSize: 11 }}>
-                  {fmtDuration(r.duration)}
-                </div>
-                <div className="mono" style={{ fontWeight: 600, fontSize: 13, color: scoreColor }}>
-                  {r.score}
-                  <span style={{ color: 'var(--tx4)', fontWeight: 400 }}>/{r.maxScore}</span>
-                </div>
-                <div>
-                  <Pill variant={r.passed ? 'ok' : 'alarm'}>
-                    {r.passed ? 'Зачтено' : 'Незачтено'}
-                  </Pill>
-                </div>
+                {r.id}
               </div>
-            )
-          })
+              <div
+                className="dim"
+                style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              >
+                {r.sessionId}
+              </div>
+              <div className="dim">{r.type === 'exam' ? 'Экзамен' : 'Сессия'}</div>
+              <div className="mono dim" style={{ fontSize: 11 }}>
+                {r.createdAt
+                  ? new Date(r.createdAt).toLocaleDateString('ru-RU', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: '2-digit',
+                    })
+                  : '—'}
+              </div>
+              <div>
+                <Pill
+                  variant={r.status === 'ready' ? 'ok' : r.status === 'failed' ? 'alarm' : 'warn'}
+                >
+                  {r.status}
+                </Pill>
+              </div>
+            </div>
+          ))
         )}
       </div>
 
-      {/* Pagination */}
       {total > PAGE_SIZE && (
         <div
           className="rise d3"
@@ -225,41 +231,4 @@ export default function ReportListScreen() {
       )}
     </div>
   )
-}
-
-// Generates realistic mock data for development / API fallback
-function generateMockReports(count: number): ReportSummary[] {
-  const operators = [
-    'Юсупова Н.Р.',
-    'Петров К.К.',
-    'Абрамов Д.С.',
-    'Иванова М.В.',
-    'Смирнов А.Г.',
-    'Николаев П.В.',
-    'Козлова Е.И.',
-    'Фёдоров О.Н.',
-  ]
-  const scenarios = [
-    'Пробой изолятора ЭД-1',
-    'Прорыв воды из ЭЛОУ в К-2',
-    'Обрыв факела в печи П-2',
-    'Разгерметизация блока ГДМ',
-    'Кавитация насоса Н-1',
-    'Зависание уровнемера К-12/3',
-  ]
-  return Array.from({ length: count }, (_, i) => {
-    const score = 45 + Math.floor(Math.random() * 56)
-    return {
-      id: `rep-${1000 + i}`,
-      sessionId: `sess-${200 + i}`,
-      operatorName: operators[i % operators.length] ?? 'Оператор',
-      scenario: scenarios[i % scenarios.length] ?? 'Сценарий',
-      score,
-      maxScore: 100,
-      mode: i % 3 === 0 ? 'exam' : 'practice',
-      completedAt: new Date(Date.now() - i * 86_400_000 * (0.5 + Math.random())).toISOString(),
-      duration: 480 + Math.floor(Math.random() * 720),
-      passed: score >= 60,
-    }
-  })
 }

@@ -10,8 +10,11 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 import { useSessionStore } from '@/store/session'
 import { useUIStore } from '@/store/ui'
 import type { CanvasNode } from '@/store/constructor'
-import { COMPONENT_TYPES } from '@/mocks/fixtures/components'
-import { TEMPLATES } from '@/mocks/fixtures/templates'
+import { COMPONENT_TYPES, type ComponentType } from '@/mocks/fixtures/components'
+import { TEMPLATES, type Template } from '@/mocks/fixtures/templates'
+import { sessionsApi } from '@/api/sessions'
+import { templatesApi } from '@/api/templates'
+import { componentsApi } from '@/api/components'
 
 const EXAM_DURATION_S = 3600
 
@@ -34,7 +37,26 @@ export default function ExamScreen() {
   const telemetry = useSessionStore((s) => s.telemetry)
   const regulators = useSessionStore((s) => s.regulators)
 
-  const template = TEMPLATES[0]!
+  const [template, setTemplate] = useState<Template>(TEMPLATES[0]!)
+  const [componentTypes, setComponentTypes] = useState<ComponentType[]>(COMPONENT_TYPES)
+
+  useEffect(() => {
+    if (!sessionId) return
+    void (async () => {
+      try {
+        const [session, components] = await Promise.all([
+          sessionsApi.get(sessionId),
+          componentsApi.list(),
+        ])
+        if (components.length) setComponentTypes(components)
+        if (session.templateId) {
+          setTemplate(await templatesApi.get(session.templateId))
+        }
+      } catch {
+        // Fall back to demo template.
+      }
+    })()
+  }, [sessionId])
 
   useEffect(() => {
     const id = setInterval(() => setElapsed((e) => e + 1), 1000)
@@ -78,6 +100,12 @@ export default function ExamScreen() {
 
       <div className="topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => void navigate(`/sessions/${sessionId ?? 'sess-001'}/mode`)}
+          >
+            ← Назад
+          </button>
           <div className="mark">
             <i />
           </div>
@@ -158,7 +186,7 @@ export default function ExamScreen() {
           <HmiCanvas
             nodes={template.nodes}
             edges={template.edges}
-            componentTypes={COMPONENT_TYPES}
+            componentTypes={componentTypes}
             telemetry={telemetry}
             width={canvasSize.w}
             height={canvasSize.h}
@@ -174,7 +202,7 @@ export default function ExamScreen() {
 
       <Faceplate
         node={selectedNode}
-        componentTypes={COMPONENT_TYPES}
+        componentTypes={componentTypes}
         open={faceplateOpen}
         onClose={() => setFaceplateOpen(false)}
         telemetry={telemetry}

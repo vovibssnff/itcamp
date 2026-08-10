@@ -5,7 +5,6 @@
  *   ──────────────────── SVG polyline ────────────────────
  */
 import { useEffect, useState } from 'react'
-import { Select } from 'antd'
 import { useSessionStore } from '@/store/session'
 import { TAG_CONFIG } from '@/mocks/fixtures/telemetry'
 import { useUIStore } from '@/store/ui'
@@ -45,17 +44,18 @@ interface SparklineRowProps {
 }
 
 function SparklineRow({ label, unit, color, values, alarmState }: SparklineRowProps) {
-  const latest = values.at(-1) ?? NaN
-  const hasData = values.length >= 2
+  const finiteValues = values.filter((v) => Number.isFinite(v))
+  const latest = finiteValues.at(-1) ?? NaN
+  const hasData = finiteValues.length >= 2
 
   // Normalize values to SVG viewport 200×34
   let points = ''
   if (hasData) {
-    const min = Math.min(...values)
-    const max = Math.max(...values)
+    const min = Math.min(...finiteValues)
+    const max = Math.max(...finiteValues)
     const range = max - min || 1
-    const step = 200 / (values.length - 1)
-    points = values
+    const step = 200 / (finiteValues.length - 1)
+    points = finiteValues
       .map((v, i) => {
         const x = i * step
         const y = 34 - ((v - min) / range) * 30 - 2
@@ -77,13 +77,14 @@ function SparklineRow({ label, unit, color, values, alarmState }: SparklineRowPr
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'baseline',
+          alignItems: 'center',
           gap: 10,
         }}
       >
         <span
           style={{
             fontSize: 11.5,
+            lineHeight: 1,
             color: 'var(--tx2)',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -94,14 +95,21 @@ function SparklineRow({ label, unit, color, values, alarmState }: SparklineRowPr
         </span>
         <span
           className="mono"
-          style={{ fontSize: 12, fontWeight: 600, color: valueColor, flexShrink: 0 }}
+          style={{
+            fontSize: 12,
+            lineHeight: 1,
+            fontWeight: 600,
+            color: valueColor,
+            flexShrink: 0,
+            display: 'inline-grid',
+            gridTemplateColumns: '4.5ch 3.2em',
+            alignItems: 'baseline',
+            columnGap: 4,
+            fontVariantNumeric: 'tabular-nums',
+          }}
         >
-          {isNaN(latest) ? '—' : latest.toFixed(1)}
-          {unit && (
-            <span style={{ fontSize: 9, fontWeight: 400, color: 'var(--tx4)', marginLeft: 3 }}>
-              {unit}
-            </span>
-          )}
+          <span style={{ textAlign: 'right' }}>{isNaN(latest) ? '—' : latest.toFixed(1)}</span>
+          <span style={{ fontSize: 9, fontWeight: 400, color: 'var(--tx4)' }}>{unit || ''}</span>
         </span>
       </div>
       <svg
@@ -147,83 +155,44 @@ export function TrendPanel(_props: TrendPanelProps = {}) {
   const colors = theme === 'light' ? ZONE_COLORS_LIGHT : ZONE_COLORS
 
   const telemetry = useSessionStore((s) => s.telemetry)
-  const [selectedTags, setSelectedTags] = useState<string[]>(INITIAL_TAGS)
   const [seriesData, setSeriesData] = useState<Record<string, number[]>>({})
-  const [open, setOpen] = useState(true)
 
   useEffect(() => {
     setSeriesData((prev) => {
       const next = { ...prev }
-      for (const tag of selectedTags) {
+      for (const tag of INITIAL_TAGS) {
         const val = telemetry[tag]?.value ?? NaN
         next[tag] = [...(prev[tag] ?? []), val].slice(-MAX_POINTS)
       }
       return next
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [telemetry])
-
-  const tagOptions = TAG_CONFIG.map((t) => ({ value: t.tag, label: `${t.tag} — ${t.label}` }))
 
   return (
     <div>
-      {/* Section header (matches reference "01 · Тренды · до 8 параметров") */}
-      <div
-        className="side-hd"
-        onClick={() => setOpen((o) => !o)}
-        style={{ borderBottom: open ? '1px solid var(--ln)' : undefined }}
-      >
+      {/* Section header (matches "02 · Журнал аварий" styling below) */}
+      <div className="side-hd" style={{ borderBottom: '1px solid var(--ln)', cursor: 'default' }}>
         <span className="sec">
-          <span style={{ color: 'var(--tx4)' }}>01</span>&nbsp;&nbsp;Тренды · до 8 параметров
+          <span style={{ color: 'var(--tx4)' }}>01</span>&nbsp;&nbsp;Параметры
         </span>
-        <span className="sec">{open ? '▴' : '▾'}</span>
       </div>
 
-      {open && (
-        <div style={{ borderBottom: '1px solid var(--ln)' }}>
-          {/* Tag selector */}
-          <div style={{ padding: '8px 16px' }}>
-            <Select
-              mode="multiple"
-              size="small"
-              value={selectedTags}
-              onChange={(tags) => setSelectedTags(tags.slice(0, 8))}
-              options={tagOptions}
-              maxCount={8}
-              style={{ width: '100%' }}
-              placeholder="Выберите теги…"
+      <div style={{ borderBottom: '1px solid var(--ln)', padding: '4px 16px 12px' }}>
+        {INITIAL_TAGS.map((tag, i) => {
+          const cfg = TAG_CONFIG.find((t) => t.tag === tag)
+          const tv = telemetry[tag]
+          return (
+            <SparklineRow
+              key={tag}
+              label={cfg?.label ?? tag}
+              unit={cfg?.unit ?? ''}
+              color={colors[i % colors.length] ?? '#e9ff57'}
+              values={seriesData[tag] ?? []}
+              alarmState={tv?.alarmState}
             />
-          </div>
-
-          {/* Sparkline rows — displayed in full (no inner scroll) */}
-          <div
-            style={{
-              padding: '0 16px 12px',
-            }}
-          >
-            {selectedTags.length === 0 ? (
-              <p className="note" style={{ padding: '12px 0' }}>
-                Выберите параметры для отображения трендов
-              </p>
-            ) : (
-              selectedTags.map((tag, i) => {
-                const cfg = TAG_CONFIG.find((t) => t.tag === tag)
-                const tv = telemetry[tag]
-                return (
-                  <SparklineRow
-                    key={tag}
-                    label={cfg?.label ?? tag}
-                    unit={cfg?.unit ?? ''}
-                    color={colors[i % colors.length] ?? '#e9ff57'}
-                    values={seriesData[tag] ?? []}
-                    alarmState={tv?.alarmState}
-                  />
-                )
-              })
-            )}
-          </div>
-        </div>
-      )}
+          )
+        })}
+      </div>
     </div>
   )
 }

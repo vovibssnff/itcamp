@@ -10,7 +10,7 @@ interface WsOptions {
   onStatusChange?: (connected: boolean) => void
 }
 
-const WS_BASE = import.meta.env.VITE_WS_BASE_URL ?? 'ws://localhost:8080'
+const WS_BASE = import.meta.env.VITE_WS_BASE_URL ?? 'ws://localhost:8088'
 const MAX_RECONNECT_DELAY = 30_000
 const RECONNECT_TOLERANCE_MS = 3 * 60 * 1000
 
@@ -36,8 +36,8 @@ export class WsConnection {
 
   private buildUrl(): string {
     const token = useAuthStore.getState().accessToken
-    const params = new URLSearchParams({ token: token ?? '', channel: this.channel })
-    return `${WS_BASE}/ws/sessions/${this.sessionId}?${params.toString()}`
+    const params = new URLSearchParams({ token: token ?? '' })
+    return `${WS_BASE}/api/v1/ws/sessions/${this.sessionId}/${this.channel}?${params.toString()}`
   }
 
   private connect() {

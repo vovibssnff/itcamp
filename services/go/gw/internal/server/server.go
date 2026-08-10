@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	sharedmetrics "github.com/itcamp/ktc/shared/go/pkg/metrics"
 	"github.com/itcamp/ktc/services/gw/internal/auth"
 	"github.com/itcamp/ktc/services/gw/internal/config"
 	"github.com/itcamp/ktc/services/gw/internal/middleware"
@@ -31,6 +32,7 @@ func New(d Deps) *Server {
 	registerRoutes(mux, d)
 
 	h := middleware.Recover(d.Log)(mux)
+	h = sharedmetrics.Middleware(h)
 	h = middleware.RequestLogger(d.Log)(h)
 	h = middleware.RateLimit(d.Cfg.Security.RateLimitPerMin, d.Log)(h)
 
@@ -73,6 +75,7 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+	mux.Handle("GET /metrics", sharedmetrics.Handler())
 }
 
 func (s *Server) Run() error {

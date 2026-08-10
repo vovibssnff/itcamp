@@ -63,3 +63,7 @@ func ContextValue(ctx context.Context, key ctxKey) string {
 	}
 	return ""
 }
+
+func ContextUserID(ctx context.Context) string {
+	return ContextValue(ctx, CtxUserID)
+}

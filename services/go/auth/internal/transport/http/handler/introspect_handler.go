@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/itcamp/ktc/services/auth/internal/service"
@@ -18,8 +17,7 @@ func NewIntrospectHandler(svc *service.IntrospectService) *IntrospectHandler {
 
 func (h *IntrospectHandler) Introspect(w http.ResponseWriter, r *http.Request) {
 	var req dto.IntrospectRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, err)
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 	if req.Token == "" {

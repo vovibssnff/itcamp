@@ -90,6 +90,7 @@ type FaultData struct {
 }
 
 var (
+	ErrBadRequest       = errors.New("bad request")
 	ErrReportNotFound   = errors.New("report not found")
 	ErrReportNotReady   = errors.New("report is not ready")
 	ErrGenerationFailed = errors.New("report generation failed")

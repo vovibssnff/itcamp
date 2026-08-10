@@ -12,6 +12,7 @@ from typing import Any
 
 try:
     from fastapi import FastAPI, HTTPException
+    from pydantic import BaseModel, ConfigDict, Field
 except ImportError as exc:  # pragma: no cover
     raise SystemExit(
         "Для REST-слоя нужен fastapi: pip install -r requirements.txt"
@@ -27,6 +28,43 @@ from ..validation.pdn import PdnViolation, assert_no_pdn_fields
 from . import mappers
 
 logger = logging.getLogger(__name__)
+
+
+class AlarmIn(BaseModel):
+    """Событие сигнализации во входе /v1/explain."""
+
+    tag_id: str = Field(...)
+    raised_at_s: int = Field(...)
+    priority: str = Field(default="H")
+    value: float | None = None
+    limit: float | None = None
+    ack_at_s: int | None = None
+    cleared_at_s: int | None = None
+
+
+class ExplainRequest(BaseModel):
+    """Вход /v1/explain: обязательное событие сигнализации.
+
+    Валидация схемы на уровне FastAPI возвращает 422 на некорректный
+    запрос (вместо 500/KeyError при жёстком доступе по ключу).
+
+    extra="allow": незнакомые поля (в т.ч. ПДн типа fio/phone) сохраняются
+    в model_dump() и далее отсекаются _guard_pdn → 400.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    alarm: AlarmIn = Field(...)
+    session_mode: str = Field(default=SessionMode.TRAINING.value)
+    tag_window: list[dict] = Field(default_factory=list)
+    recent_actions: list[dict] = Field(default_factory=list)
+    node_label: str = Field(default="")
+    component_type: str = Field(default="")
+    neighbors: list[str] = Field(default_factory=list)
+    active_faults: list[str] = Field(default_factory=list)
+    locale: str = Field(default="ru")
+    session_id: str = Field(default="")
+    model_time_s: int = Field(default=0)
 
 
 def create_app(application: Application | None = None) -> FastAPI:
@@ -71,7 +109,8 @@ def create_app(application: Application | None = None) -> FastAPI:
     # -- бизнес-эндпоинты ---------------------------------------------------
 
     @app.post("/v1/explain")
-    def explain(payload: dict[str, Any]) -> dict[str, Any]:
+    def explain(req: ExplainRequest) -> dict[str, Any]:
+        payload = req.model_dump()
         _guard_pdn(payload)
         app_ = current()
 

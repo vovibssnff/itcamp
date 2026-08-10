@@ -1,0 +1,73 @@
+# ─────────────────────────────────────────────────────────────
+# Слой ktc-sim: вычислительный слой — Simulation Engine.
+#
+# Состав:
+#   sim-manager — Диспетчер (control-plane) Simulation Engine:
+#                 в dev использует in-memory провайдер инстансов.
+#   sim-worker  — Simulation Worker (Model API, математика ЭЛОУ-АВТ):
+#                 цифровой двойник техпроцесса, единственный источник
+#                 тегов/алармов (FR-ISO-03).
+#
+# Требуется data-plane: поднимите инфраструктурный compose
+#   compose/data/compose.yaml  →  сеть ktc-data (PostgreSQL, MinIO, NATS, Redis)
+#
+# Запуск:
+#   cp .env.example .env
+#   cd ../data && docker compose up -d   # data-plane (если ещё не поднят)
+#   cd ../sim && docker compose up -d --build
+#
+# Порты наружу согласованы так, чтобы не конфликтовать с другими слоями:
+#   - 8080 (ai-service), 8081 (assessment), 8082-8088 (auth..gw) — заняты;
+#   - sim-manager → 8091; sim-worker REST → 8092; sim-worker gRPC → 50062.
+# ─────────────────────────────────────────────────────────────
+
+name: ${COMPOSE_PROJECT_NAME:-ktk-sim}
+
+# Сеть external: создаётся инфраструктурным compose (compose/data)
+networks:
+  ktc-data:
+    external: true
+    name: ${DATA_NETWORK:-ktc-data}
+
+services:
+  # ── Sim Manager (control-plane) ────────────────────────────
+  sim-manager:
+    build:
+      context: ../../services/go
+      dockerfile: sim-manager/deploy/Dockerfile
+    volumes:
+      - ./config/sim-manager.toml:/app/config.toml:ro
+      # Доступ к Docker Engine API для спавна контейнеров sim-worker на сессию.
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "${SIM_MANAGER_HOST_PORT:-8091}:8080"
+    networks: [ktc-data]
+    depends_on:
+      - sim-worker
+    # Docker Provider спавнит контейнеры через docker.sock; доступ к сокету
+    # требует права группы docker/root. В dev поднимаемся под root.
+    user: "0:0"
+    restart: unless-stopped
+
+  # ── Sim Worker (Model API / математика) ────────────────────
+  sim-worker:
+    build:
+      context: ../../services/python/sim-engine
+      dockerfile: Dockerfile
+    # Явный тег: sim-manager (Docker-провайдер) спавнит динамические
+    # контейнеры worker'а на сессию именно под этим именем образа.
+    image: sim-worker:latest
+    environment:
+      KTC_SIM_DATA_DIR: /app/data
+      KTC_SIM_TEMPLATE_FILE: ${KTC_SIM_TEMPLATE_FILE:-template_atm_demo.json}
+      KTC_SIM_FAULTS_FILE: ${KTC_SIM_FAULTS_FILE:-faults_catalog.json}
+      KTC_SIM_TICK_HZ: ${KTC_SIM_TICK_HZ:-1.0}
+      KTC_SIM_DEFAULT_SEED: ${KTC_SIM_DEFAULT_SEED:-42}
+      # Внутренние порты в контейнере (по сети ktc-data)
+      KTC_SIM_REST_PORT: "8081"
+      KTC_SIM_GRPC_PORT: "50061"
+    ports:
+      - "${SIM_WORKER_REST_HOST_PORT:-8092}:8081"
+      - "${SIM_WORKER_GRPC_HOST_PORT:-50062}:50061"
+    networks: [ktc-data]
+    restart: unless-stopped

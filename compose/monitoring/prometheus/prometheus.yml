@@ -1,0 +1,72 @@
+# ─────────────────────────────────────────────────────────────
+# Prometheus — конфигурация слоя ktc-mon.
+#
+# Сети: все платформенные слои делят внешнюю сеть ktc-data, поэтому
+# Prometheus обращается к сервисам по DNS-именам контейнеров
+# (сервисное имя compose) на их внутренних портах.
+#
+# Пер-сервисные targets уже заведены. Часть сервисов пока не экспонирует
+# /metrics в формате Prometheus (они отобразятся как DOWN, пока не добавите
+# прометеевскую конечную точку) — это ожидаемо.
+# ─────────────────────────────────────────────────────────────
+
+global:
+  scrape_interval: 15s      # как часто собирать
+  evaluation_interval: 15s  # как часто оценивать правила/алерты
+  external_labels:
+    environment: dev
+
+# ── cAdvisor: метрики ВСЕХ контейнеров (CPU/RAM/сеть/IO) ────
+scrape_configs:
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+
+  # ── Сам Prometheus ─────────────────────────────────────────
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # ── Прикладной слой (ktc-app): auth..gw ─────────────────────
+  # Внутренний порт у всех Go-сервисов 8080. /metrics ещё не реализован —
+  # появится по мере добавления promhttp в сервисы.
+  - job_name: ktc-app
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "auth:8080"
+          - "constructor:8080"
+          - "scenario:8080"
+          - "orchestrator:8080"
+          - "assessment:8080"
+          - "snapshot:8080"
+          - "report:8080"
+          - "gw:8080"
+        labels:
+          layer: "ktc-app"
+
+  # ── ИИ-слой (ktk-ai): ai-service ────────────────────────────
+  # ai-service уже отдаёт /metrics (prometheus-client).
+  - job_name: ktk-ai
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["ai-service:8080"]
+        labels:
+          layer: "ktk-ai"
+
+  # ── Вычислительный слой (ktk-sim): sim-worker, sim-manager ─
+  - job_name: ktk-sim
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "sim-worker:8081"   # Model API (prometheus-client, уже отдаёт)
+          - "sim-manager:8080"  # диспетчер (Go, /metrics появится)
+        labels:
+          layer: "ktk-sim"
+
+  # ── Data-plane (ktc-data) ───────────────────────────────────
+  # Postgres/Redis/MinIO/NATS обычно не отдают native /metrics Prometheus.
+  # При необходимости подключите экспортёры (postgres-exporter и т.п.):
+  #   - job_name: ktc-data
+  #     static_configs:
+  #       - targets: ["postgres-exporter:9187"]

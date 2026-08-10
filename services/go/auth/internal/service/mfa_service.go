@@ -11,15 +11,19 @@ import (
 
 type MFAService struct {
 	repo  *repository.MFARepo
+	users *repository.UserRepo
 	totp  *security.TOTPService
 	audit *AuditService
 }
 
-func NewMFAService(repo *repository.MFARepo, totp *security.TOTPService, audit *AuditService) *MFAService {
-	return &MFAService{repo: repo, totp: totp, audit: audit}
+func NewMFAService(repo *repository.MFARepo, users *repository.UserRepo, totp *security.TOTPService, audit *AuditService) *MFAService {
+	return &MFAService{repo: repo, users: users, totp: totp, audit: audit}
 }
 
 func (s *MFAService) Setup(ctx context.Context, userID string) (string, error) {
+	if _, err := s.users.GetByID(ctx, userID); err != nil {
+		return "", err
+	}
 	secret, err := s.totp.GenerateSecret(userID)
 	if err != nil {
 		return "", err
@@ -35,6 +39,9 @@ func (s *MFAService) Setup(ctx context.Context, userID string) (string, error) {
 }
 
 func (s *MFAService) Enable(ctx context.Context, userID, code string) error {
+	if _, err := s.users.GetByID(ctx, userID); err != nil {
+		return err
+	}
 	rec, err := s.repo.Get(ctx, userID)
 	if err != nil {
 		return err
@@ -77,6 +84,9 @@ func (s *MFAService) Verify(ctx context.Context, userID, code string) error {
 }
 
 func (s *MFAService) IsEnabled(ctx context.Context, userID string) (bool, error) {
+	if _, err := s.users.GetByID(ctx, userID); err != nil {
+		return false, err
+	}
 	rec, err := s.repo.Get(ctx, userID)
 	if err != nil {
 		return false, nil

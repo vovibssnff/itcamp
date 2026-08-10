@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	sharedmetrics "github.com/itcamp/ktc/shared/go/pkg/metrics"
+
 	"github.com/itcamp/ktc/services/auth/internal/config"
 	"github.com/itcamp/ktc/services/auth/internal/service"
 	"github.com/itcamp/ktc/services/auth/internal/transport/http/handler"
@@ -35,6 +37,7 @@ func New(d Deps) *Server {
 	registerRoutes(mux, d)
 
 	h := middleware.Recover(d.Log)(mux)
+	h = sharedmetrics.Middleware(h)
 	h = middleware.RequestLogger(d.Log)(h)
 	h = middleware.RateLimit(d.Cfg.Security.AuthRateLimit, d.Cfg.Security.RateLimitWindow.Std(), d.Log)(h)
 
@@ -55,16 +58,18 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 	introH := handler.NewIntrospectHandler(d.Internal)
 	userH := handler.NewUserHandler(d.Users)
 
+	auth := middleware.Auth(d.Internal)
+
 	mux.HandleFunc("POST /login", authH.Login)
 	mux.HandleFunc("POST /refresh", authH.Refresh)
 	mux.HandleFunc("POST /logout", authH.Logout)
 
-	mux.HandleFunc("GET /me", meH.Me)
+	mux.Handle("GET /me", auth(http.HandlerFunc(meH.Me)))
 
 	mux.HandleFunc("POST /introspect", introH.Introspect)
 
-	mux.HandleFunc("GET /users", userH.List)
-	mux.HandleFunc("GET /users/{id}", userH.Get)
+	mux.Handle("GET /users", auth(http.HandlerFunc(userH.List)))
+	mux.Handle("GET /users/{id}", auth(http.HandlerFunc(userH.Get)))
 
 	mux.HandleFunc("POST /users/{userID}/mfa/setup", mfaH.Setup)
 	mux.HandleFunc("POST /users/{userID}/mfa/enable", mfaH.Enable)
@@ -75,6 +80,7 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+	mux.Handle("GET /metrics", sharedmetrics.Handler())
 }
 
 func (s *Server) Run() error {

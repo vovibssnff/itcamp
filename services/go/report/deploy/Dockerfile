@@ -1,15 +1,19 @@
 # build stage
+# Контекст сборки = services/go (содержит report/ + shared/),
+# поэтому replace ../shared резолвится корректно.
 FROM golang:1.22-alpine AS builder
-WORKDIR /src
-COPY go.mod go.sum* ./
+WORKDIR /src/report
+COPY report/go.mod report/go.sum* ./
+COPY shared/go.mod shared/go.sum* /src/shared/
 RUN go mod download
-COPY . .
+COPY report/ .
+COPY shared/ /src/shared/
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/report ./cmd/report
 
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 COPY --from=builder /out/report /app/report
-COPY deploy/config.example.toml /app/config.toml
+COPY report/deploy/config.example.toml /app/config.toml
 USER nonroot:nonroot
 EXPOSE 8080
 ENTRYPOINT ["/app/report", "-config", "/app/config.toml"]

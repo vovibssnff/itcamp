@@ -15,6 +15,17 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+// decodeJSON декодирует тело запроса в v. Ошибка декодирования со стороны
+// клиента (битый/некорректный JSON) возвращается как 400 Bad Request,
+// а не как внутренняя ошибка сервера.
+func decodeJSON(w http.ResponseWriter, r *http.Request, v any) bool {
+	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+		http.Error(w, `{"error":"invalid request body","code":"bad_request"}`, http.StatusBadRequest)
+		return false
+	}
+	return true
+}
+
 func writeError(w http.ResponseWriter, err error) {
 	status, code := mapError(err)
 	writeJSON(w, status, dto.ErrorResponse{Error: err.Error(), Code: code})

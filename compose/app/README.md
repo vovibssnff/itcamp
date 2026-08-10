@@ -1,21 +1,20 @@
-# dev — локальный запуск сервисов ktc
+# compose/app — слой ktc-app (сервисы приложения ktc)
 
 Docker Compose для поднятия всех сервисов приложения (`auth`, `constructor`,
 `scenario`, `orchestrator`, `assessment`, `snapshot`, `report`, `gw`).
 
-> Data-plane (Picodata, MinIO, NATS, Redis) здесь **не** поднимается.
-> Он запускается из инфраструктурного compose `infra/local/compose.yaml`,
+> Data-plane (PostgreSQL/Radix-станд-ин, MinIO, NATS, Redis) здесь **не** поднимается.
+> Он запускается из слоя `compose/data/compose.yaml`,
 > который также прогоняет миграции БД (см. «Миграции» ниже).
 
 ## Структура
 
 ```
-dev/
-├── docker-compose.yaml      # сервисы приложения
-├── .env.example             # шаблон секретов (скопировать в .env)
-├── .gitignore               # игнорирует .env
-├── config/*.toml            # предзаполненные конфиги для локального запуска
-├── docker/auth.Dockerfile   # исправленная сборка auth (см. ниже)
+compose/app/
+├── compose.yaml            # сервисы приложения
+├── .env.example            # шаблон секретов (скопировать в .env)
+├── .gitignore              # игнорирует .env
+├── config/*.toml           # предзаполненные конфиги для локального запуска
 └── README.md
 ```
 
@@ -25,9 +24,9 @@ dev/
 # 1) Скопировать секреты
 cp .env.example .env
 
-# 2) Поднять data-plane (Picodata, MinIO, NATS, Redis)
-cd ../infra/local && cp .env.example .env && docker compose up -d
-cd ../../dev
+# 2) Поднять data-plane (PostgreSQL, MinIO, NATS, Redis)
+cd ../data && cp .env.example .env && docker compose up -d
+cd ../app
 
 # 3) Поднять сервисы приложения (первый раз с --build)
 docker compose up -d --build
@@ -37,7 +36,7 @@ docker compose ps
 docker compose logs -f gw
 ```
 
-Проверить контракты можно файлами из `../helper/*.http`.
+Проверить контракты можно файлами из `helper/*.http` (в корне репозитория).
 
 ## Порты наружу
 
@@ -56,7 +55,7 @@ docker compose logs -f gw
 
 auth в dev-окружении работает в режиме `stub` (без LDAP). Пользователи
 задаются в `config/auth.toml` (`[[auth.stub_users]]`), пароль — из `.env`
-или прямо в конфиге: 
+или прямо в конфиге:
 
 | Логин | Пароль | Роли |
 |-------|--------|------|
@@ -69,9 +68,9 @@ auth в dev-окружении работает в режиме `stub` (без L
 
 ## Миграции
 
-Миграции БД прогоняются **в инфраструктурном compose** (`infra/local`):
-одиноразовая задача `migrate` на основе `tools/migrator` (golang-migrate)
-применяет `db/migrations/` к Picodata сразу после поднятия data-plane.
+Миграции БД прогоняются **в слое data** (`compose/data`): одиноразовая задача
+`migrate` на основе `tools/migrator` (golang-migrate) применяет `db/migrations/`
+к PostgreSQL сразу после поднятия data-plane.
 
 Сервисы приложения не ждут миграций через `depends_on` (они в другом
 compose-проекте); при недоступности БД сервис рестартует
@@ -80,22 +79,22 @@ compose-проекте); при недоступности БД сервис р�
 Принудительно перезапустить миграции:
 
 ```bash
-cd infra/local
+cd compose/data
 docker compose run --rm migrate
 ```
 
 ## Секреты
 
-Все секреты вынесены в `dev/.env` (см. `.env.example`): DSN БД, JWT-ключи,
-MinIO-ключи, NATS/Redis. Значения подставляются в контейнеры через
+Все секреты вынесены в `compose/app/.env` (см. `.env.example`): DSN БД,
+JWT-ключи, MinIO-ключи, NATS/Redis. Значения подставляются в контейнеры через
 `environment`, а конфиги в `config/*.toml` содержат dev-значения по умолчанию
 и при необходимости перекрываются env-переменными сервисов.
 
 ## Замечания
 
-- Сборка `auth` использует `dev/docker/auth.Dockerfile`: штатный
-  `deploy/Dockerfile` содержит неиспользуемый `COPY db/migrations`, который
-  не собирается с контекстом «каталог сервиса». В dev эта строка убрана
-  (миграции auth применяет центральный migrator).
+- Сборка `auth` использует `services/go/auth/deploy/Dockerfile` (как и остальные
+  Go-сервисы), построенный под контекст `services/go` (`COPY auth/ ...`,
+  replace ../shared резолвится корректно). Неиспользуемый `COPY db/migrations`
+  убран — миграции auth применяет центральный migrator.
 - Команды `docker compose down` останавливают только сервисы приложения;
   data-plane продолжает работать.

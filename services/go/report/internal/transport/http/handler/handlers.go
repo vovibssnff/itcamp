@@ -24,6 +24,8 @@ func writeError(w http.ResponseWriter, err error) {
 
 func mapError(err error) (int, string) {
 	switch {
+	case errors.Is(err, domain.ErrBadRequest):
+		return http.StatusBadRequest, "bad_request"
 	case errors.Is(err, domain.ErrReportNotFound):
 		return http.StatusNotFound, "not_found"
 	case errors.Is(err, domain.ErrReportNotReady):
@@ -44,11 +46,11 @@ func NewReportHandler(svc *service.ReportService) *ReportHandler {
 func (h *ReportHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req domain.CreateReportRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, err)
+		writeError(w, errors.Join(err, domain.ErrBadRequest))
 		return
 	}
 	if req.SessionID == "" {
-		writeError(w, errors.New("session_id is required"))
+		writeError(w, domain.ErrBadRequest)
 		return
 	}
 	if req.Type == "" {

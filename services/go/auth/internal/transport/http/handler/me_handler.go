@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/itcamp/ktc/services/auth/internal/service"
+	"github.com/itcamp/ktc/services/auth/internal/transport/http/middleware"
 )
 
 type MeHandler struct {
@@ -15,7 +16,7 @@ func NewMeHandler(users *service.UserService) *MeHandler {
 }
 
 func (h *MeHandler) Me(w http.ResponseWriter, r *http.Request) {
-	userID := r.PathValue("userID")
+	userID := middleware.ContextUserID(r.Context())
 	if userID == "" {
 		userID = r.Header.Get("X-User-ID")
 	}

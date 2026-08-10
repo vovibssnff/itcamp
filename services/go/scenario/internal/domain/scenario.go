@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 type ScenarioType string
 
 const (
@@ -94,5 +96,5 @@ type Scenario struct {
 	ReferenceActions []ReferenceAction `json:"reference_actions"`
 	Criteria         Criteria          `json:"criteria"`
 	AuthorID         string            `json:"author_id"`
-	CreatedAt        string            `json:"created_at"`
+	CreatedAt        time.Time         `json:"created_at"`
 }

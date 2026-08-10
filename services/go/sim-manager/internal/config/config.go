@@ -29,6 +29,7 @@ type ProviderConfig struct {
 	MaxInstances int    `toml:"max_instances"`
 	CPURequest   string `toml:"cpu_request"`
 	MemRequest   string `toml:"mem_request"`
+	Network      string `toml:"network"`
 }
 
 type Duration = sharedcfg.Duration

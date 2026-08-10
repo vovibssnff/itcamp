@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/itcamp/ktc/services/auth/internal/service"
@@ -37,8 +36,7 @@ func (h *MFAHandler) Enable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req dto.MFAVerifyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, err)
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 	if err := h.mfa.Enable(r.Context(), userID, req.Code); err != nil {

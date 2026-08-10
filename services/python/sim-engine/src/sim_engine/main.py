@@ -1,9 +1,17 @@
-"""Точка входа: REST (uvicorn) и/или gRPC-сервер."""
+"""Точка входа: REST (uvicorn) и/или gRPC-сервер.
+
+`--mode` задаёт, какие транспорты поднять:
+  rest — только REST (Model API на ``rest_port``);
+  grpc — только gRPC (Model API на ``grpc_port``);
+  all  — оба транспорта одновременно (gRPC в фоновом потоке).
+"""
 from __future__ import annotations
 
 import argparse
 import logging
 import sys
+import threading
+from typing import Callable
 
 
 def _configure_logging() -> None:
@@ -13,10 +21,29 @@ def _configure_logging() -> None:
     )
 
 
+def _serve_grpc(app) -> int:
+    """Поднимает gRPC-сервер и блокирует поток до его остановки."""
+    from .api.grpc_server import serve
+    from .config import get_settings
+
+    return serve(app, host="0.0.0.0", port=get_settings().grpc_port)
+
+
+def _serve_rest(app) -> Callable[[], int]:
+    """Запускает uvicorn REST-сервер (main-поток)."""
+    import uvicorn
+
+    from .api.rest import create_app
+    from .config import get_settings
+
+    settings = get_settings()
+    return lambda: uvicorn.run(create_app(app), host="0.0.0.0", port=settings.rest_port)
+
+
 def main(argv: list[str] | None = None) -> int:
     _configure_logging()
     parser = argparse.ArgumentParser(description="sim-worker Конструктора КТК (Model API)")
-    parser.add_argument("--mode", choices=["rest", "grpc"], default="rest")
+    parser.add_argument("--mode", choices=["rest", "grpc", "all"], default="rest")
     parser.add_argument("--host", default="0.0.0.0")
     args = parser.parse_args(argv)
 
@@ -24,28 +51,22 @@ def main(argv: list[str] | None = None) -> int:
     from .config import get_settings
 
     settings = get_settings()
+    app = build_application(settings)
+    logging.getLogger(__name__).info("Готовность: %s", app.health())
 
     if args.mode == "grpc":
-        from .api.grpc_server import serve
+        return _serve_grpc(app)
 
-        application = build_application(settings)
-        return serve(application, host=args.host, port=settings.grpc_port)
+    # REST обязателен для rest и all; для all gRPC поднимаем в фоновом потоке.
+    if args.mode == "all":
+        try:
+            threading.Thread(target=_serve_grpc, args=(app,), daemon=True).start()
+            logging.getLogger(__name__).info("gRPC Model API запущен в фоновом потоке")
+        except Exception as exc:  # pragma: no cover
+            logging.getLogger(__name__).error("gRPC-сервер не стартовал: %s", exc)
+            return 1
 
-    try:
-        import uvicorn
-    except ImportError:
-        print(
-            "uvicorn не установлен. Установите зависимости: pip install -r requirements.txt",
-            file=sys.stderr,
-        )
-        return 1
-
-    from .api.rest import create_app
-
-    application = build_application(settings)
-    logging.getLogger(__name__).info("Готовность: %s", application.health())
-    uvicorn.run(create_app(application), host=args.host, port=settings.rest_port)
-    return 0
+    return _serve_rest(app)()
 
 
 if __name__ == "__main__":

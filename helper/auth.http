@@ -6,8 +6,8 @@
 @host = http://localhost
 @port = 8082
 @base = {{host}}:{{port}}
-@login = user@example.ru
-@password = secure_password_123
+@login = operator
+@password = operator123
 @userId = user_123
 
 ### Проверка живости сервиса
@@ -53,38 +53,16 @@ POST {{base}}/introspect
 Content-Type: application/json
 
 {
-  "token": "{{access_token}}"
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODYyODk5NDAsImlhdCI6MTc4NjI4OTA0MCwiaXNzIjoia3RjLWF1dGgiLCJqdGkiOiI3ZmE1OTA3ZGQ1NWU0NjgzMGY3Yjk2NmI3ZGFiM2RhZDI2NTRlM2Q3NzQ1NjVlZGU0OTZiZDAzZGFmYzM2MjdiIiwibG9naW4iOiJvcGVyYXRvciIsInJvbGVzIjpbIm9wZXJhdG9yIl0sInVpZCI6ImVmODA5YmM1LWNmZjgtNDJkOC1iYTljLTgzZGE2Y2ViN2QyZiJ9.ln9RhR4MQK7DQymfeprA1hjIPqg2Qr17YKXCKWr-sRo"
 }
 
 ### Список пользователей
 GET {{base}}/users?limit=50&offset=0
-
-### Создать пользователя
-POST {{base}}/users
-Content-Type: application/json
-
-{
-  "login": "new_user",
-  "full_name": "Новый Пользователь",
-  "ldap_dn": "CN=new_user,OU=Users,DC=corp,DC=example,DC=ru",
-  "roles": ["operator"]
-}
+Authorization: Bearer {{access_token}}
 
 ### Получить пользователя по ID
 GET {{base}}/users/{{userId}}
-
-### Обновить пользователя
-PUT {{base}}/users/{{userId}}
-Content-Type: application/json
-
-{
-  "full_name": "Обновленное Имя",
-  "status": "active",
-  "roles": ["instructor", "admin"]
-}
-
-### Удалить пользователя
-DELETE {{base}}/users/{{userId}}
+Authorization: Bearer {{access_token}}
 
 ### Настроить MFA для пользователя (получить secret/QR)
 POST {{base}}/users/{{userId}}/mfa/setup

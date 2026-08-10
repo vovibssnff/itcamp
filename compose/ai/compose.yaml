@@ -1,0 +1,60 @@
+# ─────────────────────────────────────────────────────────────
+# Слой ktk-ai: ИИ-сервис + Ollama.
+#
+# Запуск отдельно от остальных слоёв (не требует data/app):
+#   cp .env.example .env
+#   cd ../ && docker compose -f ai/compose.yaml up -d --build
+#
+# Интеграция с data-plane: сеть ktc-data (external) — та же, что у слоёв
+# ktc-data (./data) и ktc-app (./app). Поднимите data-plane заранее,
+# если хотите, чтобы ai-service был достижим из слоя приложения.
+# ─────────────────────────────────────────────────────────────
+
+name: ${COMPOSE_PROJECT_NAME:-ktk-ai}
+
+networks:
+  ktc-data:
+    external: true
+    name: ${DATA_NETWORK:-ktc-data}
+
+services:
+  ollama:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    ports:
+      - "${OLLAMA_HOST_PORT:-11434}:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    networks: [ktc-data]
+    restart: unless-stopped
+    # Раскомментируйте при наличии GPU:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  ai-service:
+    build:
+      context: ../../services/python/ai
+      dockerfile: Dockerfile
+    ports:
+      - "${AI_HTTP_HOST_PORT:-8080}:8080"
+      - "${AI_GRPC_HOST_PORT:-50051}:50051"
+    environment:
+      KTK_LLM_PROVIDER: ${KTK_LLM_PROVIDER:-ollama}
+      KTK_OLLAMA_URL: ${KTK_OLLAMA_URL:-http://ollama:11434}
+      KTK_LLM_MODEL: ${KTK_LLM_MODEL:-qwen2.5:14b-instruct}
+      KTK_DOCS_DIR: /app/data/regulation
+      KTK_DATA_DIR: /app/data
+      # Чат-бот не видит телеметрию, поэтому на экзамене работает как
+      # открытый справочник. Поставьте false для закрытой аттестации.
+      KTK_CHAT_IN_EXAM: ${KTK_CHAT_IN_EXAM:-true}
+    depends_on:
+      - ollama
+    networks: [ktc-data]
+    restart: unless-stopped
+
+volumes:
+  ollama-models:

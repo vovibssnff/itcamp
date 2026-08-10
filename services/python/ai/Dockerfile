@@ -7,7 +7,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN apt-get update \
+# api.debian.org и deb.debian.org могут отклонять plain-HTTP (400) в некоторых
+# Docker-сетях; переключаем apt-источники на HTTPS перед первым apt-get update.
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' \
+        /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true \
+ && apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 

@@ -20,11 +20,12 @@ db                = 0
 url               = "nats://localhost:4222"
 
 [clients]
+use_mock          = true
 constructor_url   = "http://constructor.ktc-app.svc.cluster.local:8080"
 scenario_url      = "http://scenario.ktc-app.svc.cluster.local:8080"
 sim_url           = "sim.ktc-sim.svc.cluster.local:50051"
 assessment_url    = "http://assessment.ktc-app.svc.cluster.local:8080"
-snapshot_url      = "snapshot.ktc-app.svc.cluster.local:50052"
+snapshot_url      = "http://snapshot.ktc-app.svc.cluster.local:8080"
 
 [telemetry]
 hz                = 1.0

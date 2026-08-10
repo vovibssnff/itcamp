@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
+	sharedmetrics "github.com/itcamp/ktc/shared/go/pkg/metrics"
 	"github.com/itcamp/ktc/services/orchestrator/internal/config"
 	"github.com/itcamp/ktc/services/orchestrator/internal/service"
 	"github.com/itcamp/ktc/services/orchestrator/internal/transport/http/handler"
@@ -31,6 +32,7 @@ func New(d Deps) *Server {
 	registerRoutes(mux, d)
 
 	h := recoverMiddleware(d.Log)(mux)
+	h = sharedmetrics.Middleware(h)
 	h = requestLogger(d.Log)(h)
 	h = actorMiddleware(h)
 
@@ -65,6 +67,7 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+	mux.Handle("GET /metrics", sharedmetrics.Handler())
 }
 
 func recoverMiddleware(log *slog.Logger) func(http.Handler) http.Handler {

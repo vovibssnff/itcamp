@@ -1,13 +1,13 @@
 # ─────────────────────────────────────────────────────────────
-# Локальный запуск сервисов приложения ktc (auth..gw).
+# Слой ktc-app: сервисы приложения ktc (auth..gw).
 #
 # Требуется data-plane: поднимите инфраструктурный compose
-#   infra/local/compose.yaml  →  сеть ktc-data (Picodata, MinIO, NATS, Redis)
+#   compose/data/compose.yaml  →  сеть ktc-data (PostgreSQL, MinIO, NATS, Redis)
 #
 # Запуск:
 #   cp .env.example .env
-#   cd ../infra/local && docker compose up -d   # data-plane
-#   cd ../../dev && docker compose up -d --build
+#   cd ../data && docker compose up -d   # data-plane
+#   cd ../app && docker compose up -d --build
 #
 # Проверка: см. ../helper/*.http
 # ─────────────────────────────────────────────────────────────
@@ -27,8 +27,8 @@ services:
   # ── Auth (stub-режим; пользователи в конфиге) ─────────────
   auth:
     build:
-      context: ../services/go/auth
-      dockerfile: ../../dev/docker/auth.Dockerfile
+      context: ../../services/go
+      dockerfile: auth/deploy/Dockerfile
     environment:
       AUTH_DB_DSN: ${DB_DSN}
       AUTH_JWT_SIGNING_KEY: ${JWT_SIGNING_KEY}
@@ -43,8 +43,8 @@ services:
   # ── Constructor ────────────────────────────────────────────
   constructor:
     build:
-      context: ../services/go/constructor
-      dockerfile: deploy/Dockerfile
+      context: ../../services/go
+      dockerfile: constructor/deploy/Dockerfile
     environment:
       CONSTRUCTOR_DB_DSN: ${DB_DSN}
     volumes:
@@ -57,8 +57,8 @@ services:
   # ── Scenario ───────────────────────────────────────────────
   scenario:
     build:
-      context: ../services/go/scenario
-      dockerfile: deploy/Dockerfile
+      context: ../../services/go
+      dockerfile: scenario/deploy/Dockerfile
     environment:
       SCENARIO_DB_DSN: ${DB_DSN}
     volumes:
@@ -71,8 +71,8 @@ services:
   # ── Orchestrator ───────────────────────────────────────────
   orchestrator:
     build:
-      context: ../services/go/orchestrator
-      dockerfile: deploy/Dockerfile
+      context: ../../services/go
+      dockerfile: orchestrator/deploy/Dockerfile
     environment:
       ORCHESTRATOR_DB_DSN: ${DB_DSN}
       ORCHESTRATOR_NATS_URL: ${NATS_URL}
@@ -87,8 +87,8 @@ services:
   # ── Assessment ─────────────────────────────────────────────
   assessment:
     build:
-      context: ../services/go/assessment
-      dockerfile: deploy/Dockerfile
+      context: ../../services/go
+      dockerfile: assessment/deploy/Dockerfile
     environment:
       ASSESSMENT_DB_DSN: ${DB_DSN}
     volumes:
@@ -101,8 +101,8 @@ services:
   # ── Snapshot ───────────────────────────────────────────────
   snapshot:
     build:
-      context: ../services/go/snapshot
-      dockerfile: deploy/Dockerfile
+      context: ../../services/go
+      dockerfile: snapshot/deploy/Dockerfile
     environment:
       SNAPSHOT_DB_DSN: ${DB_DSN}
       SNAPSHOT_S3_ENDPOINT: ${S3_ENDPOINT}
@@ -118,8 +118,8 @@ services:
   # ── Report ─────────────────────────────────────────────────
   report:
     build:
-      context: ../services/go/report
-      dockerfile: deploy/Dockerfile
+      context: ../../services/go
+      dockerfile: report/deploy/Dockerfile
     environment:
       REPORT_DB_DSN: ${DB_DSN}
       REPORT_NATS_URL: ${NATS_URL}
@@ -133,8 +133,8 @@ services:
   # ── Gateway (BFF, единая точка входа) ─────────────────────
   gw:
     build:
-      context: ../services/go/gw
-      dockerfile: deploy/Dockerfile
+      context: ../../services/go
+      dockerfile: gw/deploy/Dockerfile
     environment:
       GW_AUTH_URL: http://auth:8080/introspect
     volumes:

@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 from concurrent import futures
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,13 @@ _STUBS_MISSING = (
 
 
 def _load_stubs():
+    # Сгенерированные стабы лежат в sim_engine/api/generated/ktk/... и сделаны
+    # protoc с корнем proto/, поэтому их внутренний абсолютный импорт
+    # `from ktk.sim.v1 import ...` требует, чтобы каталог generated/ был на
+    # sys.path. Добавляем его точечно, не засоряя глобальный путь.
+    generated_dir = Path(__file__).resolve().parent / "generated"
+    if str(generated_dir) not in sys.path:
+        sys.path.insert(0, str(generated_dir))
     try:
         from .generated.ktk.sim.v1 import model_api_pb2 as pb2
         from .generated.ktk.sim.v1 import model_api_pb2_grpc as pb2_grpc
@@ -206,6 +215,10 @@ def build_servicer(application=None):  # pragma: no cover - требует ст�
             except KeyError as exc:
                 metrics.command(cmd.type, "unknown_target")
                 context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
+            except ValueError as exc:
+                # Неподдерживаемый тип команды: CommandType(cmd.type) -> ValueError.
+                metrics.command(cmd.type, "invalid_type")
+                context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
             return pb2.CommandResponse(ok=True)
 
         def ListFaults(self, request, context):

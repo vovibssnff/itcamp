@@ -74,7 +74,7 @@ func main() {
 
 	auditSvc := service.NewAuditService(log)
 	tokenSvc := service.NewTokenService(cfg.JWT, refreshRepo)
-	mfaSvc := service.NewMFAService(mfaRepo, totpSvc, auditSvc)
+	mfaSvc := service.NewMFAService(mfaRepo, userRepo, totpSvc, auditSvc)
 	authSvc := service.NewAuthService(cfg.Security, userRepo, authenticator, tokenSvc, mfaSvc, attemptRepo, auditSvc, log)
 	userSvc := service.NewUserService(userRepo, auditSvc)
 	introspectSvc := service.NewIntrospectService(tokenSvc)

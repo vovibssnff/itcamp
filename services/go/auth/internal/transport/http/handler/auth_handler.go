@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -22,8 +21,7 @@ func NewAuthHandler(auth *service.AuthService, tokens *service.TokenService) *Au
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req dto.LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, err)
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 	if req.Login == "" || req.Password == "" {
@@ -56,8 +54,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req dto.RefreshRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, err)
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 	if req.RefreshToken == "" {
@@ -80,8 +77,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	var req dto.LogoutRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, err)
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 	if req.RefreshToken == "" {

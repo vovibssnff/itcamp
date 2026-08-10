@@ -398,6 +398,7 @@ export default function InstructorConsole() {
             <Tooltip title="Запустить">
               <Button
                 size="small"
+                data-testid="session-start"
                 icon={<PlayCircleOutlined />}
                 onClick={() => void sessionAction(record.id, 'start')}
               />

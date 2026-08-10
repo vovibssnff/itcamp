@@ -114,6 +114,26 @@ func (h *ScenarioHandler) GetRandomExam(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, s)
 }
 
+type importScenariosReq struct {
+	Scenarios []domain.Scenario `json:"scenarios"`
+}
+
+func (h *ScenarioHandler) Import(w http.ResponseWriter, r *http.Request) {
+	var req importScenariosReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, err)
+		return
+	}
+	authorID := userIDFromHeader(r)
+	for i := range req.Scenarios {
+		if req.Scenarios[i].AuthorID == "" {
+			req.Scenarios[i].AuthorID = authorID
+		}
+	}
+	result := h.svc.Import(r.Context(), req.Scenarios)
+	writeJSON(w, http.StatusOK, result)
+}
+
 type FaultHandler struct {
 	svc *service.FaultService
 }
@@ -141,4 +161,18 @@ func (h *FaultHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, f)
+}
+
+type importFaultsReq struct {
+	Faults []domain.Fault `json:"faults"`
+}
+
+func (h *FaultHandler) Import(w http.ResponseWriter, r *http.Request) {
+	var req importFaultsReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, err)
+		return
+	}
+	result := h.svc.Import(r.Context(), req.Faults)
+	writeJSON(w, http.StatusOK, result)
 }

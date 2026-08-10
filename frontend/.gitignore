@@ -3,6 +3,9 @@ dist
 coverage
 playwright-report
 test-results
+e2e/live/.instructor-mfa-secret
+e2e/live/.admin-mfa-secret
+e2e/live/.operator-mfa-secret
 *.tsbuildinfo
 
 # Local Vite / runtime env (templates *.example stay tracked via root .gitignore)

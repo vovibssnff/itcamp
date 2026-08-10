@@ -3,6 +3,8 @@ import { Input, Tag, Tooltip, Form, Select, message, Modal as AntModal } from 'a
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { type ComponentType } from '@/mocks/fixtures/components'
 import { componentsApi } from '@/api/components'
+import { summarizeImport } from '@/api/import'
+import { JsonImportButton } from '@/components/ui/JsonImportButton'
 import { tokens } from '@/theme/tokens'
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -147,9 +149,22 @@ export default function ComponentLibraryScreen() {
             {loading ? '…' : `${components.length} типов компонентов`}
           </span>
         </div>
-        <button className="btn btn-acc" onClick={openCreate}>
-          <PlusOutlined /> Новый тип
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <JsonImportButton
+            label="Импорт библиотеки"
+            onImport={async (data) => {
+              const result = await componentsApi.import(data as { components: unknown[] })
+              void message.success(`Импорт: ${summarizeImport(result)}`)
+              if (result.errors?.length) {
+                void message.warning(result.errors.map((e) => e.message).join('; '))
+              }
+              await load()
+            }}
+          />
+          <button className="btn btn-acc" onClick={openCreate}>
+            <PlusOutlined /> Новый тип
+          </button>
+        </div>
       </div>
 
       <Input

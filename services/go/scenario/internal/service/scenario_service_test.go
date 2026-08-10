@@ -207,3 +207,36 @@ func TestScenarioService_GetRandomExam_NotFound(t *testing.T) {
 		t.Fatal("expected not found")
 	}
 }
+
+func TestScenarioService_Import(t *testing.T) {
+	svc, repo := testScenarioService()
+	t120 := float64(120)
+	repo.items["sc-old"] = domain.Scenario{ID: "sc-old", Name: "Old", TemplateID: "tmpl-1", Type: domain.ScenarioTraining}
+
+	result := svc.Import(context.Background(), []domain.Scenario{
+		{
+			ID: "sc-old", Name: "Updated", TemplateID: "tmpl-1", Type: domain.ScenarioTraining,
+			Faults: []domain.ScenarioFault{
+				{ID: "f1", FaultID: "level_drop", ComponentInstanceID: "n1",
+					Trigger: domain.Trigger{Type: domain.TriggerTime, AtModelTime: &t120}},
+			},
+		},
+		{
+			ID: "sc-new", Name: "New", TemplateID: "tmpl-1", Type: domain.ScenarioTraining,
+			Faults: []domain.ScenarioFault{
+				{ID: "f1", FaultID: "level_drop", ComponentInstanceID: "n1",
+					Trigger: domain.Trigger{Type: domain.TriggerTime, AtModelTime: &t120}},
+			},
+		},
+		{ID: "sc-bad", Name: "Bad"}, // missing template_id
+	})
+	if result.Created != 1 || result.Updated != 1 {
+		t.Fatalf("created=%d updated=%d errors=%+v", result.Created, result.Updated, result.Errors)
+	}
+	if len(result.Errors) < 1 {
+		t.Fatal("expected at least one error")
+	}
+	if repo.items["sc-old"].Name != "Updated" {
+		t.Fatalf("expected upsert update, got %s", repo.items["sc-old"].Name)
+	}
+}

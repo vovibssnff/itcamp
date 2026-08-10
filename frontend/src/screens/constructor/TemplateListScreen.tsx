@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined } from '@ant-d
 import { useNavigate } from 'react-router'
 import { DataTable, Pill, Modal } from '@/components/ui'
 import { Field } from '@/components/ui'
+import { JsonImportButton } from '@/components/ui/JsonImportButton'
 import { templatesApi } from '@/api/templates'
 import type { TemplateSummary } from '@/api/mappers'
 
@@ -87,9 +88,26 @@ export default function TemplateListScreen() {
             Технологические схемы КТК для сценариев обучения
           </p>
         </div>
-        <button className="btn btn-acc" onClick={() => setCreateOpen(true)}>
-          <PlusOutlined /> Новый шаблон
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <JsonImportButton
+            label="Импорт установки"
+            onImport={async (data) => {
+              const payload = data as { name: string; description?: string; graph?: unknown }
+              const result = await templatesApi.import(payload)
+              const valid = result.validation?.valid
+              void message.success(
+                valid
+                  ? `Установка «${result.template.name}» импортирована`
+                  : `Установка «${result.template.name}» импортирована (граф с ошибками)`,
+              )
+              void fetchTemplates()
+              void navigate(`/templates/${result.template.id}/edit`)
+            }}
+          />
+          <button className="btn btn-acc" onClick={() => setCreateOpen(true)}>
+            <PlusOutlined /> Новый шаблон
+          </button>
+        </div>
       </div>
 
       {loading ? (

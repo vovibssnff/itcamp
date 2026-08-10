@@ -1,6 +1,7 @@
 import { apiClient } from './client'
 import { unwrap, unwrapVoid } from './request'
 import { mapComponent } from './mappers'
+import { postImport, type ImportResult } from './import'
 import type { ComponentType } from '@/mocks/fixtures/components'
 
 export const componentsApi = {
@@ -35,5 +36,10 @@ export const componentsApi = {
 
   async remove(id: string): Promise<void> {
     await unwrapVoid(apiClient.DELETE('/api/v1/components/{id}', { params: { path: { id } } }))
+  },
+
+  async import(payload: { components: unknown[] } | unknown[]): Promise<ImportResult> {
+    const body = Array.isArray(payload) ? { components: payload } : payload
+    return postImport<ImportResult>('/api/v1/components/import', body)
   },
 }

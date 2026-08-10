@@ -21,8 +21,10 @@ import type {
   ScenarioStatus,
 } from '@/mocks/fixtures/scenarios'
 import { DataTable, Pill, Modal, Field, TextArea, Seg, SectionLabel } from '@/components/ui'
+import { JsonImportButton } from '@/components/ui/JsonImportButton'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { scenariosApi } from '@/api/scenarios'
+import { summarizeImport } from '@/api/import'
 import { templatesApi } from '@/api/templates'
 import { snapshotsApi } from '@/api/snapshots'
 import { isMockApi } from '@/utils/env'
@@ -137,7 +139,28 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
             Управление сценариями обучения и аттестации
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <JsonImportButton
+            label="Импорт неисправностей"
+            onImport={async (data) => {
+              const result = await scenariosApi.importFaults(data as { faults: unknown[] })
+              void message.success(`Неисправности: ${summarizeImport(result)}`)
+              if (result.errors?.length) {
+                void message.warning(result.errors.map((e) => e.message).join('; '))
+              }
+            }}
+          />
+          <JsonImportButton
+            label="Импорт сценариев"
+            onImport={async (data) => {
+              const result = await scenariosApi.importScenarios(data as { scenarios: unknown[] })
+              void message.success(`Сценарии: ${summarizeImport(result)}`)
+              if (result.errors?.length) {
+                void message.warning(result.errors.map((e) => e.message).join('; '))
+              }
+              await fetch_()
+            }}
+          />
           {mock && (
             <Tooltip title="Сгенерировать черновик с помощью ИИ">
               <button className="btn btn-ghost" onClick={() => setAiModal(true)}>

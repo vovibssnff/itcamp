@@ -61,6 +61,34 @@ components:
     Error:
       $ref: https://ktc.itcamp/schemas/error.json
 
+    ImportComponentsRequest:
+      type: object
+      required: [components]
+      properties:
+        components:
+          type: array
+          items: { $ref: '#/components/schemas/ComponentType' }
+
+    ImportResult:
+      type: object
+      properties:
+        created: { type: integer }
+        updated: { type: integer }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              id:      { type: string }
+              index:   { type: integer }
+              message: { type: string }
+
+    TemplateImportResult:
+      type: object
+      properties:
+        template:   { $ref: '#/components/schemas/Template' }
+        validation: { $ref: '#/components/schemas/ValidationResult' }
+
 paths:
   /components:
     get:
@@ -139,6 +167,21 @@ paths:
                 file: { type: string, format: binary }
       responses:
         '200': { description: OK }
+
+  /components/import:
+    post:
+      summary: Пакетный импорт типов компонентов (upsert)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportComponentsRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportResult' }
 
   /templates:
     get:
@@ -266,7 +309,7 @@ paths:
         '201':
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Template' }
+              schema: { $ref: '#/components/schemas/TemplateImportResult' }
 
   /healthz:
     get:

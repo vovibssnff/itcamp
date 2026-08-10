@@ -19,6 +19,17 @@ cd ../app  && cp -n .env.example .env && docker compose up -d --build
 
 Stub auth users: `admin/admin123`, `instructor/instructor123`, `operator/operator123`.
 
+### Live Playwright (against compose)
+
+With the stack above running, from the **repo root**:
+
+```bash
+cd frontend && E2E_LIVE=1 pnpm e2e:live
+# if you are in compose/app: cd ../../frontend && E2E_LIVE=1 pnpm e2e:live
+```
+
+See [`e2e/live/README.md`](e2e/live/README.md). Default `pnpm e2e` still uses MSW mocks only.
+
 Build args (empty bases = same-origin `/api` via Angie proxy):
 
 - `VITE_API_BASE_URL=`

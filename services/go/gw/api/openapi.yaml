@@ -121,6 +121,13 @@ paths:
       responses:
         '204': { description: OK }
 
+  /api/v1/components/import:
+    post:
+      summary: Пакетный импорт типов компонентов (прокси → constructor)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: ImportResult }
+
   /api/v1/templates:
     get:
       summary: Каталог шаблонов (прокси → constructor /templates)
@@ -166,6 +173,21 @@ paths:
       responses:
         '200': { description: ValidationResult }
 
+  /api/v1/templates/import:
+    post:
+      summary: Импорт шаблона установки (прокси → constructor)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: TemplateImportResult }
+
+  /api/v1/templates/{id}/export-file:
+    get:
+      summary: Выгрузка графа JSON (прокси → constructor)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Graph JSON attachment }
+
   # === Scenarios (instructor/admin, прокси → scenario) ===
   /api/v1/scenarios:
     get:
@@ -210,6 +232,20 @@ paths:
       security: [{ bearerAuth: [] }]
       responses:
         '200': { description: Faults catalog }
+
+  /api/v1/faults/import:
+    post:
+      summary: Пакетный импорт неисправностей (прокси → scenario)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: ImportResult }
+
+  /api/v1/scenarios/import:
+    post:
+      summary: Пакетный импорт сценариев (прокси → scenario)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: ImportResult }
 
   # === Sessions (instructor/operator, прокси → orchestrator) ===
   /api/v1/sessions:

@@ -9,17 +9,69 @@ const BASE_URL =
 // Typed against the API Gateway OpenAPI spec (generated via `pnpm openapi:gen`).
 export const apiClient = createClient<GatewayPaths>({ baseUrl: BASE_URL })
 
-let isRefreshing = false
-let refreshQueue: Array<(token: string) => void> = []
+/**
+ * Refresh tokens are single-use (the auth service rotates them), so concurrent
+ * refreshes would revoke each other and sign the user out. Every caller —
+ * app bootstrap, the 401 retry path, and raw `fetch` helpers — must share this
+ * one in-flight promise.
+ */
+let refreshPromise: Promise<string> | null = null
 
-function flushQueue(token: string) {
-  refreshQueue.forEach((fn) => fn(token))
-  refreshQueue = []
+async function requestRefresh(refreshToken: string): Promise<string> {
+  const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  })
+  if (!res.ok) throw new Error(`Refresh failed: ${res.status}`)
+  const data = (await res.json()) as { access_token: string; refresh_token: string }
+  useAuthStore.getState().setTokens(data.access_token, data.refresh_token)
+  return data.access_token
+}
+
+export function refreshAccessToken(): Promise<string> {
+  if (refreshPromise) return refreshPromise
+  const refreshToken = useAuthStore.getState().refreshToken
+  if (!refreshToken) return Promise.reject(new Error('No refresh token'))
+
+  const pending = requestRefresh(refreshToken)
+  refreshPromise = pending
+  void pending
+    .catch(() => undefined)
+    .finally(() => {
+      if (refreshPromise === pending) refreshPromise = null
+    })
+  return pending
+}
+
+/**
+ * Access tokens are not persisted, so after a reload we only hold a refresh
+ * token until bootstrap completes. Returns a usable access token or null.
+ */
+export async function ensureAccessToken(): Promise<string | null> {
+  const { accessToken, refreshToken } = useAuthStore.getState()
+  if (accessToken) return accessToken
+  if (!refreshToken) return null
+  try {
+    return await refreshAccessToken()
+  } catch {
+    return null
+  }
+}
+
+function isAuthEndpoint(url: string): boolean {
+  const path = new URL(url, 'http://local').pathname
+  return (
+    path.includes('/api/v1/auth/login') ||
+    path.includes('/api/v1/auth/refresh') ||
+    path.includes('/api/v1/auth/mfa/enrollment')
+  )
 }
 
 const authMiddleware: Middleware = {
   async onRequest({ request }) {
-    const token = useAuthStore.getState().accessToken
+    if (isAuthEndpoint(request.url)) return request
+    const token = await ensureAccessToken()
     if (token) {
       request.headers.set('Authorization', `Bearer ${token}`)
     }
@@ -28,16 +80,7 @@ const authMiddleware: Middleware = {
 
   async onResponse({ response, request }) {
     if (response.status !== 401) return response
-
-    // Avoid refresh loops on auth endpoints themselves.
-    const path = new URL(request.url, 'http://local').pathname
-    if (
-      path.includes('/api/v1/auth/login') ||
-      path.includes('/api/v1/auth/refresh') ||
-      path.includes('/api/v1/auth/mfa/enrollment')
-    ) {
-      return response
-    }
+    if (isAuthEndpoint(request.url)) return response
 
     const store = useAuthStore.getState()
     if (!store.refreshToken) {
@@ -46,34 +89,14 @@ const authMiddleware: Middleware = {
       return response
     }
 
-    if (isRefreshing) {
-      return new Promise<Response>((resolve) => {
-        refreshQueue.push((token) => {
-          request.headers.set('Authorization', `Bearer ${token}`)
-          resolve(fetch(request))
-        })
-      })
-    }
-
-    isRefreshing = true
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: store.refreshToken }),
-      })
-      if (!res.ok) throw new Error('Refresh failed')
-      const data = (await res.json()) as { access_token: string; refresh_token: string }
-      store.setTokens(data.access_token, data.refresh_token)
-      flushQueue(data.access_token)
-      request.headers.set('Authorization', `Bearer ${data.access_token}`)
-      return fetch(request)
+      const token = await refreshAccessToken()
+      request.headers.set('Authorization', `Bearer ${token}`)
+      return await fetch(request)
     } catch {
-      store.logout()
+      useAuthStore.getState().logout()
       window.location.href = '/login'
       return response
-    } finally {
-      isRefreshing = false
     }
   },
 }

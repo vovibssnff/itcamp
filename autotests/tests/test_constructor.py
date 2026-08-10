@@ -287,14 +287,38 @@ def test_component_icon_not_implemented(constructor_client, created_component):
     assert r.status_code in (404, 405)
 
 
-def test_template_export_file_not_implemented(constructor_client, created_template):
-    """GET /templates/{id}/export-file отсутствует — 404/405 (не 500)."""
+def test_template_export_file(constructor_client, created_template):
+    """GET /templates/{id}/export-file returns graph JSON download."""
     r = constructor_client.get(f"/templates/{created_template}/export-file")
-    assert r.status_code in (404, 405)
+    assert r.status_code == 200, r.text
+    assert "application/json" in r.headers.get("content-type", "")
 
 
-def test_template_import_not_implemented(constructor_client):
-    """POST /templates/import отсутствует — 404/405 (не 500)."""
-    r = constructor_client.post("/templates/import", headers=ADMIN_H,
-                                json={"name": "x", "description": "", "graph": {}})
-    assert r.status_code in (404, 405)
+def test_template_import(constructor_client):
+    """POST /templates/import creates a draft template and reports graph validation."""
+    name = f"import-{uuid.uuid4().hex[:8]}"
+    r = constructor_client.post(
+        "/templates/import",
+        headers=ADMIN_H,
+        json={
+            "name": name,
+            "description": "autotest import",
+            "graph": {
+                "schema_version": "2.0",
+                "nodes": [],
+                "edges": [],
+                "layout": {"mnemo_positions": {}, "custom_labels": {}},
+            },
+        },
+    )
+    assert r.status_code in (200, 201), r.text
+    body = r.json()
+    template = body.get("template")
+    assert template, body
+    assert template.get("id")
+    assert template.get("name") == name
+    assert template.get("status") == "draft"
+    # Пустой граф импортируется, но помечается невалидным.
+    validation = body.get("validation")
+    assert validation is not None, body
+    assert validation.get("valid") is False

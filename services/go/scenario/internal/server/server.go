@@ -51,6 +51,7 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 
 	mux.HandleFunc("GET /scenarios", sh.List)
 	mux.HandleFunc("POST /scenarios", sh.Create)
+	mux.HandleFunc("POST /scenarios/import", sh.Import)
 	mux.HandleFunc("GET /scenarios/{id}", sh.Get)
 	mux.HandleFunc("PUT /scenarios/{id}", sh.Update)
 	mux.HandleFunc("DELETE /scenarios/{id}", sh.Delete)
@@ -59,6 +60,7 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /scenarios/exam", sh.GetRandomExam)
 
 	mux.HandleFunc("GET /faults", fh.List)
+	mux.HandleFunc("POST /faults/import", fh.Import)
 	mux.HandleFunc("GET /faults/{fault_id}", fh.Get)
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {

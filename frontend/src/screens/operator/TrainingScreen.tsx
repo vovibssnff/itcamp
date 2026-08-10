@@ -202,7 +202,11 @@ export default function TrainingScreen() {
             </div>
           </div>
           {!started && (
-            <button className="btn btn-acc btn-sm" onClick={() => void handleStart()}>
+            <button
+              className="btn btn-acc btn-sm"
+              data-testid="training-start"
+              onClick={() => void handleStart()}
+            >
               Начать тренировку
             </button>
           )}

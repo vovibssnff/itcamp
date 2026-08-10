@@ -52,18 +52,21 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 
 	mux.HandleFunc("GET /components", ch.List)
 	mux.HandleFunc("POST /components", ch.Create)
+	mux.HandleFunc("POST /components/import", ch.Import)
 	mux.HandleFunc("GET /components/{id}", ch.Get)
 	mux.HandleFunc("PUT /components/{id}", ch.Update)
 	mux.HandleFunc("DELETE /components/{id}", ch.Delete)
 
 	mux.HandleFunc("GET /templates", th.List)
 	mux.HandleFunc("POST /templates", th.Create)
+	mux.HandleFunc("POST /templates/import", th.Import)
 	mux.HandleFunc("GET /templates/{id}", th.Get)
 	mux.HandleFunc("PUT /templates/{id}", th.Update)
 	mux.HandleFunc("DELETE /templates/{id}", th.Delete)
 	mux.HandleFunc("POST /templates/{id}/copy", th.Copy)
 	mux.HandleFunc("POST /templates/{id}/validate", th.Validate)
 	mux.HandleFunc("GET /templates/{id}/export", th.Export)
+	mux.HandleFunc("GET /templates/{id}/export-file", th.ExportFile)
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)

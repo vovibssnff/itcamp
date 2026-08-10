@@ -8,6 +8,7 @@ import enUS from 'antd/locale/en_US'
 import { useUIStore } from './store/ui'
 import { useAuthStore } from './store/auth'
 import { authApi } from './api/auth'
+import { refreshAccessToken } from './api/client'
 import { useTranslation } from 'react-i18next'
 
 export default function App() {
@@ -36,10 +37,8 @@ export default function App() {
   useEffect(() => {
     const { accessToken, refreshToken } = useAuthStore.getState()
     if (accessToken || !refreshToken) return
-    authApi
-      .refresh(refreshToken)
-      .then(async (res) => {
-        useAuthStore.getState().setTokens(res.access_token, res.refresh_token)
+    refreshAccessToken()
+      .then(async () => {
         const user = await authApi.me()
         useAuthStore.getState().setUser(user)
       })

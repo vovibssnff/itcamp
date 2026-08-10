@@ -148,3 +148,39 @@ func (h *TemplateHandler) Export(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, state)
 }
+
+func (h *TemplateHandler) Import(w http.ResponseWriter, r *http.Request) {
+	if !domain.CanManageComponent(rolesFromHeader(r)) {
+		writeError(w, domain.ErrForbidden)
+		return
+	}
+	var req createTemplateReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, err)
+		return
+	}
+	t := domain.Template{
+		Name:        req.Name,
+		Description: req.Description,
+		AuthorID:    userIDFromHeader(r),
+		Status:      domain.StatusDraft,
+		Graph:       req.Graph,
+	}
+	result, err := h.svc.Import(r.Context(), t)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, result)
+}
+
+func (h *TemplateHandler) ExportFile(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	graph, err := h.svc.ExportFile(r.Context(), id)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	w.Header().Set("Content-Disposition", `attachment; filename="template-`+id+`.json"`)
+	writeJSON(w, http.StatusOK, graph)
+}

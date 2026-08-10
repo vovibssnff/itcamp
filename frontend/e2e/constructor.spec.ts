@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { loginAs } from './helpers'
 
-async function openEditableTemplate(page: import('@playwright/test').Page) {
+async function openEditableTemplate(page: Page) {
   await page.goto('/templates')
   await page.getByRole('button', { name: 'Новый шаблон' }).click()
   await page.getByPlaceholder('ЭЛОУ-АВТ №1').fill('Test Template E2E')

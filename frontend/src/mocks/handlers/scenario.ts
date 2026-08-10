@@ -24,7 +24,7 @@ function applyFilters(
 
 export const scenarioHandlers = [
   // ── List (with filters) ────────────────────────────────────────────────────
-  http.get('/api/scenarios', ({ request }) => {
+  http.get('/api/v1/scenarios', ({ request }) => {
     const url = new URL(request.url)
     const filtered = applyFilters(scenarios, {
       template_id: url.searchParams.get('template_id') ?? undefined,
@@ -39,7 +39,7 @@ export const scenarioHandlers = [
   }),
 
   // ── Exam scenarios (must precede /:id so "exam" isn't matched as an id) ─────
-  http.get('/api/scenarios/exam', ({ request }) => {
+  http.get('/api/v1/scenarios/exam', ({ request }) => {
     const url = new URL(request.url)
     const tid = url.searchParams.get('template_id')
     return HttpResponse.json(
@@ -50,21 +50,21 @@ export const scenarioHandlers = [
   }),
 
   // ── Get one ────────────────────────────────────────────────────────────────
-  http.get('/api/scenarios/:id', ({ params }) => {
+  http.get('/api/v1/scenarios/:id', ({ params }) => {
     const s = scenarios.find((sc) => sc.id === params.id)
     if (!s) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
     return HttpResponse.json(s)
   }),
 
   // ── Get full (with all sub-objects) ───────────────────────────────────────
-  http.get('/api/scenarios/:id/full', ({ params }) => {
+  http.get('/api/v1/scenarios/:id/full', ({ params }) => {
     const s = scenarios.find((sc) => sc.id === params.id)
     if (!s) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
     return HttpResponse.json(s)
   }),
 
   // ── Create ─────────────────────────────────────────────────────────────────
-  http.post('/api/scenarios', async ({ request }) => {
+  http.post('/api/v1/scenarios', async ({ request }) => {
     const body = (await request.json()) as Partial<Scenario>
     const now = new Date().toISOString()
     const created: Scenario = {
@@ -94,7 +94,7 @@ export const scenarioHandlers = [
   }),
 
   // ── Update ─────────────────────────────────────────────────────────────────
-  http.put('/api/scenarios/:id', async ({ params, request }) => {
+  http.put('/api/v1/scenarios/:id', async ({ params, request }) => {
     const body = (await request.json()) as Partial<Scenario>
     const idx = scenarios.findIndex((s) => s.id === params.id)
     if (idx === -1) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
@@ -108,7 +108,7 @@ export const scenarioHandlers = [
   }),
 
   // ── Delete ─────────────────────────────────────────────────────────────────
-  http.delete('/api/scenarios/:id', ({ params }) => {
+  http.delete('/api/v1/scenarios/:id', ({ params }) => {
     const idx = scenarios.findIndex((s) => s.id === params.id)
     if (idx === -1) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
     scenarios.splice(idx, 1)
@@ -116,7 +116,7 @@ export const scenarioHandlers = [
   }),
 
   // ── Clone ──────────────────────────────────────────────────────────────────
-  http.post('/api/scenarios/:id/clone', async ({ params, request }) => {
+  http.post('/api/v1/scenarios/:id/clone', async ({ params, request }) => {
     const src = scenarios.find((s) => s.id === params.id)
     if (!src) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
     const body = (await request.json()) as { template_id?: string } | null
@@ -182,7 +182,7 @@ export const scenarioHandlers = [
   }),
 
   // ── Moderation ─────────────────────────────────────────────────────────────
-  http.post('/api/scenarios/:id/publish', ({ params }) => {
+  http.post('/api/v1/scenarios/:id/publish', ({ params }) => {
     const s = scenarios.find((sc) => sc.id === params.id)
     if (!s) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
     if (s.status === 'archived')
@@ -192,7 +192,7 @@ export const scenarioHandlers = [
     return HttpResponse.json(s)
   }),
 
-  http.post('/api/scenarios/:id/archive', ({ params }) => {
+  http.post('/api/v1/scenarios/:id/archive', ({ params }) => {
     const s = scenarios.find((sc) => sc.id === params.id)
     if (!s) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
     s.status = 'archived'
@@ -200,7 +200,7 @@ export const scenarioHandlers = [
     return HttpResponse.json(s)
   }),
 
-  http.post('/api/scenarios/:id/unpublish', ({ params }) => {
+  http.post('/api/v1/scenarios/:id/unpublish', ({ params }) => {
     const s = scenarios.find((sc) => sc.id === params.id)
     if (!s) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
     s.status = 'draft'
@@ -209,7 +209,7 @@ export const scenarioHandlers = [
   }),
 
   // ── Fault catalog ──────────────────────────────────────────────────────────
-  http.get('/api/faults', ({ request }) => {
+  http.get('/api/v1/faults', ({ request }) => {
     const url = new URL(request.url)
     const ct = url.searchParams.get('component_type')
     const sev = url.searchParams.get('severity')
@@ -219,7 +219,7 @@ export const scenarioHandlers = [
     return HttpResponse.json(faults)
   }),
 
-  http.get('/api/faults/:id', ({ params }) => {
+  http.get('/api/v1/faults/:id', ({ params }) => {
     const f = FAULT_CATALOG.find((fc) => fc.fault_id === params.id)
     if (!f) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
     return HttpResponse.json(f)

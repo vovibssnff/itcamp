@@ -2,31 +2,57 @@ import { http, HttpResponse } from 'msw'
 import type { UserProfile, UserRole } from '@/store/auth'
 
 interface MockAccount {
-  username: string
+  login: string
   password: string
-  user: UserProfile
+  user: {
+    id: string
+    login: string
+    full_name: string
+    roles: UserRole[]
+    status: 'active'
+    mfa_enabled: boolean
+  }
 }
 
 const DEFAULT_USERS: MockAccount[] = [
   {
-    username: 'admin',
+    login: 'admin',
     password: 'admin',
-    user: { id: 'u1', username: 'admin', displayName: 'Администратор', role: 'admin' },
+    user: {
+      id: 'u1',
+      login: 'admin',
+      full_name: 'Администратор',
+      roles: ['admin'],
+      status: 'active',
+      mfa_enabled: false,
+    },
   },
   {
-    username: 'instructor',
+    login: 'instructor',
     password: 'instructor',
-    user: { id: 'u2', username: 'instructor', displayName: 'Иванов И.И.', role: 'instructor' },
+    user: {
+      id: 'u2',
+      login: 'instructor',
+      full_name: 'Иванов И.И.',
+      roles: ['instructor'],
+      status: 'active',
+      mfa_enabled: false,
+    },
   },
   {
-    username: 'operator',
+    login: 'operator',
     password: 'operator',
-    user: { id: 'u3', username: 'operator', displayName: 'Петров П.П.', role: 'operator' },
+    user: {
+      id: 'u3',
+      login: 'operator',
+      full_name: 'Петров П.П.',
+      roles: ['operator'],
+      status: 'active',
+      mfa_enabled: false,
+    },
   },
 ]
 
-// Accounts registered at runtime are persisted to localStorage so they
-// survive page reloads (the token-refresh bootstrap needs to find them).
 const STORAGE_KEY = 'ktk-mock-users'
 
 function loadRegistered(): MockAccount[] {
@@ -42,7 +68,7 @@ function saveRegistered(accounts: MockAccount[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts))
   } catch {
-    // storage unavailable; keep in-memory only
+    // storage unavailable
   }
 }
 
@@ -53,64 +79,54 @@ function tokensFor(account: MockAccount) {
   return {
     access_token: `mock-access-${account.user.id}`,
     refresh_token: `mock-refresh-${account.user.id}`,
-    user: account.user,
+    expires_in: 900,
+    token_type: 'Bearer',
+  }
+}
+
+function toProfile(user: MockAccount['user']): UserProfile {
+  return {
+    id: user.id,
+    username: user.login,
+    displayName: user.full_name,
+    role: user.roles[0] ?? 'operator',
   }
 }
 
 export const authHandlers = [
-  http.post('/api/auth/login', async ({ request }) => {
-    const body = (await request.json()) as { username: string; password: string }
-    const found = USERS.find((u) => u.username === body.username && u.password === body.password)
+  http.post('/api/v1/auth/login', async ({ request }) => {
+    const body = (await request.json()) as {
+      login?: string
+      username?: string
+      password: string
+      mfa_code?: string
+    }
+    const login = body.login ?? body.username ?? ''
+    const found = USERS.find((u) => u.login === login && u.password === body.password)
     if (!found) {
       return HttpResponse.json({ error: 'Invalid credentials' }, { status: 401 })
+    }
+    if (found.user.mfa_enabled && !body.mfa_code) {
+      return HttpResponse.json({ mfa_required: true })
     }
     return HttpResponse.json(tokensFor(found))
   }),
 
-  http.post('/api/auth/register', async ({ request }) => {
-    const body = (await request.json()) as {
-      username: string
-      password: string
-      displayName?: string
-      role?: UserRole
-    }
-    if (!body.username || !body.password) {
-      return HttpResponse.json({ error: 'Missing credentials' }, { status: 400 })
-    }
-    if (USERS.some((u) => u.username === body.username)) {
-      return HttpResponse.json({ error: 'User already exists' }, { status: 409 })
-    }
-    const account: MockAccount = {
-      username: body.username,
-      password: body.password,
-      user: {
-        id: `u${Date.now()}`,
-        username: body.username,
-        displayName: body.displayName?.trim() || body.username,
-        role: body.role ?? 'operator',
-      },
-    }
-    USERS.push(account)
-    registered.push(account)
-    saveRegistered(registered)
-    return HttpResponse.json(tokensFor(account), { status: 201 })
-  }),
-
-  http.post('/api/auth/refresh', async ({ request }) => {
+  http.post('/api/v1/auth/refresh', async ({ request }) => {
     const body = (await request.json()) as { refresh_token: string }
     const userId = body.refresh_token.replace('mock-refresh-', '')
     const found = USERS.find((u) => u.user.id === userId)
     if (!found) {
       return HttpResponse.json({ error: 'Invalid refresh token' }, { status: 401 })
     }
-    return HttpResponse.json({
-      access_token: `mock-access-${found.user.id}`,
-      refresh_token: `mock-refresh-${found.user.id}`,
-      user: found.user,
-    })
+    return HttpResponse.json(tokensFor(found))
   }),
 
-  http.get('/api/auth/me', ({ request }) => {
+  http.post('/api/v1/auth/logout', () => {
+    return HttpResponse.json({ ok: true })
+  }),
+
+  http.get('/api/v1/auth/me', ({ request }) => {
     const auth = request.headers.get('Authorization') ?? ''
     const userId = auth.replace('Bearer mock-access-', '')
     const found = USERS.find((u) => u.user.id === userId)
@@ -118,21 +134,58 @@ export const authHandlers = [
     return HttpResponse.json(found.user)
   }),
 
-  http.get('/api/users', () => {
+  http.get('/api/v1/users', () => {
     return HttpResponse.json(USERS.map((u) => u.user))
   }),
 
-  http.post('/api/users', async ({ request }) => {
-    const body = (await request.json()) as UserProfile
-    return HttpResponse.json({ ...body, id: `u${Date.now()}` }, { status: 201 })
+  http.get('/api/v1/users/:id', ({ params }) => {
+    const found = USERS.find((u) => u.user.id === params.id)
+    if (!found) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
+    return HttpResponse.json(found.user)
   }),
 
-  http.put('/api/users/:id', async ({ request }) => {
-    const body = (await request.json()) as UserProfile
-    return HttpResponse.json(body)
+  http.post('/api/v1/users', async ({ request }) => {
+    const body = (await request.json()) as {
+      login: string
+      full_name?: string
+      roles?: string[]
+    }
+    const account: MockAccount = {
+      login: body.login,
+      password: 'changeme',
+      user: {
+        id: `u${Date.now()}`,
+        login: body.login,
+        full_name: body.full_name ?? body.login,
+        roles: [(body.roles?.[0] as UserRole) ?? 'operator'],
+        status: 'active',
+        mfa_enabled: false,
+      },
+    }
+    USERS.push(account)
+    registered.push(account)
+    saveRegistered(registered)
+    return HttpResponse.json(account.user, { status: 201 })
   }),
 
-  http.delete('/api/users/:id', () => {
+  http.put('/api/v1/users/:id', async ({ params, request }) => {
+    const body = (await request.json()) as {
+      login?: string
+      full_name?: string
+      roles?: string[]
+    }
+    const found = USERS.find((u) => u.user.id === params.id)
+    if (!found) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
+    if (body.login) found.user.login = body.login
+    if (body.full_name) found.user.full_name = body.full_name
+    if (body.roles?.length) found.user.roles = [body.roles[0] as UserRole]
+    return HttpResponse.json(found.user)
+  }),
+
+  http.delete('/api/v1/users/:id', () => {
     return new HttpResponse(null, { status: 204 })
   }),
 ]
+
+// Exported for tests that still need the profile shape.
+export { toProfile }

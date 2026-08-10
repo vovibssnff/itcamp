@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react'
-import { Input, Tag, Tooltip } from 'antd'
-import { SearchOutlined } from '@ant-design/icons'
-import { COMPONENT_TYPES, type ComponentType } from '@/mocks/fixtures/components'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { Input, Tag, Tooltip, Form, Select, message, Modal as AntModal } from 'antd'
+import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { type ComponentType } from '@/mocks/fixtures/components'
+import { componentsApi } from '@/api/components'
 import { tokens } from '@/theme/tokens'
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -18,17 +19,59 @@ const CATEGORY_LABELS: Record<string, string> = {
   common: 'Общие',
 }
 
+const SHAPES = [
+  'pump',
+  'column',
+  'vessel',
+  'heatexchanger',
+  'valve',
+  'sensor',
+  'controller',
+  'separator',
+  'compressor',
+  'furnace',
+] as const
+
+const EMPTY_FORM: Omit<ComponentType, 'id'> = {
+  name: '',
+  category: 'common',
+  description: '',
+  shape: 'vessel',
+  ports: [],
+  parameters: [],
+}
+
 export default function ComponentLibraryScreen() {
+  const [components, setComponents] = useState<ComponentType[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editing, setEditing] = useState<ComponentType | null>(null)
+  const [form] = Form.useForm<Omit<ComponentType, 'id'> & { id?: string }>()
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setComponents(await componentsApi.list())
+    } catch {
+      void message.error('Ошибка загрузки компонентов')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+  }, [load])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    if (!q) return COMPONENT_TYPES
-    return COMPONENT_TYPES.filter(
+    if (!q) return components
+    return components.filter(
       (c) => c.name.toLowerCase().includes(q) || c.description.toLowerCase().includes(q),
     )
-  }, [search])
+  }, [search, components])
 
   const grouped = useMemo(() => {
     const groups: Record<string, ComponentType[]> = {}
@@ -39,13 +82,74 @@ export default function ComponentLibraryScreen() {
     return groups
   }, [filtered])
 
+  function openCreate() {
+    setEditing(null)
+    form.setFieldsValue(EMPTY_FORM as never)
+    setEditOpen(true)
+  }
+
+  async function openEdit(ct: ComponentType) {
+    try {
+      const full = await componentsApi.get(ct.id)
+      setEditing(full)
+      form.setFieldsValue(full as never)
+      setEditOpen(true)
+    } catch {
+      void message.error('Ошибка загрузки компонента')
+    }
+  }
+
+  async function saveComponent() {
+    const values = await form.validateFields()
+    try {
+      if (editing) {
+        await componentsApi.update(editing.id, { ...editing, ...values, id: editing.id })
+      } else {
+        await componentsApi.create({
+          ...EMPTY_FORM,
+          ...values,
+          id: `ct-${Date.now()}`,
+          ports: values.ports ?? [],
+          parameters: values.parameters ?? [],
+        })
+      }
+      void message.success('Сохранено')
+      setEditOpen(false)
+      void load()
+    } catch {
+      void message.error('Ошибка сохранения')
+    }
+  }
+
+  async function deleteComponent(id: string) {
+    try {
+      await componentsApi.remove(id)
+      void message.success('Удалено')
+      void load()
+    } catch {
+      void message.error('Ошибка удаления (возможно, компонент используется)')
+    }
+  }
+
   return (
     <div style={{ padding: 24, maxWidth: 1200 }}>
-      <div style={{ marginBottom: 20 }}>
-        <h3 style={{ color: tokens.text.primary, margin: '0 0 4px' }}>Библиотека компонентов</h3>
-        <span style={{ color: tokens.text.muted, fontSize: 12 }}>
-          {COMPONENT_TYPES.length} типов компонентов
-        </span>
+      <div
+        style={{
+          marginBottom: 20,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+        }}
+      >
+        <div>
+          <h3 style={{ color: tokens.text.primary, margin: '0 0 4px' }}>Библиотека компонентов</h3>
+          <span style={{ color: tokens.text.muted, fontSize: 12 }}>
+            {loading ? '…' : `${components.length} типов компонентов`}
+          </span>
+        </div>
+        <button className="btn btn-acc" onClick={openCreate}>
+          <PlusOutlined /> Новый тип
+        </button>
       </div>
 
       <Input
@@ -122,6 +226,21 @@ export default function ComponentLibraryScreen() {
                   <Tag style={{ flexShrink: 0, fontSize: 10, fontFamily: tokens.font.mono }}>
                     {ct.shape}
                   </Tag>
+                </div>
+
+                <div
+                  style={{ display: 'flex', gap: 6, marginTop: 10 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button className="btn btn-ghost btn-sm" onClick={() => void openEdit(ct)}>
+                    <EditOutlined />
+                  </button>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={() => void deleteComponent(ct.id)}
+                  >
+                    <DeleteOutlined />
+                  </button>
                 </div>
 
                 {expandedId === ct.id && (
@@ -204,6 +323,35 @@ export default function ComponentLibraryScreen() {
           </div>
         </div>
       ))}
+
+      <AntModal
+        title={editing ? 'Редактировать компонент' : 'Новый компонент'}
+        open={editOpen}
+        onOk={() => void saveComponent()}
+        onCancel={() => setEditOpen(false)}
+        okText="Сохранить"
+        cancelText="Отмена"
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item name="name" label="Название" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="description" label="Описание">
+            <Input />
+          </Form.Item>
+          <Form.Item name="category" label="Категория" rules={[{ required: true }]}>
+            <Select
+              options={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
+                value,
+                label,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item name="shape" label="Форма" rules={[{ required: true }]}>
+            <Select options={SHAPES.map((s) => ({ value: s, label: s }))} />
+          </Form.Item>
+        </Form>
+      </AntModal>
     </div>
   )
 }

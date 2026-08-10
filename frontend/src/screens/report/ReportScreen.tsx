@@ -1,40 +1,35 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { message } from 'antd'
-import { DownloadOutlined, PlayCircleOutlined } from '@ant-design/icons'
+import { DownloadOutlined, PlayCircleOutlined, ReloadOutlined } from '@ant-design/icons'
 import { MetricGrid, BoxAcc, Pill } from '@/components/ui'
-
-interface Penalty {
-  id: string
-  description: string
-  deduction: number
-  timestamp: number
-  isCritical?: boolean
-}
-
-interface ReportData {
-  sessionId: string
-  score: number
-  maxScore: number
-  penalties: Penalty[]
-  criticalErrors: { id: string; description: string; timestamp: number }[]
-  aiAnalysis: string
-  completedAt: string
-  downloadUrl?: string
-}
+import { assessmentApi } from '@/api/assessment'
+import { reportsApi } from '@/api/reports'
+import type { ScoreData } from '@/api/mappers'
+import type { ReportMeta } from '@/api/mappers'
 
 export default function ReportScreen() {
   const { id } = useParams<{ id: string }>()
-  const [report, setReport] = useState<ReportData | null>(null)
+  const [report, setReport] = useState<ScoreData | null>(null)
+  const [reportMeta, setReportMeta] = useState<ReportMeta | null>(null)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
+    if (!id) return
     void (async () => {
       setLoading(true)
       try {
-        const res = await fetch(`/api/assessment/session/${id}/score`)
-        const data = (await res.json()) as ReportData
+        // Route param may be report id or session id. Try report meta first.
+        let sessionId = id
+        try {
+          const meta = await reportsApi.get(id)
+          setReportMeta(meta)
+          sessionId = meta.sessionId || id
+        } catch {
+          setReportMeta(null)
+        }
+        const data = await assessmentApi.getScore(sessionId)
         setReport(data)
       } catch {
         void message.error('Ошибка загрузки отчёта')
@@ -43,6 +38,17 @@ export default function ReportScreen() {
       }
     })()
   }, [id])
+
+  async function refreshStatus() {
+    if (!id) return
+    try {
+      const meta = await reportsApi.get(id)
+      setReportMeta(meta)
+      void message.info(`Статус: ${meta.status}`)
+    } catch {
+      void message.error('Не удалось обновить статус')
+    }
+  }
 
   if (loading || !report) return <div className="loading-spinner" />
 
@@ -56,9 +62,11 @@ export default function ReportScreen() {
     return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
   }
 
+  const downloadId = reportMeta?.id ?? id
+  const replaySessionId = report.sessionId || reportMeta?.sessionId || id
+
   return (
     <div className="wrap-n">
-      {/* Header */}
       <div
         style={{
           display: 'flex',
@@ -75,22 +83,30 @@ export default function ReportScreen() {
           </h1>
           <p className="mono" style={{ marginTop: 10, fontSize: 12, color: 'var(--tx3)' }}>
             {new Date(report.completedAt).toLocaleString('ru-RU')}
+            {reportMeta ? ` · PDF: ${reportMeta.status}` : ''}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-ghost" onClick={() => void navigate(`/reports/${id}/replay`)}>
+          {reportMeta && (
+            <button className="btn btn-ghost" onClick={() => void refreshStatus()}>
+              <ReloadOutlined /> Статус PDF
+            </button>
+          )}
+          <button
+            className="btn btn-ghost"
+            onClick={() => void navigate(`/reports/${replaySessionId}/replay`)}
+          >
             <PlayCircleOutlined /> Воспроизведение
           </button>
           <button
             className="btn btn-acc"
-            onClick={() => window.open(`/api/reports/${id}/download`)}
+            onClick={() => window.open(reportsApi.downloadUrl(downloadId!))}
           >
             <DownloadOutlined /> Скачать PDF
           </button>
         </div>
       </div>
 
-      {/* Score card */}
       <div
         className="cell rise d2"
         style={{ display: 'flex', gap: 28, alignItems: 'center', marginBottom: 18 }}
@@ -98,88 +114,73 @@ export default function ReportScreen() {
         <div style={{ textAlign: 'center', flexShrink: 0 }}>
           <div
             style={{
-              fontFamily: 'var(--mono)',
-              fontSize: 64,
+              fontSize: 56,
               fontWeight: 700,
+              fontFamily: 'var(--mono)',
               color: scoreColor,
               lineHeight: 1,
-              letterSpacing: '-0.04em',
             }}
           >
             {report.score}
           </div>
-          <div className="note" style={{ marginTop: 4 }}>
-            из {report.maxScore}
+          <div className="mono" style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 4 }}>
+            / {report.maxScore}
           </div>
-          <Pill variant={scoreVariant} style={{ marginTop: 8 }}>
-            {passed ? 'Зачтено' : 'Не зачтено'}
-          </Pill>
+          <div style={{ marginTop: 8 }}>
+            <Pill variant={scoreVariant}>{passed ? 'Зачтено' : 'Незачтено'}</Pill>
+          </div>
         </div>
-
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              height: 10,
-              background: 'var(--srf3)',
-              borderRadius: 'var(--r)',
-              overflow: 'hidden',
-              marginBottom: 16,
-            }}
-          >
-            <div
-              style={{
-                height: '100%',
-                width: `${report.score}%`,
-                background: scoreColor,
-                transition: 'width 0.6s var(--ease)',
-              }}
-            />
-          </div>
+        <BoxAcc style={{ flex: 1 }}>
           <MetricGrid
             metrics={[
-              { label: 'Нарушений', value: report.penalties.length, color: 'var(--warn)' },
-              { label: 'Критических', value: report.criticalErrors.length, color: 'var(--alarm)' },
-              { label: 'Снято баллов', value: `−${deducted}`, color: 'var(--alarm)' },
+              { label: 'Штрафы', value: String(deducted) },
+              { label: 'Критических', value: String(report.criticalErrors.length) },
+              { label: 'Вердикт', value: report.verdict ?? (passed ? 'pass' : 'fail') },
             ]}
-            cols={3}
           />
-        </div>
+        </BoxAcc>
       </div>
 
-      {/* Penalties */}
-      {report.penalties.length > 0 && (
-        <div className="cell rise d3" style={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
-          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--ln)' }}>
-            <span className="sec">Нарушения</span>
+      {report.aiAnalysis && (
+        <div className="cell rise d3" style={{ marginBottom: 18 }}>
+          <div className="sec" style={{ marginBottom: 10 }}>
+            Анализ ИИ
           </div>
-          {report.penalties.map((p) => (
-            <div
-              key={p.id}
-              className="dr"
-              style={{ padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 12 }}
-            >
-              {p.isCritical && <Pill variant="alarm">Крит.</Pill>}
-              <span style={{ flex: 1, fontSize: 13, color: 'var(--tx2)' }}>{p.description}</span>
-              <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--tx4)' }}>
-                {fmtTime(p.timestamp)}
-              </span>
-              <span style={{ fontFamily: 'var(--mono)', color: 'var(--alarm)', fontWeight: 600 }}>
-                −{p.deduction}
-              </span>
-            </div>
-          ))}
+          <p style={{ color: 'var(--tx2)', fontSize: 13, lineHeight: 1.55 }}>{report.aiAnalysis}</p>
         </div>
       )}
 
-      {/* AI Analysis */}
-      <BoxAcc className="rise d4">
-        <div className="kick" style={{ marginBottom: 8 }}>
-          Анализ ИИ
+      <div className="cell rise d4">
+        <div className="sec" style={{ marginBottom: 12 }}>
+          Штрафы
         </div>
-        <p style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.6, margin: 0 }}>
-          {report.aiAnalysis}
-        </p>
-      </BoxAcc>
+        {report.penalties.length === 0 ? (
+          <p className="note">Нет штрафов</p>
+        ) : (
+          report.penalties.map((p) => (
+            <div
+              key={p.id}
+              style={{
+                display: 'flex',
+                gap: 12,
+                padding: '8px 0',
+                borderBottom: '1px solid var(--ln)',
+                fontSize: 13,
+              }}
+            >
+              <span className="mono" style={{ color: 'var(--tx3)', minWidth: 48 }}>
+                {fmtTime(p.timestamp)}
+              </span>
+              <span style={{ flex: 1, color: p.isCritical ? 'var(--alarm)' : 'var(--tx2)' }}>
+                {p.description}
+              </span>
+              <span className="mono" style={{ color: 'var(--alarm)' }}>
+                −{p.deduction}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   )
 }

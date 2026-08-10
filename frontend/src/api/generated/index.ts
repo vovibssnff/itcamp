@@ -8,3 +8,4 @@ export type { paths as AssessmentPaths, components as AssessmentComponents } fro
 export type { paths as ReportPaths, components as ReportComponents } from './report'
 export type { paths as SnapshotPaths, components as SnapshotComponents } from './snapshot'
 export type { paths as GatewayPaths, components as GatewayComponents } from './gw'
+export type { paths as SimManagerPaths, components as SimManagerComponents } from './sim-manager'

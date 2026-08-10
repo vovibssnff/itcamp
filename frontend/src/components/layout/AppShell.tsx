@@ -3,6 +3,7 @@ import { Layout, Dropdown } from 'antd'
 import { UserOutlined, LogoutOutlined, CaretDownOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/store/auth'
 import { useUIStore } from '@/store/ui'
+import { authApi } from '@/api/auth'
 import { useTranslation } from 'react-i18next'
 import styles from './AppShell.module.css'
 
@@ -67,8 +68,16 @@ export function AppShell() {
         label: t('auth.logout'),
         danger: true,
         onClick: () => {
-          logout()
-          void navigate('/login')
+          const refresh = useAuthStore.getState().refreshToken
+          void authApi
+            .logout(refresh)
+            .catch(() => {
+              // Best-effort revoke; always clear local session.
+            })
+            .finally(() => {
+              logout()
+              void navigate('/login')
+            })
         },
       },
     ],

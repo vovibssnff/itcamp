@@ -1,9 +1,9 @@
 // Installs a mock WebSocket implementation (dev/mock mode only) that routes
-// connections to `/ws/sessions/:id` into the in-browser telemetry simulation.
+// connections to `/api/v1/ws/sessions/:id/:channel` into the in-browser telemetry simulation.
 // Any other URL falls back to the real WebSocket.
 import { connectMockWsClient, type MockWsClient } from './mock-ws-server'
 
-const SESSION_PATH = /\/ws\/sessions\/([^/?]+)/
+const SESSION_PATH = /\/api\/v1\/ws\/sessions\/([^/?]+)\/(operator|observe)/
 
 export function installMockWebSocket() {
   const RealWebSocket = window.WebSocket
@@ -41,8 +41,7 @@ export function installMockWebSocket() {
         return new RealWebSocket(url, _protocols) as unknown as MockWebSocket
       }
       const sessionId = decodeURIComponent(match[1]!)
-      const channel = new URL(this.url.replace(/^ws/, 'http')).searchParams.get('channel')
-      const ch = channel === 'observe' ? 'observe' : 'operator'
+      const ch = match[2] === 'observe' ? 'observe' : 'operator'
 
       queueMicrotask(() => {
         this.readyState = this.OPEN

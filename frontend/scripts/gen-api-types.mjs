@@ -11,21 +11,21 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(__dirname, '..', '..')
-const servicesDir = resolve(repoRoot, 'services')
+const servicesGoDir = resolve(repoRoot, 'services', 'go')
 const schemasDir = resolve(repoRoot, 'schemas')
 const outDir = resolve(__dirname, '..', 'src', 'api', 'generated')
 const cli = resolve(__dirname, '..', 'node_modules', 'openapi-typescript', 'bin', 'cli.js')
 
 const SCHEMA_URL_PREFIX = 'https://ktc.itcamp/schemas/'
 
-if (!existsSync(servicesDir)) {
-  console.error(`services/ directory not found at ${servicesDir}`)
+if (!existsSync(servicesGoDir)) {
+  console.error(`services/go/ directory not found at ${servicesGoDir}`)
   process.exit(1)
 }
 
 mkdirSync(outDir, { recursive: true })
 
-const services = readdirSync(servicesDir, { withFileTypes: true })
+const services = readdirSync(servicesGoDir, { withFileTypes: true })
   .filter((d) => d.isDirectory())
   .map((d) => d.name)
 
@@ -36,7 +36,7 @@ let generated = 0
 const failures = []
 
 for (const service of services) {
-  const spec = resolve(servicesDir, service, 'api', 'openapi.yaml')
+  const spec = resolve(servicesGoDir, service, 'api', 'openapi.yaml')
   if (!existsSync(spec)) continue
 
   // Rewrite placeholder schema URLs to local absolute file paths.

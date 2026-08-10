@@ -1,0 +1,291 @@
+import type { UserProfile, UserRole } from '@/store/auth'
+import type { CanvasEdge, CanvasNode } from '@/store/constructor'
+import type { Template } from '@/mocks/fixtures/templates'
+import type { SessionRecord } from '@/mocks/fixtures/sessions'
+import type { ComponentType } from '@/mocks/fixtures/components'
+
+const ROLES: UserRole[] = ['admin', 'instructor', 'operator']
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+}
+
+function str(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+function num(value: unknown, fallback = 0): number {
+  return typeof value === 'number' && !Number.isNaN(value) ? value : fallback
+}
+
+function pick(raw: Record<string, unknown>, snake: string, camel: string): unknown {
+  return raw[snake] ?? raw[camel]
+}
+
+export interface BackendUser {
+  id?: string
+  login?: string
+  full_name?: string
+  roles?: string[]
+  status?: string
+  mfa_enabled?: boolean
+}
+
+export function mapUser(raw: unknown): UserProfile {
+  const u = asRecord(raw) as BackendUser & Record<string, unknown>
+  const roles = Array.isArray(u.roles) ? u.roles : []
+  const primary =
+    roles.find((r): r is UserRole => ROLES.includes(r as UserRole)) ??
+    (ROLES.includes(str(u.role) as UserRole) ? (str(u.role) as UserRole) : 'operator')
+
+  return {
+    id: str(u.id),
+    username: str(u.login ?? u.username),
+    displayName: str(u.full_name ?? u.displayName ?? u.login ?? u.username),
+    role: primary,
+  }
+}
+
+export function toCreateUserBody(profile: {
+  username: string
+  displayName: string
+  role: UserRole
+}): { login: string; full_name: string; roles: string[] } {
+  return {
+    login: profile.username,
+    full_name: profile.displayName,
+    roles: [profile.role],
+  }
+}
+
+function mapGraph(raw: unknown): { nodes: CanvasNode[]; edges: CanvasEdge[] } {
+  const r = asRecord(raw)
+  const graph = asRecord(r.graph)
+  const nodes = (graph.nodes ?? r.nodes ?? []) as CanvasNode[]
+  const edges = (graph.edges ?? r.edges ?? []) as CanvasEdge[]
+  return { nodes, edges }
+}
+
+export function mapTemplate(raw: unknown): Template {
+  const r = asRecord(raw)
+  const { nodes, edges } = mapGraph(r)
+  const status = str(pick(r, 'status', 'status'))
+  const isValid =
+    typeof r.isValid === 'boolean' ? r.isValid : status === 'published' || nodes.length > 0
+
+  return {
+    id: str(r.id),
+    name: str(r.name),
+    description: str(r.description),
+    createdAt: str(pick(r, 'created_at', 'createdAt')),
+    updatedAt: str(pick(r, 'updated_at', 'updatedAt')),
+    nodes,
+    edges,
+    isValid,
+    scheme: r.scheme === 'elou-avt' ? 'elou-avt' : undefined,
+  }
+}
+
+export function toTemplateBody(template: Partial<Template> & { name: string }) {
+  return {
+    name: template.name,
+    description: template.description ?? '',
+    graph: {
+      schema_version: 1,
+      nodes: template.nodes ?? [],
+      edges: template.edges ?? [],
+    },
+  }
+}
+
+export type TemplateSummary = Omit<Template, 'nodes' | 'edges'>
+
+export function mapTemplateSummary(raw: unknown): TemplateSummary {
+  const t = mapTemplate(raw)
+  const { nodes: _n, edges: _e, ...summary } = t
+  return summary
+}
+
+export function mapComponent(raw: unknown): ComponentType {
+  return raw as ComponentType
+}
+
+export function mapSession(raw: unknown): SessionRecord {
+  const r = asRecord(raw)
+  const statusRaw = str(pick(r, 'status', 'status'), 'idle')
+  const status = statusRaw === 'created' ? 'idle' : (statusRaw as SessionRecord['status'])
+
+  const operatorIds = (pick(r, 'operator_ids', 'operatorIds') as string[] | undefined) ?? []
+  const modeRaw = str(pick(r, 'mode', 'mode'), 'training')
+  const mode: SessionRecord['mode'] = modeRaw === 'exam' ? 'exam' : 'training'
+
+  return {
+    id: str(r.id),
+    templateId: str(pick(r, 'template_id', 'templateId')),
+    templateName: str(
+      pick(r, 'template_name', 'templateName'),
+      str(pick(r, 'template_id', 'templateId')),
+    ),
+    operatorId: str(pick(r, 'operator_id', 'operatorId') ?? operatorIds[0]),
+    operatorName: str(
+      pick(r, 'operator_name', 'operatorName'),
+      str(pick(r, 'operator_id', 'operatorId') ?? operatorIds[0]),
+    ),
+    instructorId: str(pick(r, 'instructor_id', 'instructorId')),
+    scenarioId: str(pick(r, 'scenario_id', 'scenarioId')) || undefined,
+    scenarioName: str(pick(r, 'scenario_name', 'scenarioName')) || undefined,
+    mode,
+    status,
+    startedAt: (pick(r, 'started_at', 'startedAt') as string | null) ?? null,
+    finishedAt: (pick(r, 'stopped_at', 'finishedAt') as string | null) ?? null,
+    speed: num(pick(r, 'speed', 'speed'), 1),
+    reportId: str(pick(r, 'report_id', 'reportId')) || undefined,
+  }
+}
+
+export interface SnapshotMeta {
+  id: string
+  sessionId: string
+  name: string
+  modelTime?: number
+  createdAt?: string
+  isPreset?: boolean
+}
+
+export function mapSnapshot(raw: unknown): SnapshotMeta {
+  const r = asRecord(raw)
+  return {
+    id: str(r.id),
+    sessionId: str(pick(r, 'session_id', 'sessionId')),
+    name: str(pick(r, 'name', 'label')),
+    modelTime:
+      typeof pick(r, 'model_time', 'modelTime') === 'number'
+        ? num(pick(r, 'model_time', 'modelTime'))
+        : undefined,
+    createdAt: str(pick(r, 'created_at', 'createdAt')) || undefined,
+    isPreset: Boolean(pick(r, 'is_preset', 'isPreset')),
+  }
+}
+
+export interface ReportMeta {
+  id: string
+  sessionId: string
+  type: 'session' | 'exam'
+  status: 'queued' | 'processing' | 'ready' | 'failed' | 'generating'
+  downloadUrl?: string
+  createdAt: string
+}
+
+export function mapReport(raw: unknown): ReportMeta {
+  const r = asRecord(raw)
+  const status = str(pick(r, 'status', 'status'), 'queued') as ReportMeta['status']
+  const type = str(pick(r, 'type', 'type'), 'session') as ReportMeta['type']
+  return {
+    id: str(r.id),
+    sessionId: str(pick(r, 'session_id', 'sessionId')),
+    type: type === 'exam' ? 'exam' : 'session',
+    status,
+    downloadUrl: str(pick(r, 'download_url', 'downloadUrl')) || undefined,
+    createdAt: str(pick(r, 'created_at', 'createdAt')),
+  }
+}
+
+export interface ScoreData {
+  sessionId: string
+  score: number
+  maxScore: number
+  penalties: {
+    id: string
+    description: string
+    deduction: number
+    timestamp: number
+    isCritical?: boolean
+  }[]
+  criticalErrors: { id: string; description: string; timestamp: number }[]
+  aiAnalysis: string
+  completedAt: string
+  verdict?: string
+}
+
+export function mapScore(raw: unknown): ScoreData {
+  const r = asRecord(raw)
+  const penaltiesRaw = (pick(r, 'penalties', 'penalties') as unknown[]) ?? []
+  const criticalRaw = (pick(r, 'critical_errors', 'criticalErrors') as unknown[]) ?? []
+
+  const penalties = penaltiesRaw.map((p, i) => {
+    const item = asRecord(p)
+    return {
+      id: str(item.id ?? item.code, `pen-${i}`),
+      description: str(item.description),
+      deduction: num(item.deduction ?? item.points),
+      timestamp: num(item.timestamp ?? item.model_time),
+      isCritical: Boolean(item.isCritical),
+    }
+  })
+
+  const criticalErrors = criticalRaw.map((c, i) => {
+    const item = asRecord(c)
+    return {
+      id: str(item.id ?? item.code, `ce-${i}`),
+      description: str(item.description),
+      timestamp: num(item.timestamp ?? item.model_time),
+    }
+  })
+
+  return {
+    sessionId: str(pick(r, 'session_id', 'sessionId')),
+    score: num(pick(r, 'total_score', 'score')),
+    maxScore: num(pick(r, 'max_score', 'maxScore'), 100),
+    penalties,
+    criticalErrors,
+    aiAnalysis: str(pick(r, 'ai_analysis', 'aiAnalysis')),
+    completedAt: str(pick(r, 'completed_at', 'completedAt'), new Date().toISOString()),
+    verdict: str(pick(r, 'verdict', 'verdict')) || undefined,
+  }
+}
+
+export interface ReplayEvent {
+  time: number
+  type: string
+  description: string
+  severity?: string
+}
+
+export interface ReplayData {
+  duration: number
+  events: ReplayEvent[]
+}
+
+export function mapReplay(raw: unknown): ReplayData {
+  const r = asRecord(raw)
+  const events: ReplayEvent[] = []
+
+  const pushMany = (arr: unknown, type: string) => {
+    if (!Array.isArray(arr)) return
+    for (const item of arr) {
+      const e = asRecord(item)
+      events.push({
+        time: num(e.time ?? e.model_time ?? e.timestamp),
+        type: str(e.type, type),
+        description: str(e.description ?? e.message ?? e.name),
+        severity: str(e.severity) || undefined,
+      })
+    }
+  }
+
+  if (Array.isArray(r.events)) {
+    pushMany(r.events, 'action')
+  } else {
+    pushMany(r.actions, 'action')
+    pushMany(r.alarms, 'alarm')
+    pushMany(r.faults, 'fault')
+    pushMany(r.penalties, 'penalty')
+  }
+
+  events.sort((a, b) => a.time - b.time)
+  const duration = num(
+    r.duration,
+    events.length ? Math.max(...events.map((e) => e.time)) + 60 : 900,
+  )
+  return { duration, events }
+}

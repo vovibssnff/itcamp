@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { message } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router'
 import { DataTable, Pill, Modal } from '@/components/ui'
 import { Field } from '@/components/ui'
-import type { Template } from '@/mocks/fixtures/templates'
+import { templatesApi } from '@/api/templates'
+import type { TemplateSummary } from '@/api/mappers'
 
-type TemplateRow = Omit<Template, 'nodes' | 'edges'>
+type TemplateRow = TemplateSummary
 
 export default function TemplateListScreen() {
   const [templates, setTemplates] = useState<TemplateRow[]>([])
@@ -19,8 +20,7 @@ export default function TemplateListScreen() {
   const fetchTemplates = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/templates')
-      const data = (await res.json()) as TemplateRow[]
+      const data = await templatesApi.list()
       setTemplates(data)
     } catch {
       void message.error('Ошибка загрузки шаблонов')
@@ -36,12 +36,7 @@ export default function TemplateListScreen() {
   async function createTemplate() {
     if (!newName.trim()) return
     try {
-      const res = await fetch('/api/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName, description: newDesc }),
-      })
-      const tmpl = (await res.json()) as Template
+      const tmpl = await templatesApi.create({ name: newName, description: newDesc })
       void message.success('Шаблон создан')
       setCreateOpen(false)
       setNewName('')
@@ -54,7 +49,7 @@ export default function TemplateListScreen() {
 
   async function deleteTemplate(id: string) {
     try {
-      await fetch(`/api/templates/${id}`, { method: 'DELETE' })
+      await templatesApi.remove(id)
       void message.success('Шаблон удалён')
       void fetchTemplates()
     } catch {
@@ -62,9 +57,18 @@ export default function TemplateListScreen() {
     }
   }
 
+  async function copyTemplate(id: string, name: string) {
+    try {
+      const copy = await templatesApi.copy(id, `${name} (копия)`)
+      void message.success('Шаблон скопирован')
+      void navigate(`/templates/${copy.id}/edit`)
+    } catch {
+      void message.error('Ошибка копирования')
+    }
+  }
+
   return (
     <div className="wrap">
-      {/* Header */}
       <div
         style={{
           display: 'flex',
@@ -88,7 +92,6 @@ export default function TemplateListScreen() {
         </button>
       </div>
 
-      {/* Table */}
       {loading ? (
         <div className="loading-spinner" />
       ) : (
@@ -119,14 +122,14 @@ export default function TemplateListScreen() {
                       color: 'var(--tx3)',
                     }}
                   >
-                    {new Date(row.updatedAt).toLocaleDateString('ru-RU')}
+                    {row.updatedAt ? new Date(row.updatedAt).toLocaleDateString('ru-RU') : '—'}
                   </span>
                 ),
               },
               {
                 key: 'actions',
                 title: '',
-                width: '140px',
+                width: '200px',
                 render: (row) => (
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button
@@ -136,9 +139,23 @@ export default function TemplateListScreen() {
                       <EditOutlined /> Открыть
                     </button>
                     <button
+                      className="btn btn-ghost btn-sm"
+                      style={{ padding: '5px 8px' }}
+                      title="Копировать"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void copyTemplate(row.id, row.name)
+                      }}
+                    >
+                      <CopyOutlined />
+                    </button>
+                    <button
                       className="btn btn-danger btn-sm"
                       style={{ padding: '5px 8px' }}
-                      onClick={() => void deleteTemplate(row.id)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void deleteTemplate(row.id)
+                      }}
                     >
                       <DeleteOutlined />
                     </button>
@@ -154,7 +171,6 @@ export default function TemplateListScreen() {
         </div>
       )}
 
-      {/* Create modal */}
       <Modal
         open={createOpen}
         onClose={() => setCreateOpen(false)}

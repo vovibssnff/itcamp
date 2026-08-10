@@ -11,8 +11,11 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 import { useSessionStore } from '@/store/session'
 import { useUIStore } from '@/store/ui'
 import type { CanvasNode } from '@/store/constructor'
-import { COMPONENT_TYPES } from '@/mocks/fixtures/components'
-import { TEMPLATES } from '@/mocks/fixtures/templates'
+import { COMPONENT_TYPES, type ComponentType } from '@/mocks/fixtures/components'
+import { TEMPLATES, type Template } from '@/mocks/fixtures/templates'
+import { sessionsApi } from '@/api/sessions'
+import { templatesApi } from '@/api/templates'
+import { componentsApi } from '@/api/components'
 
 const STATUS_LABELS: Record<string, string> = {
   idle: 'Ожидание',
@@ -49,13 +52,32 @@ export default function TrainingScreen() {
   const theme = useUIStore((s) => s.theme)
   const setTheme = useUIStore((s) => s.setTheme)
 
+  const [template, setTemplate] = useState<Template>(TEMPLATES[0]!)
+  const [componentTypes, setComponentTypes] = useState<ComponentType[]>(COMPONENT_TYPES)
+
   useEffect(() => {
     clearSession()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Use demo template layout
-  const template = TEMPLATES[0]!
+  useEffect(() => {
+    if (!sessionId) return
+    void (async () => {
+      try {
+        const [session, components] = await Promise.all([
+          sessionsApi.get(sessionId),
+          componentsApi.list(),
+        ])
+        if (components.length) setComponentTypes(components)
+        if (session.templateId) {
+          setTemplate(await templatesApi.get(session.templateId))
+        }
+      } catch {
+        // Fall back to demo template when session/template unavailable.
+      }
+    })()
+  }, [sessionId])
+
   const nodes = template.nodes
   const edges = template.edges
 
@@ -170,7 +192,7 @@ export default function TrainingScreen() {
               <HmiCanvas
                 nodes={nodes}
                 edges={edges}
-                componentTypes={COMPONENT_TYPES}
+                componentTypes={componentTypes}
                 telemetry={telemetry}
                 width={canvasSize.w}
                 height={canvasSize.h}
@@ -269,7 +291,7 @@ export default function TrainingScreen() {
 
       <Faceplate
         node={selectedNode}
-        componentTypes={COMPONENT_TYPES}
+        componentTypes={componentTypes}
         open={faceplateOpen}
         onClose={() => setFaceplateOpen(false)}
         telemetry={telemetry}

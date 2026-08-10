@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Table, Button, Tag, Space, Modal, Form, Input, Select, message } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { UserProfile, UserRole } from '@/store/auth'
+import { usersApi } from '@/api/users'
 import { tokens } from '@/theme/tokens'
 
 const ROLE_COLORS: Record<UserRole, string> = {
@@ -26,9 +27,7 @@ export default function UsersScreen() {
   async function fetchUsers() {
     setLoading(true)
     try {
-      const res = await fetch('/api/users')
-      const data = (await res.json()) as UserProfile[]
-      setUsers(data)
+      setUsers(await usersApi.list())
     } catch {
       void message.error('Ошибка загрузки')
     } finally {
@@ -41,31 +40,41 @@ export default function UsersScreen() {
   }, [])
 
   async function deleteUser(id: string) {
-    await fetch(`/api/users/${id}`, { method: 'DELETE' })
+    await usersApi.remove(id)
     void message.success('Удалён')
     void fetchUsers()
   }
 
-  function openEdit(user: UserProfile | null) {
-    setEditing(user)
-    if (user) form.setFieldsValue(user)
-    else form.resetFields()
+  async function openEdit(user: UserProfile | null) {
+    if (user) {
+      try {
+        const full = await usersApi.get(user.id)
+        setEditing(full)
+        form.setFieldsValue(full)
+      } catch {
+        setEditing(user)
+        form.setFieldsValue(user)
+      }
+    } else {
+      setEditing(null)
+      form.resetFields()
+    }
     setEditOpen(true)
   }
 
   async function saveUser() {
     const values = await form.validateFields()
     if (editing) {
-      await fetch(`/api/users/${editing.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...editing, ...values }),
+      await usersApi.update(editing.id, {
+        username: values.username,
+        displayName: values.displayName,
+        role: values.role,
       })
     } else {
-      await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+      await usersApi.create({
+        username: values.username,
+        displayName: values.displayName,
+        role: values.role,
       })
     }
     void message.success('Сохранено')
@@ -99,7 +108,7 @@ export default function UsersScreen() {
       key: 'actions',
       render: (_: unknown, record: UserProfile) => (
         <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+          <Button size="small" icon={<EditOutlined />} onClick={() => void openEdit(record)} />
           <Button
             size="small"
             danger
@@ -128,7 +137,7 @@ export default function UsersScreen() {
             Пользователи
           </h1>
         </div>
-        <button className="btn btn-acc" onClick={() => openEdit(null)}>
+        <button className="btn btn-acc" onClick={() => void openEdit(null)}>
           <PlusOutlined /> Новый пользователь
         </button>
       </div>

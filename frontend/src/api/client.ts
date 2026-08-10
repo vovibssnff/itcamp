@@ -2,7 +2,9 @@ import createClient, { type Middleware } from 'openapi-fetch'
 import { useAuthStore } from '@/store/auth'
 import type { GatewayPaths } from './generated'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+// In mock mode always use same-origin so MSW can intercept `/api/v1/*`.
+const BASE_URL =
+  import.meta.env.VITE_MOCK_API === 'true' ? '' : (import.meta.env.VITE_API_BASE_URL ?? '')
 
 // Typed against the API Gateway OpenAPI spec (generated via `pnpm openapi:gen`).
 export const apiClient = createClient<GatewayPaths>({ baseUrl: BASE_URL })
@@ -27,6 +29,12 @@ const authMiddleware: Middleware = {
   async onResponse({ response, request }) {
     if (response.status !== 401) return response
 
+    // Avoid refresh loops on auth endpoints themselves.
+    const path = new URL(request.url, 'http://local').pathname
+    if (path.includes('/api/v1/auth/login') || path.includes('/api/v1/auth/refresh')) {
+      return response
+    }
+
     const store = useAuthStore.getState()
     if (!store.refreshToken) {
       store.logout()
@@ -45,7 +53,7 @@ const authMiddleware: Middleware = {
 
     isRefreshing = true
     try {
-      const res = await fetch(`${BASE_URL}/api/auth/refresh`, {
+      const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: store.refreshToken }),

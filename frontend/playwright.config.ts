@@ -26,7 +26,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'VITE_MOCK_API=true pnpm dev',
+    command: 'VITE_MOCK_API=true VITE_API_BASE_URL= npm run dev -- --port 5173',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 60000,

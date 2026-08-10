@@ -14,8 +14,10 @@ import { PropertiesPanel } from '@/canvas/constructor/PropertiesPanel'
 import { useConstructorStore } from '@/store/constructor'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { useUndo } from '@/hooks/useUndo'
-import { COMPONENT_TYPES, type ComponentType } from '@/mocks/fixtures/components'
+import { type ComponentType } from '@/mocks/fixtures/components'
 import type { Template } from '@/mocks/fixtures/templates'
+import { templatesApi } from '@/api/templates'
+import { componentsApi } from '@/api/components'
 import { tokens } from '@/theme/tokens'
 
 const CANVAS_PADDING = 240 // palette width
@@ -24,7 +26,7 @@ export default function ConstructorScreen() {
   const { id } = useParams<{ id: string }>()
   const [loading, setLoading] = useState(true)
   const [template, setTemplate] = useState<Template | null>(null)
-  const [componentTypes] = useState<ComponentType[]>(COMPONENT_TYPES)
+  const [componentTypes, setComponentTypes] = useState<ComponentType[]>([])
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 })
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -59,9 +61,9 @@ export default function ConstructorScreen() {
     void (async () => {
       setLoading(true)
       try {
-        const res = await fetch(`/api/templates/${id}`)
-        const tmpl = (await res.json()) as Template
+        const [tmpl, components] = await Promise.all([templatesApi.get(id), componentsApi.list()])
         setTemplate(tmpl)
+        setComponentTypes(components)
         setStoreTemplate(id)
         setNodes(tmpl.nodes)
         setEdges(tmpl.edges)
@@ -91,11 +93,7 @@ export default function ConstructorScreen() {
   const saveTemplate = useCallback(async () => {
     if (!id || !template) return
     try {
-      await fetch(`/api/templates/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...template, nodes, edges }),
-      })
+      await templatesApi.update(id, { ...template, nodes, edges })
       markClean()
       void message.success('Шаблон сохранён')
     } catch {
@@ -108,11 +106,7 @@ export default function ConstructorScreen() {
   async function handleValidate() {
     if (!id) return
     try {
-      const res = await fetch(`/api/templates/${id}/validate`, { method: 'POST' })
-      const result = (await res.json()) as {
-        valid: boolean
-        errors: { nodeId: string | null; message: string }[]
-      }
+      const result = await templatesApi.validate(id)
       if (result.valid) {
         void message.success('Граф валиден')
         setValidationErrors([])

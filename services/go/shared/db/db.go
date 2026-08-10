@@ -31,7 +31,10 @@ func New(ctx context.Context, dsn string, maxConns, minConns int32, connTimeout 
 
 	pingCtx, cancel := context.WithTimeout(ctx, connTimeout)
 	defer cancel()
-	if err := pool.Ping(pingCtx); err != nil {
+	// NOTE: pgx pool.Ping() шлёт bare-запрос `-- ping`, который Picodata CE
+	// не парсит. Для совместимости используем обычный SELECT 1.
+	var one int
+	if err := pool.QueryRow(pingCtx, "SELECT 1").Scan(&one); err != nil {
 		pool.Close()
 		return nil, fmt.Errorf("ping db: %w", err)
 	}

@@ -127,6 +127,30 @@ func (r *UserRepo) GetRoles(ctx context.Context, userID string) ([]domain.Role, 
 	return roles, rows.Err()
 }
 
+// SetRoles replaces user_roles for the user. role_id matches roles.id (= role name).
+func (r *UserRepo) SetRoles(ctx context.Context, userID string, roles []domain.Role) error {
+	tx, err := r.db.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `DELETE FROM user_roles WHERE user_id = $1`, userID); err != nil {
+		return err
+	}
+	for _, role := range roles {
+		if !role.Valid() {
+			continue
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)
+			ON CONFLICT DO NOTHING`, userID, string(role)); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {

@@ -67,7 +67,7 @@ prefix       = "/api/v1/users"
 upstream     = "auth"
 strip_prefix = "/api/v1"
 auth         = true
-roles        = ["admin"]
+roles        = ["admin", "instructor"]
 
 # --- Constructor (instructor/admin) ---
 [[routes]]

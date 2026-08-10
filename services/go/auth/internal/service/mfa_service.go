@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/itcamp/ktc/services/auth/internal/domain"
@@ -36,6 +37,22 @@ func (s *MFAService) Setup(ctx context.Context, userID string) (string, error) {
 		return "", err
 	}
 	return secret, nil
+}
+
+// EnsureEnrollmentSecret returns a plaintext TOTP secret for QR enrollment when MFA
+// is not yet enabled. If MFA is already enabled, it returns ("", nil).
+func (s *MFAService) EnsureEnrollmentSecret(ctx context.Context, userID string) (string, error) {
+	rec, err := s.repo.Get(ctx, userID)
+	if err == nil {
+		if rec.Enabled {
+			return "", nil
+		}
+		return s.totp.Decrypt(rec.SecretEnc)
+	}
+	if !errors.Is(err, domain.ErrMFANotEnabled) {
+		return "", err
+	}
+	return s.Setup(ctx, userID)
 }
 
 func (s *MFAService) Enable(ctx context.Context, userID, code string) error {

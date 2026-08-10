@@ -33,17 +33,39 @@ export interface BackendUser {
 
 export function mapUser(raw: unknown): UserProfile {
   const u = asRecord(raw) as BackendUser & Record<string, unknown>
-  const roles = Array.isArray(u.roles) ? u.roles : []
+  const roles = Array.isArray(u.roles) ? u.roles.map(String) : []
+  // Prefer privileged roles when several are present (admin > instructor > operator).
   const primary =
-    roles.find((r): r is UserRole => ROLES.includes(r as UserRole)) ??
-    (ROLES.includes(str(u.role) as UserRole) ? (str(u.role) as UserRole) : 'operator')
+    ROLES.find((r) => roles.includes(r)) ??
+    (ROLES.includes(str(u.role) as UserRole) ? (str(u.role) as UserRole) : null)
 
   return {
     id: str(u.id),
     username: str(u.login ?? u.username),
     displayName: str(u.full_name ?? u.displayName ?? u.login ?? u.username),
-    role: primary,
+    // Never invent "operator" when the backend omitted roles — caller may fill from JWT.
+    role: primary ?? 'operator',
+    roles: ROLES.filter((r) => roles.includes(r)),
   }
+}
+
+/** Decode roles claim from a JWT access token (payload only; no signature check). */
+export function rolesFromAccessToken(token: string | null | undefined): UserRole[] {
+  if (!token) return []
+  const parts = token.split('.')
+  if (parts.length < 2 || !parts[1]) return []
+  try {
+    const json = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'))
+    const payload = JSON.parse(json) as { roles?: unknown }
+    const roles = Array.isArray(payload.roles) ? payload.roles.map(String) : []
+    return ROLES.filter((r) => roles.includes(r))
+  } catch {
+    return []
+  }
+}
+
+export function pickPrimaryRole(roles: UserRole[], fallback: UserRole = 'operator'): UserRole {
+  return ROLES.find((r) => roles.includes(r)) ?? fallback
 }
 
 export function toCreateUserBody(profile: {

@@ -1,6 +1,7 @@
 package security
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -101,9 +102,19 @@ func TestTOTPService_Decrypt_TooShort(t *testing.T) {
 	}
 }
 
-func TestEncodeBase32(t *testing.T) {
-	got := EncodeBase32([]byte("hello"))
-	if got == "" {
-		t.Error("EncodeBase32 should not return empty")
+func TestOTPAuthURI(t *testing.T) {
+	got := OTPAuthURI("KTC", "admin", "JBSWY3DPEHPK3PXP")
+	for _, want := range []string{
+		"otpauth://totp/",
+		"KTC",
+		"admin",
+		"JBSWY3DPEHPK3PXP",
+		"algorithm=SHA1",
+		"digits=6",
+		"period=30",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("uri %q missing %q", got, want)
+		}
 	}
 }

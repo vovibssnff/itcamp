@@ -81,7 +81,7 @@ export const router = createBrowserRouter([
       {
         path: 'components',
         element: (
-          <RoleGuard roles={['admin']}>
+          <RoleGuard roles={['instructor', 'admin']}>
             <Lazy>
               <ComponentLibraryScreen />
             </Lazy>

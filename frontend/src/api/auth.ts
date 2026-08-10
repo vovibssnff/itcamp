@@ -1,7 +1,8 @@
 import { apiClient } from './client'
 import { unwrap } from './request'
-import { mapUser } from './mappers'
+import { mapUser, pickPrimaryRole, rolesFromAccessToken } from './mappers'
 import type { UserProfile } from '@/store/auth'
+import { useAuthStore } from '@/store/auth'
 
 export interface TokenResponse {
   access_token: string
@@ -12,6 +13,11 @@ export interface TokenResponse {
 
 export interface MfaRequiredResponse {
   mfa_required: true
+  user_id?: string
+  login?: string
+  /** Present when MFA is not enrolled yet — use for QR / manual entry. */
+  secret?: string
+  otpauth_uri?: string
 }
 
 export type LoginResult = TokenResponse | MfaRequiredResponse
@@ -46,6 +52,15 @@ export const authApi = {
 
   async me(): Promise<UserProfile> {
     const raw = await unwrap<unknown>(apiClient.GET('/api/v1/auth/me'))
-    return mapUser(raw)
+    const mapped = mapUser(raw)
+    // Backend historically omitted user_roles; JWT still has roles from login.
+    if (!mapped.roles?.length) {
+      const fromJwt = rolesFromAccessToken(useAuthStore.getState().accessToken)
+      if (fromJwt.length) {
+        mapped.roles = fromJwt
+        mapped.role = pickPrimaryRole(fromJwt)
+      }
+    }
+    return mapped
   },
 }

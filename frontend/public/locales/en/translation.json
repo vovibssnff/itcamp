@@ -16,7 +16,16 @@
     "displayName": "Full name",
     "noAccount": "No account? Register",
     "haveAccount": "Already have an account? Log in",
-    "registerTitle": "Register a new user"
+    "registerTitle": "Register a new user",
+    "mfaRequired": "Enter your MFA code",
+    "mfaSetup": "Scan the QR code and enter the app code",
+    "mfaCode": "MFA code",
+    "mfaEnrollTitle": "Set up 2FA",
+    "mfaEnrollHint": "Scan the QR code in Google Authenticator / Authy or enter the secret manually, then type the 6-digit code.",
+    "mfaQrAlt": "QR code for MFA setup",
+    "mfaCopySecret": "Copy",
+    "mfaSecretCopied": "Secret copied",
+    "mfaSecretCopyFailed": "Could not copy secret"
   },
   "nav": {
     "templates": "Templates",
@@ -27,7 +36,8 @@
     "reports": "Reports",
     "admin": "Administration",
     "users": "Users",
-    "system": "System"
+    "system": "System",
+    "home": "Home"
   },
   "constructor": {
     "title": "Constructor",

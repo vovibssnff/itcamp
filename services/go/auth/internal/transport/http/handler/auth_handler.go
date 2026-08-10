@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/itcamp/ktc/services/auth/internal/domain"
+	"github.com/itcamp/ktc/services/auth/internal/security"
 	"github.com/itcamp/ktc/services/auth/internal/service"
 	"github.com/itcamp/ktc/services/auth/internal/transport/http/dto"
 	"github.com/itcamp/ktc/services/auth/internal/transport/http/middleware"
@@ -37,7 +38,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, domain.ErrMFARequired) {
-			writeJSON(w, http.StatusOK, dto.MFARequiredResponse{MFARequired: true})
+			resp := dto.MFARequiredResponse{
+				MFARequired: true,
+				UserID:      result.User.ID,
+				Login:       result.User.Login,
+			}
+			if result.MFASecret != "" {
+				resp.Secret = result.MFASecret
+				resp.OTPAuthURI = security.OTPAuthURI("KTC", result.User.Login, result.MFASecret)
+			}
+			writeJSON(w, http.StatusOK, resp)
 			return
 		}
 		writeError(w, err)

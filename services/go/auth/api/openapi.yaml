@@ -38,8 +38,17 @@ components:
 
     MFARequiredResponse:
       type: object
+      required: [mfa_required]
       properties:
         mfa_required: { type: boolean, example: true }
+        user_id: { type: string, description: ID пользователя (для enrollment) }
+        login: { type: string }
+        secret:
+          type: string
+          description: Base32 TOTP-секрет — только если MFA ещё не включён (для QR)
+        otpauth_uri:
+          type: string
+          description: otpauth:// URI для приложения-аутентификатора / QR
 
     IntrospectRequest:
       type: object

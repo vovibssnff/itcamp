@@ -50,6 +50,9 @@ type LoginResult struct {
 	Tokens    domain.TokenPair
 	MFANeeded bool
 	User      domain.User
+	// MFASecret is set when MFA is required and the user still needs to enroll
+	// (scan QR / enter secret). Empty when MFA is already enabled.
+	MFASecret string
 }
 
 func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginResult, error) {
@@ -73,16 +76,33 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginResult, er
 	user, err := s.userRepo.GetByLDAPDN(ctx, authUser.DN)
 	if errors.Is(err, domain.ErrUserNotFound) {
 		user = s.buildUser(authUser)
-		if err := s.userRepo.Create(ctx, user); err != nil && !errors.Is(err, domain.ErrLoginTaken) {
-			return LoginResult{}, err
+		if err := s.userRepo.Create(ctx, user); err != nil {
+			if !errors.Is(err, domain.ErrLoginTaken) {
+				return LoginResult{}, err
+			}
+			// Parallel first login: load the winner and continue.
+			existing, getErr := s.userRepo.GetByLogin(ctx, authUser.Login)
+			if getErr != nil {
+				return LoginResult{}, getErr
+			}
+			user = existing
+			_ = s.syncUser(&user, authUser)
+			_ = s.userRepo.Update(ctx, user)
+		} else {
+			IncAuthUserCreated()
 		}
-		IncAuthUserCreated()
 	} else if err != nil {
 		return LoginResult{}, err
 	} else {
 		if changed := s.syncUser(&user, authUser); changed {
 			_ = s.userRepo.Update(ctx, user)
 		}
+	}
+
+	// Always sync IdP/stub roles into user_roles so /me and admin list stay correct.
+	user.Roles = authUser.Roles
+	if err := s.userRepo.SetRoles(ctx, user.ID, user.Roles); err != nil {
+		return LoginResult{}, err
 	}
 
 	if user.Status == domain.UserStatusDisabled {
@@ -94,14 +114,20 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginResult, er
 
 	if user.MFAEnabled || user.IsPrivileged() {
 		if in.MFACode == "" {
+			secret, err := s.mfa.EnsureEnrollmentSecret(ctx, user.ID)
+			if err != nil {
+				return LoginResult{}, err
+			}
 			s.audit.Log(ctx, AuditLoginMFARequired, user.ID, in.IP)
-			return LoginResult{MFANeeded: true, User: user}, domain.ErrMFARequired
+			return LoginResult{MFANeeded: true, User: user, MFASecret: secret}, domain.ErrMFARequired
 		}
 		if err := s.mfa.Verify(ctx, user.ID, in.MFACode); err != nil {
 			s.recordFailedAttempt(ctx, in.Login, in.IP, user.ID)
 			IncAuthLogin("fail")
 			return LoginResult{}, err
 		}
+		// First successful code after enrollment marks MFA as enabled.
+		_ = s.mfa.Enable(ctx, user.ID, in.MFACode)
 	}
 
 	tokens, err := s.token.Issue(ctx, user)

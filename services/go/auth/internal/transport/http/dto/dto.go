@@ -14,7 +14,11 @@ type TokenResponse struct {
 }
 
 type MFARequiredResponse struct {
-	MFARequired bool `json:"mfa_required"`
+	MFARequired bool   `json:"mfa_required"`
+	UserID      string `json:"user_id,omitempty"`
+	Login       string `json:"login,omitempty"`
+	Secret      string `json:"secret,omitempty"`
+	OTPAuthURI  string `json:"otpauth_uri,omitempty"`
 }
 
 type RefreshRequest struct {

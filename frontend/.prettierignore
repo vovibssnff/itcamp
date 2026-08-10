@@ -4,3 +4,10 @@ src/api/generated
 coverage
 playwright-report
 pnpm-lock.yaml
+
+# Design reference (not app source)
+ktk.html
+support.js
+
+# MSW-generated worker
+public/mockServiceWorker.js

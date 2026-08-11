@@ -29,6 +29,8 @@ func writeError(w http.ResponseWriter, err error) {
 }
 
 func mapError(err error) (int, string) {
+	var syntax *json.SyntaxError
+	var typ *json.UnmarshalTypeError
 	switch {
 	case errors.Is(err, domain.ErrComponentNotFound), errors.Is(err, domain.ErrTemplateNotFound):
 		return http.StatusNotFound, "not_found"
@@ -40,7 +42,14 @@ func mapError(err error) (int, string) {
 		return http.StatusForbidden, "forbidden"
 	case errors.Is(err, domain.ErrExportFailed):
 		return http.StatusInternalServerError, "export_failed"
+	case errors.As(err, &syntax), errors.As(err, &typ):
+		return http.StatusBadRequest, "bad_request"
 	default:
+		// encoding/json Decode often wraps unmarshal errors without As-able types.
+		msg := err.Error()
+		if strings.Contains(msg, "json:") || strings.Contains(msg, "cannot unmarshal") {
+			return http.StatusBadRequest, "bad_request"
+		}
 		return http.StatusInternalServerError, "internal"
 	}
 }

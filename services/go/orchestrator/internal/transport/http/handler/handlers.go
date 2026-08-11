@@ -93,12 +93,13 @@ func (h *SessionHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SessionHandler) Create(w http.ResponseWriter, r *http.Request) {
-	if !requirePrivileged(w, r) {
-		return
-	}
 	var in service.CreateSessionInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, err)
+		return
+	}
+	if !canCreateSession(r, in.Mode, in.OperatorIDs) {
+		writeError(w, domain.ErrForbidden)
 		return
 	}
 	sess, err := h.svc.Create(r.Context(), userIDFromHeader(r), in)

@@ -119,6 +119,21 @@ func (r *SessionRepo) SetStarted(ctx context.Context, id string) error {
 	return nil
 }
 
+// MarkOrphanedActiveStopped sets running/paused sessions to stopped.
+// Call on process start: in-memory runners do not survive restart, so DB
+// "running" rows would otherwise stay open forever in operator lists.
+func (r *SessionRepo) MarkOrphanedActiveStopped(ctx context.Context) (int64, error) {
+	tag, err := r.db.Pool.Exec(ctx, `
+		UPDATE sessions
+		SET status = 'stopped',
+		    stopped_at = COALESCE(stopped_at, now())
+		WHERE status IN ('running', 'paused')`)
+	if err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
+}
+
 func (r *SessionRepo) UpdateSpeed(ctx context.Context, id string, speed float64) error {
 	tag, err := r.db.Pool.Exec(ctx, `UPDATE sessions SET speed = $2 WHERE id = $1`, id, speed)
 	if err != nil {

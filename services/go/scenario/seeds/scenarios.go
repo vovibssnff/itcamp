@@ -29,7 +29,7 @@ func DemoScenarios() []domain.Scenario {
 
 func scenarioLevelDropDehydrator() domain.Scenario {
 	return domain.Scenario{
-		ID: "sc-elou-level-drop", TemplateID: "", Name: "Падение уровня раздела фаз в Э-1",
+		ID: "sc-elou-level-drop", TemplateID: "tmpl-elou-avt", Name: "Падение уровня раздела фаз в Э-1",
 		Description: "Снижение уровня в электродегидраторе Э-1 → блокировка HV при <3500 мм",
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
@@ -51,7 +51,7 @@ func scenarioLevelDropDehydrator() domain.Scenario {
 
 func scenarioPressureRiseDehydrator() domain.Scenario {
 	return domain.Scenario{
-		ID: "sc-elou-pressure-rise", TemplateID: "", Name: "Рост давления в электродегидраторах / Е-15",
+		ID: "sc-elou-pressure-rise", TemplateID: "tmpl-elou-avt", Name: "Рост давления в электродегидраторах / Е-15",
 		Description: "Рост давления на выкиде Н-1 и в Е-15",
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
@@ -75,7 +75,7 @@ func scenarioPressureRiseDehydrator() domain.Scenario {
 
 func scenarioFeedFlowDrop() domain.Scenario {
 	return domain.Scenario{
-		ID: "sc-feed-flow-drop", TemplateID: "", Name: "Падение расхода сырой нефти при работающих печах",
+		ID: "sc-feed-flow-drop", TemplateID: "tmpl-elou-avt", Name: "Падение расхода сырой нефти при работающих печах",
 		Description: "Снижение расхода нефти → риск перегрева печей",
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
@@ -99,7 +99,7 @@ func scenarioFeedFlowDrop() domain.Scenario {
 
 func scenarioCOTRiseFurnace() domain.Scenario {
 	return domain.Scenario{
-		ID: "sc-cot-rise-p3", TemplateID: "", Name: "Рост COT печи П-3",
+		ID: "sc-cot-rise-p3", TemplateID: "tmpl-elou-avt", Name: "Рост COT печи П-3",
 		Description: "Рост температуры змеевика П-3 выше 340°C",
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
@@ -125,7 +125,7 @@ func scenarioCOTRiseFurnace() domain.Scenario {
 
 func scenarioPressureRiseK1() domain.Scenario {
 	return domain.Scenario{
-		ID: "sc-K1-pressure-rise", TemplateID: "", Name: "Рост давления в К-1 до блокировки ПАЗ",
+		ID: "sc-K1-pressure-rise", TemplateID: "tmpl-elou-avt", Name: "Рост давления в К-1 до блокировки ПАЗ",
 		Description: "Рост давления верха К-1 → блокировка при 4,8 кгс/см² (FR-AV-05)",
 		Type:        domain.ScenarioExam,
 		Faults: []domain.ScenarioFault{
@@ -151,7 +151,7 @@ func scenarioPressureRiseK1() domain.Scenario {
 
 func scenarioLevelDropK1() domain.Scenario {
 	return domain.Scenario{
-		ID: "sc-K1-level-drop", TemplateID: "", Name: "Падение уровня в кубе К-1",
+		ID: "sc-K1-level-drop", TemplateID: "tmpl-elou-avt", Name: "Падение уровня в кубе К-1",
 		Description: "Падение уровня LRCA-602 → риск сухого хода насосов Н-2/Н-3",
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
@@ -177,7 +177,7 @@ func scenarioLevelDropK1() domain.Scenario {
 
 func scenarioVacuumLossK2() domain.Scenario {
 	return domain.Scenario{
-		ID: "sc-K2-vacuum-loss", TemplateID: "", Name: "Потеря вакуума в К-2",
+		ID: "sc-K2-vacuum-loss", TemplateID: "tmpl-elou-avt", Name: "Потеря вакуума в К-2",
 		Description: "Рост давления в К-2 до 1,0 кгс/см² → ПАЗ при 1,5",
 		Type:        domain.ScenarioExam,
 		Faults: []domain.ScenarioFault{
@@ -203,7 +203,7 @@ func scenarioVacuumLossK2() domain.Scenario {
 
 func scenarioLevelDropK3_1() domain.Scenario {
 	return domain.Scenario{
-		ID: "sc-K3-1-level-drop", TemplateID: "", Name: "Падение уровня в стриппинге К-3/1",
+		ID: "sc-K3-1-level-drop", TemplateID: "tmpl-elou-avt", Name: "Падение уровня в стриппинге К-3/1",
 		Description: "Падение уровня LRCA-606 ниже 15% → останов насосов Н-14/Н-67А",
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
@@ -227,7 +227,7 @@ func scenarioLevelDropK3_1() domain.Scenario {
 
 func scenarioPressureRiseK4() domain.Scenario {
 	return domain.Scenario{
-		ID: "sc-K4-pressure-rise", TemplateID: "", Name: "Рост давления в колонне стабилизации К-4",
+		ID: "sc-K4-pressure-rise", TemplateID: "tmpl-elou-avt", Name: "Рост давления в колонне стабилизации К-4",
 		Description: "Рост давления PRCA-220 выше 11 кгс/см²",
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
@@ -253,7 +253,7 @@ func scenarioPressureRiseK4() domain.Scenario {
 
 func scenarioInstrumentAirLoss() domain.Scenario {
 	return domain.Scenario{
-		ID: "sc-instrument-air-loss", TemplateID: "", Name: "Падение давления воздуха КИП",
+		ID: "sc-instrument-air-loss", TemplateID: "tmpl-elou-avt", Name: "Падение давления воздуха КИП",
 		Description: "Падение давления PRA-700 → отказ регуляторов → аварийный останов",
 		Type:        domain.ScenarioExam,
 		Faults: []domain.ScenarioFault{

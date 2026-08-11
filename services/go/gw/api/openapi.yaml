@@ -775,14 +775,14 @@ paths:
               schema: { type: string, format: binary }
 
   # ============================================================
-  # Scenarios (instructor + admin)
+  # Scenarios (instructor + admin) + operator read
   # ============================================================
   /api/v1/scenarios:
     get:
-      summary: Каталог сценариев
+      summary: Каталог сценариев (операторы — только для чтения, для самостоятельного старта тренировки)
       operationId: listScenarios
       security: [{ bearerAuth: [] }]
-      x-roles: [instructor, admin]
+      x-roles: [instructor, admin, operator]
       parameters:
         - { name: template_id, in: query, schema: { type: string } }
         - { name: type,        in: query, schema: { type: string, enum: [training, exam] } }
@@ -791,13 +791,13 @@ paths:
         - { name: offset,      in: query, schema: { type: integer, default: 0 } }
       responses:
         '200':
-          description: Список сценариев
+          description: Список сценариев (bare JSON array; empty list may be null)
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  scenarios: { type: array, items: { $ref: '#/components/schemas/Scenario' } }
+                type: array
+                items: { $ref: '#/components/schemas/Scenario' }
+                nullable: true
     post:
       summary: Создать сценарий
       operationId: createScenario
@@ -1019,9 +1019,10 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/Session' }
     post:
-      summary: Создать сессию (instructor/admin)
+      summary: Создать сессию (instructor/admin; operator — только training для себя)
       operationId: createSession
       security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin, operator]
       requestBody:
         required: true
         content:

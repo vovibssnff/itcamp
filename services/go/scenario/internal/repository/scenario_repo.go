@@ -111,7 +111,16 @@ func (r *ScenarioRepo) Upsert(ctx context.Context, s domain.Scenario) error {
 	_, err := r.db.Pool.Exec(ctx, `
 		INSERT INTO scenarios (id, template_id, name, description, type, start_preset_id, faults, reference_actions, criteria, author_id, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now(), now())
-		ON CONFLICT (id) DO UPDATE SET name = $3, description = $4, type = $5, faults = $7, reference_actions = $8, criteria = $9, updated_at = now()`,
+		ON CONFLICT (id) DO UPDATE SET
+			template_id = EXCLUDED.template_id,
+			name = EXCLUDED.name,
+			description = EXCLUDED.description,
+			type = EXCLUDED.type,
+			start_preset_id = EXCLUDED.start_preset_id,
+			faults = EXCLUDED.faults,
+			reference_actions = EXCLUDED.reference_actions,
+			criteria = EXCLUDED.criteria,
+			updated_at = now()`,
 		s.ID, s.TemplateID, s.Name, s.Description, string(s.Type), s.StartPresetID, faultsJSON, refActionsJSON, criteriaJSON, s.AuthorID)
 	return err
 }

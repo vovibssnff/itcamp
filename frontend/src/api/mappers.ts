@@ -86,8 +86,41 @@ export function toCreateUserBody(profile: {
 function mapGraph(raw: unknown): { nodes: CanvasNode[]; edges: CanvasEdge[] } {
   const r = asRecord(raw)
   const graph = asRecord(r.graph)
-  const nodes = (graph.nodes ?? r.nodes ?? []) as CanvasNode[]
-  const edges = (graph.edges ?? r.edges ?? []) as CanvasEdge[]
+
+  // Backend shape: { component_type_id, position: {x,y}, parameters, label }
+  // Frontend shape: { typeId, x, y, parameters, label }
+  const rawNodes = (graph.nodes ?? r.nodes ?? []) as unknown[]
+  const nodes: CanvasNode[] = rawNodes.map((n) => {
+    const rn = asRecord(n)
+    const pos = asRecord(rn.position)
+    return {
+      id: str(rn.id),
+      // backend: component_type_id  |  mock fixtures: typeId
+      typeId: str(rn.component_type_id ?? rn.typeId ?? rn.type_id),
+      x: num(rn.x ?? pos.x),
+      y: num(rn.y ?? pos.y),
+      label: str(rn.label),
+      parameters: (rn.parameters as Record<string, unknown>) ?? {},
+      tags: Array.isArray(rn.tags) ? (rn.tags as string[]) : undefined,
+    }
+  })
+
+  // Backend shape: { from: {node_id, port}, to: {node_id, port} }
+  // Frontend shape: { sourceNodeId, sourcePortId, targetNodeId, targetPortId }
+  const rawEdges = (graph.edges ?? r.edges ?? []) as unknown[]
+  const edges: CanvasEdge[] = rawEdges.map((e) => {
+    const re = asRecord(e)
+    const from = asRecord(re.from)
+    const to = asRecord(re.to)
+    return {
+      id: str(re.id),
+      sourceNodeId: str(from.node_id ?? re.sourceNodeId),
+      sourcePortId: str(from.port ?? re.sourcePortId),
+      targetNodeId: str(to.node_id ?? re.targetNodeId),
+      targetPortId: str(to.port ?? re.targetPortId),
+    }
+  })
+
   return { nodes, edges }
 }
 
@@ -116,9 +149,22 @@ export function toTemplateBody(template: Partial<Template> & { name: string }) {
     name: template.name,
     description: template.description ?? '',
     graph: {
-      schema_version: 1,
-      nodes: template.nodes ?? [],
-      edges: template.edges ?? [],
+      schema_version: '2.0',
+      nodes: (template.nodes ?? []).map((n) => ({
+        id: n.id,
+        component_type_id: n.typeId,
+        label: n.label ?? '',
+        position: { x: n.x, y: n.y },
+        parameters: n.parameters ?? {},
+        ports: {},
+      })),
+      edges: (template.edges ?? []).map((e) => ({
+        id: e.id,
+        type: 'liquid',
+        from: { node_id: e.sourceNodeId, port: e.sourcePortId },
+        to: { node_id: e.targetNodeId, port: e.targetPortId },
+      })),
+      layout: { mnemo_positions: {}, custom_labels: {} },
     },
   }
 }
@@ -400,15 +446,33 @@ export function mapReplay(raw: unknown): ReplayData {
   const r = asRecord(raw)
   const events: ReplayEvent[] = []
 
-  const pushMany = (arr: unknown, type: string) => {
+  const describe = (e: Record<string, unknown>, fallbackType: string): string => {
+    const explicit = str(e.description ?? e.message ?? e.name)
+    if (explicit) return explicit
+    if (fallbackType === 'action') {
+      const parts = [str(e.type), str(e.target), str(e.action)].filter(Boolean)
+      return parts.length ? parts.join(' · ') : 'Действие оператора'
+    }
+    if (fallbackType === 'fault') {
+      const parts = [str(e.fault_id), str(e.component ?? e.component_instance_id)].filter(Boolean)
+      return parts.length ? parts.join(' · ') : 'Неисправность'
+    }
+    if (fallbackType === 'alarm') {
+      const parts = [str(e.tag_id), str(e.priority)].filter(Boolean)
+      return parts.length ? parts.join(' · ') : 'Авария'
+    }
+    return fallbackType
+  }
+
+  const pushMany = (arr: unknown, fallbackType: string) => {
     if (!Array.isArray(arr)) return
     for (const item of arr) {
       const e = asRecord(item)
       events.push({
         time: num(e.time ?? e.model_time ?? e.timestamp),
-        type: str(e.type, type),
-        description: str(e.description ?? e.message ?? e.name),
-        severity: str(e.severity) || undefined,
+        type: fallbackType === 'action' ? str(e.type, 'action') : fallbackType,
+        description: describe(e, fallbackType),
+        severity: str(e.severity ?? e.priority) || undefined,
       })
     }
   }

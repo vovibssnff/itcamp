@@ -2,10 +2,60 @@ package service
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/itcamp/ktc/services/report/internal/domain"
 )
+
+func TestStorageKeyForReport_NilStorageLeavesEmpty(t *testing.T) {
+	if got := storageKeyForReport(nil, "sess-1", "rep-1"); got != "" {
+		t.Fatalf("nil storage must not invent key, got %q", got)
+	}
+}
+
+func TestStorageKeyForReport_WithStorage(t *testing.T) {
+	got := storageKeyForReport(stubStorage{}, "sess-1", "rep-1")
+	want := "reports/sess-1/rep-1.pdf"
+	if got != want {
+		t.Fatalf("storage key = %q, want %q", got, want)
+	}
+}
+
+type stubStorage struct{}
+
+func (stubStorage) Save(context.Context, string, []byte) error { return nil }
+
+func TestPDFFromCanonicalJSON_ReadyReport(t *testing.T) {
+	data := domain.SessionData{
+		SessionID: "sess-dl-1",
+		Mode:      "exam",
+		Score:     80,
+		Verdict:   "pass",
+	}
+	raw, err := json.Marshal(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pdfBytes, err := PDFFromCanonicalJSON(string(raw))
+	if err != nil {
+		t.Fatalf("PDFFromCanonicalJSON: %v", err)
+	}
+	if !bytes.HasPrefix(pdfBytes, []byte("%PDF")) {
+		t.Fatal("expected PDF header from canonical json")
+	}
+}
+
+func TestPDFFromCanonicalJSON_EmptyOrInvalid(t *testing.T) {
+	if _, err := PDFFromCanonicalJSON(""); !errors.Is(err, domain.ErrGenerationFailed) {
+		t.Fatalf("empty canonical: got %v, want ErrGenerationFailed", err)
+	}
+	if _, err := PDFFromCanonicalJSON("{"); !errors.Is(err, domain.ErrGenerationFailed) {
+		t.Fatalf("invalid json: got %v, want ErrGenerationFailed", err)
+	}
+}
 
 func TestGeneratePDF_BasicReport(t *testing.T) {
 	data := domain.SessionData{

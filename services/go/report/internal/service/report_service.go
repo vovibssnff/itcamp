@@ -73,8 +73,10 @@ func (s *ReportService) ProcessTask(ctx context.Context, task domain.ReportTask)
 		return err
 	}
 
-	storageKey := fmt.Sprintf("reports/%s/%s.pdf", task.SessionID, task.ReportID)
-
+	// Persist PDF when object storage is wired. Download always regenerates from
+	// canonical_json, so a missing storage backend must not invent a storage_key
+	// that would make clients follow a dead redirect.
+	storageKey := storageKeyForReport(s.storage, task.SessionID, task.ReportID)
 	if s.storage != nil {
 		if err := s.storage.Save(ctx, storageKey, pdfBytes); err != nil {
 			s.log.Error("pdf save failed", "error", err)
@@ -92,6 +94,40 @@ func (s *ReportService) ProcessTask(ctx context.Context, task domain.ReportTask)
 
 	s.log.Info("report generated", "report_id", task.ReportID, "session", task.SessionID)
 	return nil
+}
+
+// DownloadPDF returns the PDF for a ready report by regenerating it from the
+// stored canonical session JSON. This keeps downloads working when object
+// storage is nil or the legacy /file redirect target is absent.
+func (s *ReportService) DownloadPDF(ctx context.Context, id string) ([]byte, error) {
+	rep, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if rep.Status != domain.StatusReady {
+		return nil, domain.ErrReportNotReady
+	}
+	return PDFFromCanonicalJSON(rep.CanonicalJSON)
+}
+
+// PDFFromCanonicalJSON rebuilds a session PDF from the persisted canonical JSON.
+func PDFFromCanonicalJSON(canonicalJSON string) ([]byte, error) {
+	if canonicalJSON == "" {
+		return nil, domain.ErrGenerationFailed
+	}
+	var data domain.SessionData
+	if err := json.Unmarshal([]byte(canonicalJSON), &data); err != nil {
+		return nil, fmt.Errorf("%w: invalid canonical json: %v", domain.ErrGenerationFailed, err)
+	}
+	return GeneratePDF(data)
+}
+
+// storageKeyForReport returns the object-storage key only when a backend is configured.
+func storageKeyForReport(storage ReportStorage, sessionID, reportID string) string {
+	if storage == nil {
+		return ""
+	}
+	return fmt.Sprintf("reports/%s/%s.pdf", sessionID, reportID)
 }
 
 func (s *ReportService) collectSessionData(ctx context.Context, sessionID string) (domain.SessionData, error) {

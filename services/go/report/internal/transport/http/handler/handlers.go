@@ -90,19 +90,13 @@ func (h *ReportHandler) List(w http.ResponseWriter, r *http.Request) {
 
 func (h *ReportHandler) Download(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	rep, err := h.svc.Get(r.Context(), id)
+	pdfBytes, err := h.svc.DownloadPDF(r.Context(), id)
 	if err != nil {
 		writeError(w, err)
 		return
 	}
-	if rep.Status != domain.StatusReady {
-		writeError(w, domain.ErrReportNotReady)
-		return
-	}
-	if rep.StorageKey != "" {
-		w.Header().Set("Location", "/reports/"+id+"/file")
-		w.WriteHeader(http.StatusFound)
-		return
-	}
-	w.WriteHeader(http.StatusNotFound)
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", `attachment; filename="report-`+id+`.pdf"`)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(pdfBytes)
 }

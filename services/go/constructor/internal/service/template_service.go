@@ -66,8 +66,14 @@ func (s *TemplateService) Create(ctx context.Context, t domain.Template) (domain
 }
 
 func (s *TemplateService) Update(ctx context.Context, t domain.Template) (domain.Template, error) {
+	existing, err := s.repo.GetByID(ctx, t.ID)
+	if err != nil {
+		return domain.Template{}, err
+	}
+	// Preserve status unless the client explicitly sends one — otherwise every
+	// canvas save would demote published templates back to draft.
 	if t.Status == "" {
-		t.Status = domain.StatusDraft
+		t.Status = existing.Status
 	}
 	if t.Graph.SchemaVersion == "" {
 		t.Graph.SchemaVersion = "2.0"
@@ -156,11 +162,14 @@ func (s *TemplateService) Import(ctx context.Context, t domain.Template) (Templa
 }
 
 // ExportFile возвращает граф шаблона для скачивания (не sim init-state).
-// Seed upserts templates that don't yet exist (skip if id already present).
+// Seed upserts demo templates by ID (creates missing, refreshes graph/name for known seeds).
 func (s *TemplateService) Seed(ctx context.Context, templates []domain.Template) error {
 	for _, t := range templates {
 		if _, err := s.repo.GetByID(ctx, t.ID); err == nil {
-			continue // already exists
+			if _, err := s.Update(ctx, t); err != nil {
+				return err
+			}
+			continue
 		}
 		if _, err := s.Create(ctx, t); err != nil {
 			return err

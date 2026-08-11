@@ -27,6 +27,9 @@ func (h *ScenarioHandler) List(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
+	if scenarios == nil {
+		scenarios = []domain.Scenario{}
+	}
 	writeJSON(w, http.StatusOK, scenarios)
 }
 

@@ -21,6 +21,7 @@ const InstructorConsole = lazy(() => import('./screens/instructor/InstructorCons
 const SessionObserveScreen = lazy(() => import('./screens/instructor/SessionObserveScreen'))
 const ModeSelectScreen = lazy(() => import('./screens/operator/ModeSelectScreen'))
 const OperatorHomeScreen = lazy(() => import('./screens/operator/OperatorHomeScreen'))
+const OperatorSessionsScreen = lazy(() => import('./screens/operator/OperatorSessionsScreen'))
 const TrainingScreen = lazy(() => import('./screens/operator/TrainingScreen'))
 const ExamScreen = lazy(() => import('./screens/operator/ExamScreen'))
 const KnowledgeScreen = lazy(() => import('./screens/KnowledgeScreen'))
@@ -144,6 +145,16 @@ export const router = createBrowserRouter([
           <RoleGuard roles={['operator']}>
             <Lazy>
               <OperatorHomeScreen />
+            </Lazy>
+          </RoleGuard>
+        ),
+      },
+      {
+        path: 'operator/sessions',
+        element: (
+          <RoleGuard roles={['operator']}>
+            <Lazy>
+              <OperatorSessionsScreen />
             </Lazy>
           </RoleGuard>
         ),

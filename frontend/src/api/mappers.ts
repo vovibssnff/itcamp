@@ -149,9 +149,22 @@ export function toTemplateBody(template: Partial<Template> & { name: string }) {
     name: template.name,
     description: template.description ?? '',
     graph: {
-      schema_version: 1,
-      nodes: template.nodes ?? [],
-      edges: template.edges ?? [],
+      schema_version: '2.0',
+      nodes: (template.nodes ?? []).map((n) => ({
+        id: n.id,
+        component_type_id: n.typeId,
+        label: n.label ?? '',
+        position: { x: n.x, y: n.y },
+        parameters: n.parameters ?? {},
+        ports: {},
+      })),
+      edges: (template.edges ?? []).map((e) => ({
+        id: e.id,
+        type: 'liquid',
+        from: { node_id: e.sourceNodeId, port: e.sourcePortId },
+        to: { node_id: e.targetNodeId, port: e.targetPortId },
+      })),
+      layout: { mnemo_positions: {}, custom_labels: {} },
     },
   }
 }
@@ -433,15 +446,33 @@ export function mapReplay(raw: unknown): ReplayData {
   const r = asRecord(raw)
   const events: ReplayEvent[] = []
 
-  const pushMany = (arr: unknown, type: string) => {
+  const describe = (e: Record<string, unknown>, fallbackType: string): string => {
+    const explicit = str(e.description ?? e.message ?? e.name)
+    if (explicit) return explicit
+    if (fallbackType === 'action') {
+      const parts = [str(e.type), str(e.target), str(e.action)].filter(Boolean)
+      return parts.length ? parts.join(' · ') : 'Действие оператора'
+    }
+    if (fallbackType === 'fault') {
+      const parts = [str(e.fault_id), str(e.component ?? e.component_instance_id)].filter(Boolean)
+      return parts.length ? parts.join(' · ') : 'Неисправность'
+    }
+    if (fallbackType === 'alarm') {
+      const parts = [str(e.tag_id), str(e.priority)].filter(Boolean)
+      return parts.length ? parts.join(' · ') : 'Авария'
+    }
+    return fallbackType
+  }
+
+  const pushMany = (arr: unknown, fallbackType: string) => {
     if (!Array.isArray(arr)) return
     for (const item of arr) {
       const e = asRecord(item)
       events.push({
         time: num(e.time ?? e.model_time ?? e.timestamp),
-        type: str(e.type, type),
-        description: str(e.description ?? e.message ?? e.name),
-        severity: str(e.severity) || undefined,
+        type: fallbackType === 'action' ? str(e.type, 'action') : fallbackType,
+        description: describe(e, fallbackType),
+        severity: str(e.severity ?? e.priority) || undefined,
       })
     }
   }

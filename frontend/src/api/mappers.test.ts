@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   inferComponentShape,
   mapComponent,
+  mapReplay,
   mapUser,
   pickPrimaryRole,
   rolesFromAccessToken,
+  toTemplateBody,
 } from './mappers'
 
 function jwtWithRoles(roles: string[]): string {
@@ -14,6 +16,51 @@ function jwtWithRoles(roles: string[]): string {
     .replace(/=+$/, '')
   return `hdr.${payload}.sig`
 }
+
+describe('mapReplay', () => {
+  it('builds descriptions from action/fault/alarm fields', () => {
+    const data = mapReplay({
+      actions: [{ type: 'actuator', target: 'LRCA-641', action: 'set_mode', model_time: 12 }],
+      alarms: [{ tag_id: 'P-101', priority: 'HH', model_time: 20 }],
+      faults: [{ fault_id: 'level_drop', component: 'elec-1', model_time: 30 }],
+    })
+    expect(data.events).toHaveLength(3)
+    expect(data.events[0]?.description).toContain('LRCA-641')
+    expect(data.events[1]?.description).toContain('P-101')
+    expect(data.events[2]?.description).toContain('level_drop')
+  })
+})
+
+describe('toTemplateBody', () => {
+  it('maps canvas nodes/edges to backend graph shape with string schema_version', () => {
+    const body = toTemplateBody({
+      name: 'Test',
+      description: 'd',
+      nodes: [{ id: 'n1', typeId: 'centrifugal_pump', x: 10, y: 20, label: 'Н-1', parameters: {} }],
+      edges: [
+        {
+          id: 'e1',
+          sourceNodeId: 'n1',
+          sourcePortId: 'out',
+          targetNodeId: 'n2',
+          targetPortId: 'in',
+        },
+      ],
+    })
+    expect(body.graph.schema_version).toBe('2.0')
+    expect(typeof body.graph.schema_version).toBe('string')
+    expect(body.graph.nodes[0]).toMatchObject({
+      id: 'n1',
+      component_type_id: 'centrifugal_pump',
+      position: { x: 10, y: 20 },
+    })
+    expect(body.graph.edges[0]).toMatchObject({
+      id: 'e1',
+      from: { node_id: 'n1', port: 'out' },
+      to: { node_id: 'n2', port: 'in' },
+    })
+  })
+})
 
 describe('mapUser roles', () => {
   it('prefers admin over instructor', () => {

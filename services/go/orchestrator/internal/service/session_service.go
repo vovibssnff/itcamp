@@ -18,6 +18,7 @@ import (
 type TelemetryStore interface {
 	SaveTelemetry(ctx context.Context, sessionID string, t domain.Telemetry) error
 	GetTelemetry(ctx context.Context, sessionID string) (domain.Telemetry, error)
+	DeleteTelemetry(ctx context.Context, sessionID string) error
 }
 
 type SessionService struct {
@@ -227,6 +228,7 @@ func (s *SessionService) Stop(ctx context.Context, id string) (domain.Session, e
 	if err := s.assessment.Finalize(ctx, id); err != nil {
 		s.log.WarnContext(ctx, "assessment finalize failed", "session", id, "error", err)
 	}
+	_ = s.cache.DeleteTelemetry(ctx, id)
 
 	if err := s.repo.UpdateStatus(ctx, id, domain.StatusStopped, modelTime); err != nil {
 		return domain.Session{}, err

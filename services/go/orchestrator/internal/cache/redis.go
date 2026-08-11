@@ -61,28 +61,3 @@ func (c *Cache) GetTelemetry(ctx context.Context, sessionID string) (domain.Tele
 func (c *Cache) DeleteTelemetry(ctx context.Context, sessionID string) error {
 	return c.rdb.Del(ctx, "telemetry:"+sessionID).Err()
 }
-
-func (c *Cache) SaveSessionState(ctx context.Context, sessionID string, s domain.Session) error {
-	data, _ := json.Marshal(s)
-	key := "session:" + sessionID
-	return c.rdb.Set(ctx, key, data, 0).Err()
-}
-
-func (c *Cache) GetSessionState(ctx context.Context, sessionID string) (domain.Session, error) {
-	data, err := c.rdb.Get(ctx, "session:"+sessionID).Bytes()
-	if errors.Is(err, redis.Nil) {
-		return domain.Session{}, domain.ErrSessionNotFound
-	}
-	if err != nil {
-		return domain.Session{}, err
-	}
-	var s domain.Session
-	if err := json.Unmarshal(data, &s); err != nil {
-		return domain.Session{}, fmt.Errorf("unmarshal session: %w", err)
-	}
-	return s, nil
-}
-
-func (c *Cache) DeleteSessionState(ctx context.Context, sessionID string) error {
-	return c.rdb.Del(ctx, "session:"+sessionID).Err()
-}

@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"time"
 
 	"github.com/itcamp/ktc/services/scenario/internal/domain"
+	sharedcache "github.com/itcamp/ktc/shared/go/cache"
 )
 
 // FaultStore — зависимость FaultService для тестов с mock-ами.
@@ -16,7 +18,9 @@ type FaultStore interface {
 }
 
 type FaultService struct {
-	repo FaultStore
+	repo     FaultStore
+	cache    *sharedcache.Cache
+	cacheTTL time.Duration
 }
 
 func NewFaultService(repo FaultStore) *FaultService {
@@ -28,7 +32,19 @@ func (s *FaultService) Get(ctx context.Context, faultID string) (domain.Fault, e
 }
 
 func (s *FaultService) List(ctx context.Context, componentType, severity string) ([]domain.Fault, error) {
-	return s.repo.List(ctx, componentType, severity)
+	if s.cache != nil && componentType == "" && severity == "" {
+		if cached, err := sharedcache.Get[[]domain.Fault](ctx, s.cache, faultsCatalogKey); err == nil {
+			return cached, nil
+		}
+	}
+	faults, err := s.repo.List(ctx, componentType, severity)
+	if err != nil {
+		return nil, err
+	}
+	if s.cache != nil && componentType == "" && severity == "" {
+		_ = sharedcache.Set(ctx, s.cache, faultsCatalogKey, faults, s.cacheTTL)
+	}
+	return faults, nil
 }
 
 func (s *FaultService) Seed(ctx context.Context, faults []domain.Fault) error {
@@ -37,6 +53,7 @@ func (s *FaultService) Seed(ctx context.Context, faults []domain.Fault) error {
 			return err
 		}
 	}
+	s.invalidateFaultsCache(ctx)
 	return nil
 }
 
@@ -69,6 +86,7 @@ func (s *FaultService) Import(ctx context.Context, faults []domain.Fault) Import
 			result.Errors = append(result.Errors, ImportItemError{ID: f.FaultID, Index: i, Message: err.Error()})
 			continue
 		}
+		s.invalidateFaultsCache(ctx)
 		if exists {
 			result.Updated++
 		} else {

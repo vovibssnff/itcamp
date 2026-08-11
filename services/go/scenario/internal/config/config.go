@@ -6,13 +6,15 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	sharedcache "github.com/itcamp/ktc/shared/go/cache"
 	sharedcfg "github.com/itcamp/ktc/shared/go/config"
 )
 
 type Config struct {
-	HTTP HTTPConfig `toml:"http"`
-	DB   DBConfig   `toml:"db"`
-	Seed SeedConfig `toml:"seed"`
+	HTTP  HTTPConfig  `toml:"http"`
+	DB    DBConfig    `toml:"db"`
+	Redis RedisConfig `toml:"redis"`
+	Seed  SeedConfig  `toml:"seed"`
 }
 
 type HTTPConfig struct {
@@ -34,6 +36,8 @@ type SeedConfig struct {
 	Enabled bool `toml:"enabled"`
 }
 
+type RedisConfig = sharedcache.RedisConfig
+
 type Duration = sharedcfg.Duration
 
 func Load(path string) (Config, error) {
@@ -50,6 +54,9 @@ func Load(path string) (Config, error) {
 
 	if v := os.Getenv("SCENARIO_DB_DSN"); v != "" {
 		c.DB.DSN = v
+	}
+	if v := os.Getenv("SCENARIO_REDIS_ADDR"); v != "" {
+		c.Redis.Addr = v
 	}
 
 	if err := c.validate(); err != nil {

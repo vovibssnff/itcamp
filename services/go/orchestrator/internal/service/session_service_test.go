@@ -11,7 +11,6 @@ import (
 
 type mockTelemetryStore struct {
 	telemetry domain.Telemetry
-	session   domain.Session
 	err       error
 }
 
@@ -24,18 +23,6 @@ func (m *mockTelemetryStore) GetTelemetry(ctx context.Context, sessionID string)
 }
 
 func (m *mockTelemetryStore) DeleteTelemetry(ctx context.Context, sessionID string) error {
-	return m.err
-}
-
-func (m *mockTelemetryStore) SaveSessionState(ctx context.Context, sessionID string, s domain.Session) error {
-	return m.err
-}
-
-func (m *mockTelemetryStore) GetSessionState(ctx context.Context, sessionID string) (domain.Session, error) {
-	return m.session, m.err
-}
-
-func (m *mockTelemetryStore) DeleteSessionState(ctx context.Context, sessionID string) error {
 	return m.err
 }
 

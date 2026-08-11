@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ktk-ai
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: ktk-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          ports:
+            - containerPort: 11434
+          env:
+            - name: OLLAMA_HOST
+              value: "0.0.0.0"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+          livenessProbe:
+            tcpSocket:
+              port: 11434
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: models
+          hostPath:
+            path: /opt/ktk/ollama-models
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: ktk-ai
+spec:
+  selector:
+    app: ollama
+  ports:
+    - port: 11434
+      targetPort: 11434
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-service
+  namespace: ktk-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-service
+  template:
+    metadata:
+      labels:
+        app: ai-service
+    spec:
+      containers:
+        - name: ai-service
+          image: registry.example.local/ktk-ai/ai-service:latest
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 50051
+              name: grpc
+          env:
+            - name: KTK_LLM_PROVIDER
+              value: ollama
+            - name: KTK_OLLAMA_URL
+              value: http://ollama:11434
+            - name: KTK_LLM_MODEL
+              value: qwen2.5:14b-instruct
+            - name: KTK_DOCS_DIR
+              value: /app/data/regulation
+            - name: KTK_DATA_DIR
+              value: /app/data
+            - name: KTK_CHAT_IN_EXAM
+              value: "true"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-service
+  namespace: ktk-ai
+spec:
+  selector:
+    app: ai-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: grpc
+      port: 50051
+      targetPort: 50051

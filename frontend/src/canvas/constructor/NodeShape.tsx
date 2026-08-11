@@ -269,6 +269,7 @@ export function GenericShape({ w, h, color, tk }: ShapeProps) {
 }
 
 /** Map from component shape type to a renderer component */
+// eslint-disable-next-line react-refresh/only-export-components
 export function renderNodeShape(shape: string, props: ShapeProps): React.ReactElement {
   switch (shape) {
     case 'pump':

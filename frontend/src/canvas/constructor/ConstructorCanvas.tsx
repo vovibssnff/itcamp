@@ -121,7 +121,7 @@ export function ConstructorCanvas({
   const [draftEdge, setDraftEdge] = useState<DraftEdge | null>(null)
   const [hoveredPort, setHoveredPort] = useState<{ nodeId: string; portId: string } | null>(null)
   const [isDraggingStage, setIsDraggingStage] = useState(false)
-  const [resizingNode, setResizingNode] = useState<{
+  const [_resizingNode, setResizingNode] = useState<{
     nodeId: string
     startW: number
     startH: number
@@ -130,7 +130,7 @@ export function ConstructorCanvas({
   } | null>(null)
   const lastPos = useRef<{ x: number; y: number } | null>(null)
   // Ref mirrors resizingNode state so mousemove handler always has the latest value
-  const resizingNodeRef = useRef<typeof resizingNode>(null)
+  const resizingNodeRef = useRef<typeof _resizingNode>(null)
   // Set to true only when the Stage background itself was the mousedown target
   const stageWasClicked = useRef(false)
   // Set to true once the mouse actually moves during a stage-background drag

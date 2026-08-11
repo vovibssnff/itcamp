@@ -1,4 +1,4 @@
-import type { ComponentPort, ComponentParameter, ComponentType } from '@/types'
+import type { ComponentType } from '@/types'
 export type { ComponentPort, ComponentParameter, ComponentType } from '@/types'
 
 export const COMPONENT_TYPES: ComponentType[] = [

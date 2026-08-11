@@ -1,15 +1,6 @@
 // Re-export shared types from @/types.
 // ScenarioStatus is mock-only (backend doesn't have a status/moderation concept).
-import type {
-  FaultTrigger,
-  ScenarioFaultEntry,
-  ReferenceActionExpected,
-  ReferenceActionEntry,
-  ScenarioCriteria,
-  ScenarioType,
-  Scenario,
-  FaultCatalogItem,
-} from '@/types'
+import type { ScenarioCriteria, Scenario, FaultCatalogItem } from '@/types'
 export type {
   FaultTrigger,
   ScenarioFaultEntry,

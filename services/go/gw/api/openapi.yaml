@@ -775,14 +775,14 @@ paths:
               schema: { type: string, format: binary }
 
   # ============================================================
-  # Scenarios (instructor + admin)
+  # Scenarios (instructor + admin) + operator read
   # ============================================================
   /api/v1/scenarios:
     get:
-      summary: Каталог сценариев
+      summary: Каталог сценариев (операторы — только для чтения, для самостоятельного старта тренировки)
       operationId: listScenarios
       security: [{ bearerAuth: [] }]
-      x-roles: [instructor, admin]
+      x-roles: [instructor, admin, operator]
       parameters:
         - { name: template_id, in: query, schema: { type: string } }
         - { name: type,        in: query, schema: { type: string, enum: [training, exam] } }

@@ -86,8 +86,41 @@ export function toCreateUserBody(profile: {
 function mapGraph(raw: unknown): { nodes: CanvasNode[]; edges: CanvasEdge[] } {
   const r = asRecord(raw)
   const graph = asRecord(r.graph)
-  const nodes = (graph.nodes ?? r.nodes ?? []) as CanvasNode[]
-  const edges = (graph.edges ?? r.edges ?? []) as CanvasEdge[]
+
+  // Backend shape: { component_type_id, position: {x,y}, parameters, label }
+  // Frontend shape: { typeId, x, y, parameters, label }
+  const rawNodes = (graph.nodes ?? r.nodes ?? []) as unknown[]
+  const nodes: CanvasNode[] = rawNodes.map((n) => {
+    const rn = asRecord(n)
+    const pos = asRecord(rn.position)
+    return {
+      id: str(rn.id),
+      // backend: component_type_id  |  mock fixtures: typeId
+      typeId: str(rn.component_type_id ?? rn.typeId ?? rn.type_id),
+      x: num(rn.x ?? pos.x),
+      y: num(rn.y ?? pos.y),
+      label: str(rn.label),
+      parameters: (rn.parameters as Record<string, unknown>) ?? {},
+      tags: Array.isArray(rn.tags) ? (rn.tags as string[]) : undefined,
+    }
+  })
+
+  // Backend shape: { from: {node_id, port}, to: {node_id, port} }
+  // Frontend shape: { sourceNodeId, sourcePortId, targetNodeId, targetPortId }
+  const rawEdges = (graph.edges ?? r.edges ?? []) as unknown[]
+  const edges: CanvasEdge[] = rawEdges.map((e) => {
+    const re = asRecord(e)
+    const from = asRecord(re.from)
+    const to = asRecord(re.to)
+    return {
+      id: str(re.id),
+      sourceNodeId: str(from.node_id ?? re.sourceNodeId),
+      sourcePortId: str(from.port ?? re.sourcePortId),
+      targetNodeId: str(to.node_id ?? re.targetNodeId),
+      targetPortId: str(to.port ?? re.targetPortId),
+    }
+  })
+
   return { nodes, edges }
 }
 

@@ -222,7 +222,7 @@ export default function TrainingScreen() {
         {/* HMI canvas */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div ref={containerRef} style={{ flex: 1, overflow: 'hidden' }}>
-            {template.scheme === 'elou-avt' ? (
+            {template.id === 'tmpl-elou-avt' || template.scheme === 'elou-avt' ? (
               <EloudAvtScheme
                 telemetry={telemetry}
                 interactive={started}

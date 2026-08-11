@@ -1,0 +1,40 @@
+name: Security scan
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  sast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep (SAST)
+        uses: returntocorp/semgrep-action@v1
+        with:
+          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks (секреты)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Сборка образа
+        run: docker build -t app:ci .
+      - name: Trivy (сканирование образа)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: app:ci
+          format: table
+          exit-code: 1
+          severity: CRITICAL,HIGH

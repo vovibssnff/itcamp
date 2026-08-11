@@ -8,8 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/itcamp/ktc/shared/go/ktccatalog"
 	"github.com/itcamp/ktc/services/assessment/internal/domain"
+	"github.com/itcamp/ktc/shared/go/ktccatalog"
 )
 
 type AssessmentRepo struct {
@@ -99,7 +99,8 @@ func (r *AssessmentRepo) GetReplayData(ctx context.Context, sessionID string) (d
 			if err := rows.Scan(&t, &target, &action, &valueJSON, &mt); err != nil {
 				return domain.ReplayData{}, err
 			}
-			replay.Actions = append(replay.Actions, map[string]any{"type": t, "target": target, "action": action, "model_time": mt})		}
+			replay.Actions = append(replay.Actions, map[string]any{"type": t, "target": target, "action": action, "model_time": mt})
+		}
 	}
 
 	rows2, err := r.db.Pool.Query(ctx, `

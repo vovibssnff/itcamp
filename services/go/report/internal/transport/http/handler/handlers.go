@@ -159,11 +159,11 @@ func (h *ReportHandler) File(w http.ResponseWriter, r *http.Request) {
 }
 
 type ReportResponse struct {
-	ID          string `json:"id"`
-	SessionID   string `json:"session_id"`
-	Type        string `json:"type"`
-	Status      string `json:"status"`
-	DownloadURL string `json:"download_url,omitempty"`
+	ID          string    `json:"id"`
+	SessionID   string    `json:"session_id"`
+	Type        string    `json:"type"`
+	Status      string    `json:"status"`
+	DownloadURL string    `json:"download_url,omitempty"`
 	Error       string    `json:"error,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`

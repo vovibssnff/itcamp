@@ -10,9 +10,9 @@ import (
 
 	"github.com/jung-kurt/gofpdf"
 
-	"github.com/itcamp/ktc/shared/go/ktccatalog"
 	"github.com/itcamp/ktc/services/report/internal/domain"
 	"github.com/itcamp/ktc/services/report/internal/repository"
+	"github.com/itcamp/ktc/shared/go/ktccatalog"
 )
 
 type ReportStorage interface {

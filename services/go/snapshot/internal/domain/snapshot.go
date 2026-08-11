@@ -7,14 +7,14 @@ import (
 )
 
 type SnapshotMeta struct {
-	ID            string  `json:"id"`
-	SessionID     string  `json:"session_id"`
-	Name          string  `json:"name"`
-	ModelTime     float64 `json:"model_time"`
-	AuthorID      string  `json:"author_id"`
-	SchemaVersion string  `json:"schema_version"`
-	SHA256        string  `json:"sha256"`
-	StorageKey    string  `json:"storage_key"`
+	ID            string    `json:"id"`
+	SessionID     string    `json:"session_id"`
+	Name          string    `json:"name"`
+	ModelTime     float64   `json:"model_time"`
+	AuthorID      string    `json:"author_id"`
+	SchemaVersion string    `json:"schema_version"`
+	SHA256        string    `json:"sha256"`
+	StorageKey    string    `json:"storage_key"`
 	IsPreset      bool      `json:"is_preset"`
 	CreatedAt     time.Time `json:"created_at"`
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/jung-kurt/gofpdf"
 
+	"github.com/itcamp/ktc/shared/go/ktccatalog"
 	"github.com/itcamp/ktc/services/report/internal/domain"
 	"github.com/itcamp/ktc/services/report/internal/repository"
 )
@@ -62,6 +63,12 @@ func (s *ReportService) Get(ctx context.Context, id string) (domain.Report, erro
 
 func (s *ReportService) ListBySession(ctx context.Context, sessionID string) ([]domain.Report, error) {
 	return s.repo.ListBySession(ctx, sessionID)
+}
+
+// ListAll — все отчёты для admin/instructor, либо отчёты оператора по его id.
+// Пустой operatorID означает «все».
+func (s *ReportService) ListAll(ctx context.Context, operatorID string) ([]domain.Report, error) {
+	return s.repo.ListAll(ctx, operatorID)
 }
 
 // Download возвращает PDF-байты готового отчёта из хранилища.
@@ -119,7 +126,7 @@ func (s *ReportService) ProcessTask(ctx context.Context, task domain.ReportTask)
 	}
 	IncReportGenerated()
 
-	downloadURL := fmt.Sprintf("/reports/%s/file", task.ReportID)
+	downloadURL := fmt.Sprintf("/api/v1/reports/%s/file", task.ReportID)
 	_ = s.repo.SetDownloadURL(ctx, task.ReportID, downloadURL)
 
 	s.log.Info("report generated", "report_id", task.ReportID, "session", task.SessionID)
@@ -153,9 +160,15 @@ func (s *ReportService) collectSessionData(ctx context.Context, sessionID string
 	data.Actions = actions
 
 	alarms, _ := s.repo.GetAlarms(ctx, sessionID)
+	for i := range alarms {
+		alarms[i].Description = ktccatalog.TagDescriptionOf(alarms[i].TagID)
+	}
 	data.Alarms = alarms
 
 	faults, _ := s.repo.GetFaults(ctx, sessionID)
+	for i := range faults {
+		faults[i].Description = ktccatalog.FaultDescription(faults[i].FaultID)
+	}
 	data.Faults = faults
 
 	return data, nil
@@ -163,6 +176,10 @@ func (s *ReportService) collectSessionData(ctx context.Context, sessionID string
 
 func GeneratePDF(data domain.SessionData) ([]byte, error) {
 	pdf := gofpdf.New("P", "mm", "A4", "")
+	// Встроенный шрифт с кириллицей — дефолтный core-шрифт "Arial" (WinAnsi)
+	// не поддерживает русские символы и ломает кодировку текста в PDF.
+	pdf.AddUTF8FontFromBytes("Arial", "", arialTTF)
+	pdf.AddUTF8FontFromBytes("Arial", "B", arialTTF)
 	pdf.AddPage()
 	pdf.SetFont("Arial", "B", 16)
 	pdf.Cell(40, 10, "Отчёт по сессии")
@@ -224,7 +241,7 @@ func GeneratePDF(data domain.SessionData) ([]byte, error) {
 		pdf.Ln(6)
 		pdf.SetFont("Arial", "", 9)
 		for _, a := range data.Alarms {
-			pdf.Cell(40, 5, fmt.Sprintf("  t=%.1f: %s [%s]", a.ModelTime, a.TagID, a.Priority))
+			pdf.Cell(40, 5, fmt.Sprintf("  t=%.1f: %s [%s] — %s", a.ModelTime, a.TagID, a.Priority, a.Description))
 			pdf.Ln(5)
 		}
 		pdf.Ln(4)
@@ -236,12 +253,12 @@ func GeneratePDF(data domain.SessionData) ([]byte, error) {
 		pdf.Ln(6)
 		pdf.SetFont("Arial", "", 9)
 		for _, f := range data.Faults {
-			pdf.Cell(40, 5, fmt.Sprintf("  t=%.1f: %s", f.ModelTime, f.FaultID))
+			pdf.Cell(40, 5, fmt.Sprintf("  t=%.1f: %s — %s", f.ModelTime, f.FaultID, f.Description))
 			pdf.Ln(5)
 		}
 	}
 
-	pdf.SetFont("Arial", "I", 8)
+	pdf.SetFont("Arial", "", 8)
 	pdf.Ln(10)
 	pdf.Cell(40, 5, fmt.Sprintf("Сгенерировано: %s", time.Now().UTC().Format(time.RFC3339)))
 

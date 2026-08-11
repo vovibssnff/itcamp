@@ -1,6 +1,9 @@
 package domain
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 type ReportStatus string
 
@@ -27,8 +30,8 @@ type Report struct {
 	StorageKey    string       `json:"storage_key,omitempty"`
 	DownloadURL   string       `json:"download_url,omitempty"`
 	Error         string       `json:"error,omitempty"`
-	CreatedAt     string       `json:"created_at"`
-	UpdatedAt     string       `json:"updated_at"`
+	CreatedAt     time.Time    `json:"created_at"`
+	UpdatedAt     time.Time    `json:"updated_at"`
 }
 
 type CreateReportRequest struct {
@@ -79,14 +82,16 @@ type ActionData struct {
 }
 
 type AlarmData struct {
-	TagID     string  `json:"tag_id"`
-	Priority  string  `json:"priority"`
-	ModelTime float64 `json:"model_time"`
+	TagID       string  `json:"tag_id"`
+	Priority    string  `json:"priority"`
+	ModelTime   float64 `json:"model_time"`
+	Description string  `json:"description,omitempty"`
 }
 
 type FaultData struct {
-	FaultID   string  `json:"fault_id"`
-	ModelTime float64 `json:"model_time"`
+	FaultID     string  `json:"fault_id"`
+	ModelTime   float64 `json:"model_time"`
+	Description string  `json:"description,omitempty"`
 }
 
 var (

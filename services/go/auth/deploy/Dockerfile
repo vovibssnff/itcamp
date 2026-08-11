@@ -1,7 +1,7 @@
 # build stage
 # Контекст сборки = services/go (содержит auth/ + shared/),
 # поэтому replace ../shared резолвится корректно.
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 WORKDIR /src/auth
 
 COPY auth/go.mod auth/go.sum* ./

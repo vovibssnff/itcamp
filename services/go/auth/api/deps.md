@@ -12,7 +12,7 @@
 
 ## Стандартная библиотека (без зависимостей)
 
-- `net/http` — сервер (Go 1.22+, новый pattern-mux)
+- `net/http` — сервер (Go 1.25+, новый pattern-mux)
 - `log/slog` — структурированное логирование
 - `crypto/aes`, `crypto/cipher`, `crypto/sha256`, `crypto/rand` — шифрование TOTP-секретов, хеширование токенов
 - `encoding/json` — REST-сериализация

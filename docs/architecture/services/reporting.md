@@ -1,79 +1,69 @@
 # Сервис: Reporting — `report`
 
-> Слой: Прикладной | Namespace: `ktc-app` | Под: `report`
-> Смежно: `Реестр_сервисов...`, `Сценарии_экзамен...`, `Архитектура_КТК_K8s.drawio`
+> Язык: Go | Слой: Прикладной | HTTP: `:8087` (за gw) | Сервис: `services/go/report`
 
 ## 1. Назначение
 
-**«Секретарь»** — генерация отчётных документов и протоколов экзамена. Тяжёлая асинхронная задача, не блокирует сессию (INT-03), выполняется через очередь.
+**«Секретарь»** — генерация отчётных PDF-документов по сессии/экзамену. Тяжёлая
+асинхронная задача выполняется в фоне (через NATS), не блокируя real-time контур
+(INT-03).
+
+Реализация: **Go + REST + NATS consumer + gofpdf** + MinIO/S3 + Picodata.
 
 ## 2. Основные функции
 
-- Генерация **PDF-отчётов** о ходе/результатах сессии (PERF-05 ≤20 сек).
-- Формирование **протокола экзамена** (канонический JSON + PDF) с **HMAC-подписью**.
-- Хранение PDF в S3, метаданных/подписи в Picodata.
-- Уведомление о готовности на `fe`.
+- Приём задач через NATS `report.tasks` (не блокирует сессию, FR-ASSESS-07).
+- Сбор данных сессии из Picodata (оценка, действия, алармы, неисправности).
+- Генерация PDF (gofpdf) с полным отчётом — **кириллица** (встроенный шрифт Arial).
+- Хранение PDF в MinIO, метаданных + canonical_json в Picodata.
+- REST API: запрос отчёта, статус, список, download.
+- Статусы: `queued → processing → ready / failed`.
+- Расшифровка внутренних кодов (FRCA/FLT-*) в человекочитаемые описания в отчёте.
 
-## 3. Технологии
+## 3. Внутренняя структура
 
-Python, WeasyPrint (PDF), S3 SDK, HMAC-подпись.
+```
+cmd/report/main.go            — точка входа + NATS consumer
+internal/
+  config/                     — конфиг TOML (HTTP, DB, NATS)
+  domain/                     — Report, ReportStatus, SessionData, ReportTask
+  repository/                 — Picodata (reports + чтение actions/alarms/faults/score)
+  service/                    — report_service + GeneratePDF (gofpdf + шрифт Arial)
+  transport/http/handler/     — REST handlers
+  server/                     — http.Server, маршруты, shutdown
+api/openapi.yaml              — REST-контракт
+deploy/config.example.toml    — пример конфигурации
+```
 
-## 4. Внутренняя структура
+## 4. Конфигурация
 
-- Consumer задач из `broker` (очередь).
-- Сборщик данных протокола (из Picodata: действия, алармы, оценки).
-- Генератор PDF/JSON.
-- Модуль HMAC-подписи (через HMAC seal API; ключ в секрет-хранилище).
-- Публикация готовности.
+Формат — **TOML** (`deploy/config.example.toml`). Путь через флаг `-config`.
+
+| Секция | Назначение |
+|---|---|
+| `[http]` | адрес/таймауты HTTP-сервера |
+| `[db]` | DSN и пул соединений Picodata |
+| `[nats]` | URL брокера, subject `report.tasks`, `queue_group` (группа потребителей) |
 
 ## 5. API / контракты
 
-| Направление | Протокол | Методы |
+| Метод | Путь | Назначение |
 |---|---|---|
-| от `gw` | HTTPS/REST | `POST /reports (запрос на отчет)`, `GET /reports/{id}` |
-| из `broker` | NATS JetStream | задача «сформировать протокол» |
-| к S3 | S3 API | PUT PDF |
-| к Picodata | SQL | чтение данных, запись `ExamProtocol` |
+| POST | /reports | Запросить отчёт (→ 202 Accepted, публикует в NATS) |
+| GET | /reports?session_id= | Список отчётов сессии |
+| GET | /reports/{id} | Статус / метаданные |
+| GET | /reports/{id}/download | Скачать PDF (302 → S3) |
 
-## 6. Зависимости и протоколы
+## 6. NATS
 
-| Взаимодействует с | Тип | Протокол |
-|---|---|---|
-| API Gateway (`gw`) | микросервис | HTTPS/REST, mTLS |
-| Брокер сообщений (`broker`) | инфраструктура | NATS JetStream |
-| S3 / MinIO | хранилище | S3 API (HTTPS) |
-| Picodata (`db`) | СУБД | SQL |
-| HMAC seal API (сервисный) | сервис подписи | внутренний сервисный протокол |
-| KUMA | SIEM | события ИБ (формирование/подпись протокола) |
+Consumer подписан на `report.tasks` (queue group `report-workers`). Задачи публикует
+`orchestrator` через `events.PublishReportTask`.
 
 ## 7. Данные
 
-- Пикодата: метаданные отчёта/протокола, канонический JSON, алгоритм+версия ключа HMAC, статус.
-- S3: PDF-файлы.
+- Picodata: метаданные отчёта/протокола, канонический JSON, статус.
+- S3 (MinIO): PDF-файлы.
 
-## 8. Объекты Kubernetes (namespace `ktc-app`)
+## 8. Метрики
 
-| Объект | Описание |
-|---|---|
-| Deployment `report` | N≥2 (потребители очереди), HPA по длине очереди |
-| Service `report` | ClusterIP |
-| NetworkPolicy | accept от `gw`, работу из `broker`; egress к `db`, `s3` |
-| Secret | ключ HMAC (из Vault) |
-| Pod + sidecar `istio-proxy` | mTLS |
-
-## 9. Метрики (в Пульт + Графиня)
-
-- Время генерации PDF (PERF-05).
-- Длина очереди, успешность подписи, ошибки.
-
-## 10. Отказоустойчивость / масштабирование
-
-- Асинхронно через очередь → всплески генерации не блокируют real-time контур.
-- Retry/pе-обрabotka упавших задач из очереди.
-- Масштабируется число потребителей по длине очереди.
-
-## 11. Открытые вопросы
-
-1. Синхронное vs асинхронное формирование протокола на MVP (рекомендация: через очередь).
-2. Формат протокола (канонический JSON + PDF) и схема версии.
-3. Интеграция с HMAC seal API и варианты СКЗИ (HMAC → ГОСТ/КриптоПро в Target).
+- Время генерации PDF (PERF-05 ≤20 с), длина очереди, успешность, ошибки.

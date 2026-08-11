@@ -1,7 +1,7 @@
 # build stage
 # Контекст сборки = services/go (содержит snapshot/ + shared/),
 # поэтому replace ../shared резолвится корректно.
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 WORKDIR /src/snapshot
 COPY snapshot/go.mod snapshot/go.sum* ./
 COPY shared/go.mod shared/go.sum* /src/shared/

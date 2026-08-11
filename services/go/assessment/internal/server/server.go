@@ -46,6 +46,7 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /assessment/session/{id}/result", h.Result)
 	mux.HandleFunc("POST /assessment/override", h.Override)
 	mux.HandleFunc("GET /assessment/session/{id}/replay", h.Replay)
+	mux.HandleFunc("POST /assessment/session/{id}/check-missed", h.CheckMissed)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))

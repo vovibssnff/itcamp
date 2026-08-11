@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"sync"
 
@@ -76,10 +77,14 @@ func (s *AssessmentService) ProcessEvent(ctx context.Context, event domain.Asses
 	}
 
 	switch event.Type {
+	case "session_start":
+		state.actionStart = event.ModelTime
 	case "action":
 		s.processAction(ctx, state, event)
 	case "alarm":
 		s.processAlarm(ctx, state, event)
+	case "alarm_ack":
+		s.processAlarmAck(state, event)
 	}
 	IncAssessmentEventProcessed(event.Type)
 
@@ -123,6 +128,17 @@ func (s *AssessmentService) processAlarm(_ context.Context, state *sessionState,
 	}
 }
 
+func (s *AssessmentService) processAlarmAck(state *sessionState, event domain.AssessmentEvent) {
+	if event.TagID == "" {
+		return
+	}
+	if alarmTime, exists := state.alarmTimes[event.TagID]; exists {
+		rt := state.engine.CalculateReactionTime(alarmTime, event.ModelTime)
+		rt.AlarmID = event.TagID
+		state.score.ReactionTimes = append(state.score.ReactionTimes, rt)
+	}
+}
+
 func (s *AssessmentService) AckAlarm(ctx context.Context, sessionID, tagID string, ackModelTime float64) {
 	s.mu.Lock()
 	state, ok := s.sessions[sessionID]
@@ -152,7 +168,21 @@ func (s *AssessmentService) Finalize(ctx context.Context, sessionID string) (dom
 	state, ok := s.sessions[sessionID]
 	s.mu.Unlock()
 	if !ok {
-		return domain.Score{}, domain.ErrScenarioNotLoaded
+		score, err := s.repo.GetBySession(ctx, sessionID)
+		if err != nil {
+			return domain.Score{}, domain.ErrScenarioNotLoaded
+		}
+		hasCritical := len(score.CriticalErrors) > 0
+		if score.Verdict == domain.VerdictPending {
+			verdict := score.Verdict
+			if score.TotalScore > 0 || hasCritical {
+				verdict = s.engineFromScore(score).CalculateVerdict(score.TotalScore, hasCritical)
+			}
+			score.Verdict = verdict
+			_ = s.repo.SetVerdict(ctx, sessionID, verdict, score.TotalScore)
+		}
+		IncAssessmentSessionFinalized(string(score.Verdict))
+		return score, nil
 	}
 
 	hasCritical := len(state.score.CriticalErrors) > 0
@@ -164,6 +194,12 @@ func (s *AssessmentService) Finalize(ctx context.Context, sessionID string) (dom
 	}
 	IncAssessmentSessionFinalized(string(verdict))
 	return state.score, nil
+}
+
+// engineFromScore строит временный ScoringEngine из сохранённой оценки.
+// Используется при потере in-memory state (рестарт сервиса).
+func (s *AssessmentService) engineFromScore(score domain.Score) *ScoringEngine {
+	return NewScoringEngine(domain.Criteria{PassThreshold: 1})
 }
 
 func (s *AssessmentService) Override(ctx context.Context, req domain.Override) (domain.Score, error) {
@@ -206,6 +242,13 @@ func matchesReference(event domain.AssessmentEvent, ref domain.ReferenceAction) 
 	}
 	if event.Action != ref.Expected.Action {
 		return false
+	}
+	if ref.Expected.Value != nil {
+		eventValue, _ := json.Marshal(event.Value)
+		expectedValue, _ := json.Marshal(ref.Expected.Value)
+		if string(eventValue) != string(expectedValue) {
+			return false
+		}
 	}
 	return true
 }

@@ -1,225 +1,121 @@
-# КТК — Компьютерный тренажёрный комплекс
+# КТК — компьютерный тренажёрный комплекс
 
-Тренажёрная платформа для подготовки операторов технологических установок (ЭЛОУ-АВТ).
-Позволяет отрабатывать нештатные ситуации на мнемосхеме, проводить экзамены
-и анализировать результаты.
+Система компьютерных тренажёрных комплексов для нефтеперерабатывающих установок.
+Текущая математическая модель настроена под установку **ЭЛОУ-АВТ** (обессоливание,
+атмосферная ректификация К-1/К-2, печи, гидроочистка). Архитектура развивается в сторону
+**«Конструктора»** — платформы, где инструктор собирает установку из типовых компонентов
+без программирования; часть этого функционала уже реализована.
+
+Детальнее — [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md).
 
 ---
 
-## Архитектура
+## Быстрый запуск
 
-```
-                      Browser / SPA (React)
-                              │ HTTPS
-                      ┌───────┴────────┐
-                      │  Angie  (nginx)│  :8090
-                      │  /api/* → gw  │
-                      └───────┬────────┘
-                              │ HTTP
-                      ┌───────┴────────┐
-                      │   gw  (Go BFF) │  :8088
-                      │  JWT·RBAC·rate │
-                      └──┬──┬──┬──┬───┘
-               ┌─────────┘  │  │  └─────────┐
-           auth│        cons│  │scen    orch │
-          :8082│        :8083  │:8084   :8085│
-               │             │             │
-        ┌──────┴──────┐  ┌───┴───┐  ┌─────┴──────┐
-        │ assessment  │  │snapsh.│  │   report   │
-        │    :8081    │  │ :8086 │  │    :8087   │
-        └─────────────┘  └───────┘  └────────────┘
-                │ NATS / Postgres / Redis / MinIO
-        ┌───────┴──────────────────────────────┐
-        │              ktc-data                │
-        │  Postgres · Redis · MinIO · NATS     │
-        └──────────────────────────────────────┘
-                   ↑ DNS alias "ai"
-        ┌──────────┴────────────┐
-        │    ai-service (Py)    │  :8089
-        │    Ollama (LLM)       │  :11434
-        └───────────────────────┘
+Требуется **Docker Engine ≥ 26** и **Docker Compose v2**.
+
+```bash
+# 1. Собрать образы всех слоёв
+./helper/build.sh
+
+# 2. Запустить весь стек
+./helper/run.sh
+
+# (одной командой, с пересборкой при необходимости)
+./helper/run.sh --build
 ```
 
-WebSocket `/api/v1/ws/sessions/{id}/operator|observe` проксируется gw → orchestrator.
+Скрипты сами создают `compose/<layer>/.env` из `.env.example` при первом запуске
+(отредактируйте `compose/app/.env` — секреты JWT, БД, MinIO).
+
+После запуска откройте **http://localhost:8090**.
+
+Тестовые учётные записи:
+
+| Роль | Логин | Пароль |
+|---|---|---|
+| Администратор | `admin` | `admin123` |
+| Инструктор | `instructor` | `instructor123` |
+| Оператор | `operator` | `operator123` |
+
+> `./helper/run.sh app` / `./helper/run.sh data ai` — запуск отдельных слоёв.
+> `./helper/build.sh app` — сборка только слоя `app`.
+
+---
+
+## Сервисы
+
+Стек разбит на слои (Compose-проекты), разделяющие сеть `ktc-data`:
+
+```
+compose/
+  data/   — инфраструктура: Picodata (БД), Radix (кэш), MinIO (S3), NATS, мигратор
+  app/    — прикладные Go-сервисы + frontend
+  sim/    — sim-manager, sim-worker (математическая модель)
+  ai/     — ai-service + ollama (LLM)
+  monitoring/ — prometheus, grafana, cadvisor
+```
+
+### Прикладной слой (Go)
+
+| Сервис | Порт | Что делает |
+|---|---|---|
+| `gw` | 8088 | API Gateway/BFF — единая точка входа, проверка JWT/RBAC |
+| `auth` | 8082 | Аутентификация (LDAP/stub), JWT, RBAC, TOTP |
+| `constructor` | 8083 | Библиотека компонентов, шаблоны установок, валидатор, экспорт init-state |
+| `scenario` | 8084 | Учебные/экзаменационные сценарии, каталог неисправностей, триггеры |
+| `orchestrator` | 8085 | «Дирижёр» сессий: жизненный цикл, телеметрия 1 Гц (WS), инъекция неисправностей |
+| `assessment` | 8081 | «Экзаменатор»: сравнение с эталоном, штрафы, вердикт, replay |
+| `snapshot` | 8086 | Save/restore состояния сессии (S3 + Picodata + SHA-256) |
+| `report` | 8087 | PDF-отчёты/протоколы (асинхронно через NATS) |
+
+### Вычислительный / ИИ
+
+| Сервис | Порт | Что делает |
+|---|---|---|
+| `sim-manager` | 8091 | Диспетчер инстансов sim-worker (per-session, квота 50) |
+| `sim-worker` | 8092 | Цифровой двойник ЭЛОУ-АВТ, Model API, детерминизм 1 Гц (Python) |
+| `ai` | 8089 | Explain/Predict/риски/разбор/чат-бот; детерминированное ядро + LLM (Ollama) |
+
+### Прочее
+
+- **frontend** (:8090) — React+TS SPA (Angie: статика + прокси `/api` → gw).
+- **broker** (NATS JetStream) — асинхронная шина (отчёты, ИИ-задачи, события сессий).
 
 ---
 
 ## Структура репозитория
 
 ```
-├── compose/                 # Docker Compose слои (data / app / ai)
-│   ├── README.md            # Подробная инструкция по деплою
-│   ├── data/                # ktc-local: Postgres, Redis, MinIO, NATS, migrate
-│   ├── app/                 # ktc-dev: все Go-сервисы + frontend
-│   └── ai/                  # ktk-ai: ai-service + Ollama
-├── db/migrations/           # Централизованные SQL-миграции (golang-migrate)
-├── frontend/                # React 18 SPA (Vite · TypeScript · openapi-fetch)
-├── services/
-│   ├── go/
-│   │   ├── shared/          # Общие пакеты (audit, uid, metrics, db)
-│   │   ├── auth/            # JWT, TOTP, LDAP-интеграция
-│   │   ├── constructor/     # Шаблоны установок, библиотека компонентов
-│   │   ├── scenario/        # Каталог сценариев, неисправности
-│   │   ├── orchestrator/    # Управление сессиями, WS-хаб, симуляция
-│   │   ├── assessment/      # Оценка, штрафы, replay
-│   │   ├── snapshot/        # Чекпоинты, пресеты (S3)
-│   │   ├── report/          # PDF-отчёты (S3 + NATS)
-│   │   ├── sim-manager/     # Жизненный цикл симуляторов (k8s / compose)
-│   │   └── gw/              # API Gateway / BFF (reverse-proxy + RBAC)
-│   └── python/
-│       ├── ai/              # База знаний, чат (FastAPI + Ollama)
-│       └── sim-engine/      # Физическая модель ЭЛОУ-АВТ (Python worker)
-├── tools/migrator/          # CLI-мигратор (golang-migrate wrapper)
-└── docs/                    # Архитектурные решения, регламенты
+compose/    Docker Compose-слои и конфигурация (.env, config/*.toml)
+services/go    Go-микросервисы (каждый: cmd/, internal/, api/openapi.yaml, deploy/)
+services/python   ai-service и sim-engine (sim-worker)
+frontend/   React SPA
+db/         миграции БД
+docs/       архитектура и требования
+helper/     build.sh / run.sh
+schemas/    общие доменные JSON-схемы
+dashboards/ Grafana-дашборды (JSON, для импорта)
 ```
 
----
+## Дашборды
 
-## Быстрый старт (локальный деплой)
+Готовые Grafana-дашборды лежат в [`dashboards/`](dashboards/) (JSON-модели для импорта):
 
-### Требования
-
-- Docker Engine ≥ 26 с Compose v2
-- 16 ГБ RAM (с Ollama), 8 ГБ (stub-режим без LLM)
-- ~20 ГБ диска (модель Ollama + образы)
-
-### 1. Клонировать и настроить `.env`
-
-```bash
-git clone https://github.com/vovibssnff/itcamp.git
-cd itcamp
-
-cp compose/data/.env.example  compose/data/.env
-cp compose/app/.env.example   compose/app/.env
-cp compose/ai/.env.example    compose/ai/.env
-```
-
-Секреты в `compose/app/.env` (обязательно сменить в продакшене):
-
-```env
-JWT_SIGNING_KEY=dev-only-signing-key-please-change-1234567890
-TOTP_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
-```
-
-### 2. Запустить инфраструктурный слой
-
-```bash
-docker compose --env-file compose/data/.env -f compose/data/compose.yaml up -d
-```
-
-Ждём healthy (~10 с):
-
-```bash
-docker compose --env-file compose/data/.env -f compose/data/compose.yaml ps
-```
-
-### 3. Запустить прикладной слой
-
-```bash
-docker compose --env-file compose/app/.env -f compose/app/compose.yaml up -d --build
-```
-
-При первом старте автоматически применяются seed-данные:
-компоненты ЭЛОУ-АВТ, шаблон установки и 10 учебных / экзаменационных сценариев.
-
-### 4. Запустить ИИ-слой
-
-```bash
-docker compose --env-file compose/ai/.env -f compose/ai/compose.yaml up -d --build
-```
-
-Загрузить модель (первый раз, ~8 ГБ):
-
-```bash
-docker compose --env-file compose/ai/.env -f compose/ai/compose.yaml \
-  exec ollama ollama pull qwen2.5:14b-instruct
-```
-
-> **Без GPU?** Установите `KTK_LLM_PROVIDER=stub` в `compose/ai/.env` перед шагом 4.
-> Чат будет использовать детерминированные ответы по регламенту.
-
-### 5. Проверить
-
-```bash
-docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "ktc-|ktk-"
-```
-
-Открыть в браузере: **http://localhost:8090**
-
----
-
-## Эндпоинты
-
-| Сервис | URL |
+| Файл | Назначение |
 |---|---|
-| **Frontend** | http://localhost:8090 |
-| API Gateway | http://localhost:8088 |
-| AI service | http://localhost:8089 |
-| Auth | http://localhost:8082 |
-| Constructor | http://localhost:8083 |
-| Scenario | http://localhost:8084 |
-| Orchestrator | http://localhost:8085 |
-| Assessment | http://localhost:8081 |
-| Snapshot | http://localhost:8086 |
-| Report | http://localhost:8087 |
-| MinIO Console | http://localhost:9001 |
-| NATS Monitor | http://localhost:8222 |
+| `http-overview.json` | HTTP-трафик всех Go-сервисов (RPS, ошибки, latency) |
+| `services-business.json` | Бизнес-метрики Go-сервисов по сервисам |
+| `ai-metrics.json` | Метрики ai-service (`ai_*`) |
+| `sim-metrics.json` | Метрики sim-engine (`sim_*`) |
 
-Подробная инструкция по деплою — [`compose/README.md`](compose/README.md).
+Слой `compose/monitoring` поднимает Prometheus + Grafana (+cAdvisor); таргеты —
+`compose/monitoring/prometheus/prometheus.yml`, провижининг — `compose/monitoring/grafana/provisioning/`.
+Grafana доступна на **http://localhost:3000** (admin/admin).
 
----
+## Конфигурация сервисов
 
-## Разработка
+Все Go-сервисы читают **TOML**-конфиг (`-config`), секреты перекрываются env. Примеры —
+`services/go/<name>/deploy/config.example.toml`. Локальные конфиги — в `compose/app/config/*.toml`.
 
-### Go-сервисы
-
-```bash
-cd services/go/<name>
-go mod tidy
-go build ./...
-go vet ./...
-go test ./...
-```
-
-### Frontend
-
-```bash
-cd frontend
-pnpm install
-pnpm dev          # dev-сервер на :5173 (с VITE_MOCK_API=true — без backend)
-pnpm typecheck    # TypeScript
-pnpm lint         # ESLint
-pnpm test         # Vitest unit-тесты
-pnpm openapi:gen  # Регенерация типов из OpenAPI-спеков
-```
-
-### Python
-
-```bash
-cd services/python/ai
-uv sync
-uv run pytest
-uv run ruff check .
-uv run mypy src/
-```
-
----
-
-## CI
-
-| Workflow | Триггер | Что проверяет |
-|---|---|---|
-| `.github/workflows/go.yml` | push / PR | golangci-lint · go test · go build |
-| `.github/workflows/frontend.yml` | push / PR | ESLint · typecheck · vitest |
-| `.github/workflows/python.yml` | push / PR | ruff · mypy · pytest |
-| `.github/workflows/security.yml` | push / PR | trivy · semgrep |
-
----
-
-## Роли пользователей
-
-| Роль | Доступ |
-|---|---|
-| `admin` | Все функции + управление пользователями |
-| `instructor` | Создание шаблонов / сценариев / сессий, просмотр результатов |
-| `operator` | Проведение тренировки / экзамена, просмотр своих результатов |
+Детали по каждому сервису: `docs/architecture/services/*.md`.

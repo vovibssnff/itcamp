@@ -2,7 +2,7 @@
 # штатный deploy/Dockerfile содержит неиспользуемый `COPY db/migrations`,
 # который ломает сборку при контексте = каталог сервиса.
 # Миграции в рантайме auth не нужны (применяются центральным migrator).
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 # Контекст сборки = services/go (содержит auth/ + shared/),
 # поэтому replace ../shared резолвится корректно.
 WORKDIR /src/auth

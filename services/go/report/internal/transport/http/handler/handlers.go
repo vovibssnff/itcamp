@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/itcamp/ktc/services/report/internal/domain"
 	"github.com/itcamp/ktc/services/report/internal/service"
@@ -78,7 +80,21 @@ func (h *ReportHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *ReportHandler) List(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.URL.Query().Get("session_id")
 	if sessionID == "" {
-		writeJSON(w, http.StatusOK, []any{})
+		// Журнал отчётов: admin/instructor видят все, operator — только свои.
+		operatorID := ""
+		if !isPrivileged(r) {
+			operatorID = r.Header.Get("X-User-ID")
+		}
+		reports, err := h.svc.ListAll(r.Context(), operatorID)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		resp := make([]ReportResponse, 0, len(reports))
+		for _, rep := range reports {
+			resp = append(resp, toReportResponse(rep))
+		}
+		writeJSON(w, http.StatusOK, resp)
 		return
 	}
 	reports, err := h.svc.ListBySession(r.Context(), sessionID)
@@ -93,6 +109,18 @@ func (h *ReportHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+// isPrivileged — admin/instructor видят все отчёты; operator — только свои.
+func isPrivileged(r *http.Request) bool {
+	raw := strings.TrimSpace(r.Header.Get("X-Roles"))
+	for _, p := range strings.Split(raw, ",") {
+		p = strings.TrimSpace(p)
+		if p == "admin" || p == "instructor" {
+			return true
+		}
+	}
+	return false
+}
+
 func (h *ReportHandler) Download(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	rep, err := h.svc.Get(r.Context(), id)
@@ -105,7 +133,12 @@ func (h *ReportHandler) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if rep.DownloadURL != "" {
-		w.Header().Set("Location", rep.DownloadURL)
+		// Redirect to the gateway-routed path (files are served behind /api/v1).
+		loc := rep.DownloadURL
+		if !strings.HasPrefix(loc, "/api/v1/") {
+			loc = "/api/v1" + loc
+		}
+		w.Header().Set("Location", loc)
 		w.WriteHeader(http.StatusFound)
 		return
 	}
@@ -131,9 +164,9 @@ type ReportResponse struct {
 	Type        string `json:"type"`
 	Status      string `json:"status"`
 	DownloadURL string `json:"download_url,omitempty"`
-	Error       string `json:"error,omitempty"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	Error       string    `json:"error,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func toReportResponse(r domain.Report) ReportResponse {

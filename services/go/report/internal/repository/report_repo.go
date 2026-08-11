@@ -56,6 +56,36 @@ func (r *ReportRepo) ListBySession(ctx context.Context, sessionID string) ([]dom
 	return reports, rows.Err()
 }
 
+// ListAll возвращает все отчёты (для admin/instructor) либо только те, что
+// относятся к сессиям указанного оператора. Если operatorID пуст — все отчёты.
+func (r *ReportRepo) ListAll(ctx context.Context, operatorID string) ([]domain.Report, error) {
+	q := `SELECT ` + reportCols + ` FROM reports`
+	args := []any{}
+	if operatorID != "" {
+		q = `SELECT r.id, r.session_id, r.type, r.status, r.canonical_json, r.storage_key, r.download_url, r.error, r.created_at, r.updated_at
+		     FROM reports r
+		     WHERE r.session_id IN (
+		         SELECT id FROM sessions WHERE operator_ids @> to_jsonb($1::text) OR instructor_id = $1
+		     )`
+		args = append(args, operatorID)
+	}
+	q += ` ORDER BY created_at DESC`
+	rows, err := r.db.Pool.Query(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var reports []domain.Report
+	for rows.Next() {
+		rep, err := r.scanReport(rows)
+		if err != nil {
+			return nil, err
+		}
+		reports = append(reports, rep)
+	}
+	return reports, rows.Err()
+}
+
 func (r *ReportRepo) Create(ctx context.Context, rep domain.Report) error {
 	_, err := r.db.Pool.Exec(ctx, `
 		INSERT INTO reports (id, session_id, type, status, created_at, updated_at)

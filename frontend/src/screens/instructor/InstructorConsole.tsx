@@ -23,17 +23,14 @@ import {
   RollbackOutlined,
   FileTextOutlined,
   DeleteOutlined,
-  BulbOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router'
-import type { SessionRecord } from '@/mocks/fixtures/sessions'
-import type { ExamAssignment, OperatorRecommendation } from '@/mocks/fixtures/assignments'
+import type { SessionRecord } from '@/types'
 import { sessionsApi } from '@/api/sessions'
 import { assessmentApi } from '@/api/assessment'
 import { snapshotsApi } from '@/api/snapshots'
 import { reportsApi } from '@/api/reports'
 import { templatesApi } from '@/api/templates'
-import { isMockApi } from '@/utils/env'
 import { scenariosApi } from '@/api/scenarios'
 import { usersApi } from '@/api/users'
 import { toErrorMessage } from '@/api/errors'
@@ -43,13 +40,6 @@ import type { TemplateSummary } from '@/api/mappers'
 import type { UserProfile } from '@/store/auth'
 import { tokens } from '@/theme/tokens'
 import { ScoreBadge } from '@/components/session/ScoreBadge'
-
-const EMPTY_ASSIGN_FORM = {
-  operatorId: '',
-  scenarioId: '',
-  dueDate: '',
-  note: '',
-}
 
 const STATUS_COLORS: Record<string, string> = {
   idle: 'default',
@@ -102,15 +92,6 @@ export default function InstructorConsole() {
   const [snapshotDetail, setSnapshotDetail] = useState<SnapshotMeta | null>(null)
   const navigate = useNavigate()
 
-  // ── Exam assignments ──────────────────────────────────────────────────────
-  const [assignments, setAssignments] = useState<ExamAssignment[]>([])
-  const [examScenarios, setExamScenarios] = useState<{ id: string; name: string }[]>([])
-  const [assignOpen, setAssignOpen] = useState(false)
-  const [assignForm, setAssignForm] = useState(EMPTY_ASSIGN_FORM)
-  const [assignSaving, setAssignSaving] = useState(false)
-  const [recommendation, setRecommendation] = useState<OperatorRecommendation | null>(null)
-  const [recLoading, setRecLoading] = useState(false)
-
   const fetchSessions = useCallback(async () => {
     setLoading(true)
     try {
@@ -122,94 +103,23 @@ export default function InstructorConsole() {
     }
   }, [])
 
-  const fetchAssignments = useCallback(async () => {
-    if (!isMockApi()) {
-      setAssignments([])
-      return
-    }
-    try {
-      const res = await fetch('/api/assignments')
-      setAssignments((await res.json()) as ExamAssignment[])
-    } catch {
-      void message.error('Ошибка загрузки назначений')
-    }
-  }, [])
-
   useEffect(() => {
     void fetchSessions()
-    void fetchAssignments()
     void (async () => {
       try {
         const [users, scens] = await Promise.all([usersApi.list(), scenariosApi.list()])
         setOperators(users.filter((u) => (u.roles ?? []).includes('operator')))
-        setExamScenarios(
+        setScenarios(
           (scens as { id?: string; name?: string }[]).map((s) => ({
             id: s.id ?? '',
             name: s.name ?? s.id ?? '',
           })),
         )
       } catch {
-        void message.error('Ошибка загрузки списка учеников/тем')
+        void message.error('Ошибка загрузки списка учеников/сценариев')
       }
     })()
-  }, [fetchSessions, fetchAssignments])
-
-  function openAssignModal() {
-    setAssignForm(EMPTY_ASSIGN_FORM)
-    setRecommendation(null)
-    setAssignOpen(true)
-  }
-
-  async function handleOperatorPicked(operatorId: string) {
-    setAssignForm((f) => ({ ...f, operatorId }))
-    setRecommendation(null)
-    setRecLoading(true)
-    try {
-      const res = await fetch(`/api/assessment/operator/${operatorId}/recommendation`)
-      setRecommendation((await res.json()) as OperatorRecommendation)
-    } catch {
-      void message.error('Не удалось получить рекомендацию ИИ')
-    } finally {
-      setRecLoading(false)
-    }
-  }
-
-  async function submitAssignment() {
-    const operator = operators.find((o) => o.id === assignForm.operatorId)
-    const scenario = examScenarios.find((s) => s.id === assignForm.scenarioId)
-    if (!operator || !scenario || !assignForm.dueDate) {
-      void message.warning('Выберите ученика, тему и срок сдачи')
-      return
-    }
-    setAssignSaving(true)
-    try {
-      await fetch('/api/assignments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          operatorId: operator.id,
-          operatorName: operator.displayName,
-          scenarioId: scenario.id,
-          scenarioName: scenario.name,
-          dueDate: new Date(assignForm.dueDate).toISOString(),
-          note: assignForm.note || undefined,
-        }),
-      })
-      void message.success('Экзамен назначен')
-      setAssignOpen(false)
-      void fetchAssignments()
-    } catch {
-      void message.error('Ошибка назначения экзамена')
-    } finally {
-      setAssignSaving(false)
-    }
-  }
-
-  async function cancelAssignment(id: string) {
-    await fetch(`/api/assignments/${id}`, { method: 'DELETE' })
-    void message.success('Назначение отменено')
-    void fetchAssignments()
-  }
+  }, [fetchSessions])
 
   async function loadScenariosForTemplate(templateId: string) {
     setScenariosLoading(true)
@@ -341,6 +251,20 @@ export default function InstructorConsole() {
     }
   }
 
+  async function deleteSnapshot(id: string) {
+    try {
+      await snapshotsApi.delete(id)
+      void message.success('Снимок удалён')
+      setSessionSnapshots((prev) => prev.filter((s) => s.id !== id))
+      if (selectedSnapshotId === id) {
+        setSelectedSnapshotId(null)
+        setSnapshotDetail(null)
+      }
+    } catch {
+      void message.error('Не удалось удалить снимок (пресеты нельзя удалять)')
+    }
+  }
+
   async function queueReport(session: SessionRecord) {
     try {
       const report = await reportsApi.create(
@@ -353,8 +277,6 @@ export default function InstructorConsole() {
       void message.error('Ошибка постановки отчёта')
     }
   }
-
-  const todayStr = new Date().toISOString().slice(0, 10)
 
   const columns = [
     {
@@ -493,74 +415,6 @@ export default function InstructorConsole() {
     },
   ]
 
-  const assignmentColumns = [
-    {
-      title: 'Ученик',
-      dataIndex: 'operatorName',
-      key: 'operatorName',
-      render: (v: string) => <span style={{ color: tokens.text.primary }}>{v}</span>,
-    },
-    {
-      title: 'Тема',
-      dataIndex: 'scenarioName',
-      key: 'scenarioName',
-      render: (v: string, record: ExamAssignment) => (
-        <div>
-          <div style={{ color: tokens.text.secondary, fontSize: 12 }}>{v}</div>
-          {record.note && (
-            <div style={{ color: tokens.text.muted, fontSize: 11, marginTop: 2 }}>
-              {record.note}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: 'Срок',
-      dataIndex: 'dueDate',
-      key: 'dueDate',
-      width: 130,
-      render: (v: string) => {
-        const overdue = v.slice(0, 10) < todayStr
-        return (
-          <span
-            style={{ color: overdue ? tokens.accent.red : tokens.text.secondary, fontSize: 12 }}
-          >
-            {new Date(v).toLocaleDateString('ru-RU')}
-          </span>
-        )
-      },
-    },
-    {
-      title: 'Статус',
-      dataIndex: 'status',
-      key: 'status',
-      width: 130,
-      render: (v: ExamAssignment['status'], record: ExamAssignment) => {
-        if (v === 'completed') return <Tag color="success">Завершён</Tag>
-        const overdue = record.dueDate.slice(0, 10) < todayStr
-        return overdue ? <Tag color="error">Просрочен</Tag> : <Tag color="processing">Назначен</Tag>
-      },
-    },
-    {
-      title: '',
-      key: 'actions',
-      width: 60,
-      render: (_: unknown, record: ExamAssignment) => (
-        <Button
-          size="small"
-          danger
-          icon={<DeleteOutlined />}
-          title="Отменить назначение"
-          onClick={(e) => {
-            e.stopPropagation()
-            void cancelAssignment(record.id)
-          }}
-        />
-      ),
-    },
-  ]
-
   return (
     <div className="wrap">
       <div
@@ -598,144 +452,6 @@ export default function InstructorConsole() {
         loading={loading}
         pagination={tablePagination()}
       />
-
-      {/* ── Exam assignments (mock-only) ─────────────────────────────────── */}
-      {isMockApi() && (
-        <>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'flex-end',
-              justifyContent: 'space-between',
-              marginTop: 40,
-              marginBottom: 16,
-            }}
-          >
-            <div>
-              <div className="sec">Назначенные экзамены</div>
-              <p className="note" style={{ marginTop: 8 }}>
-                Экзамены по конкретным темам с индивидуальным сроком сдачи
-              </p>
-            </div>
-            <Button type="primary" icon={<PlusOutlined />} onClick={openAssignModal}>
-              Назначить экзамен
-            </Button>
-          </div>
-
-          <Table
-            dataSource={assignments}
-            columns={assignmentColumns}
-            rowKey="id"
-            pagination={tablePagination({ pageSize: 10, hideOnSinglePage: true })}
-            locale={{ emptyText: 'Нет назначенных экзаменов' }}
-          />
-
-          <Modal
-            title="Назначить экзамен"
-            open={assignOpen}
-            onOk={() => void submitAssignment()}
-            onCancel={() => setAssignOpen(false)}
-            okText="Назначить"
-            cancelText="Отмена"
-            confirmLoading={assignSaving}
-            width={520}
-          >
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 12, color: tokens.text.muted }}>Ученик</label>
-              <Select
-                style={{ width: '100%', marginTop: 4 }}
-                placeholder="Выберите ученика"
-                value={assignForm.operatorId || undefined}
-                onChange={(v) => void handleOperatorPicked(v)}
-                options={operators.map((o) => ({ value: o.id, label: o.displayName }))}
-              />
-            </div>
-
-            {assignForm.operatorId && (
-              <div
-                className="box-acc"
-                style={{ marginBottom: 14, display: 'flex', gap: 10, alignItems: 'flex-start' }}
-              >
-                <BulbOutlined style={{ marginTop: 2, color: tokens.accent.cyan }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, color: tokens.text.muted, marginBottom: 4 }}>
-                    РЕКОМЕНДАЦИЯ ИИ
-                  </div>
-                  {recLoading ? (
-                    <div style={{ fontSize: 12.5, color: tokens.text.secondary }}>
-                      Анализ результатов…
-                    </div>
-                  ) : recommendation ? (
-                    <>
-                      <div style={{ fontSize: 12.5, color: tokens.text.primary, lineHeight: 1.5 }}>
-                        {recommendation.summary}
-                      </div>
-                      {recommendation.weakTopics.length > 0 && (
-                        <ul style={{ margin: '8px 0 0', paddingLeft: 16 }}>
-                          {recommendation.weakTopics.map((t) => (
-                            <li key={t.scenarioId} style={{ fontSize: 12, marginBottom: 6 }}>
-                              <button
-                                className="btn btn-ghost btn-sm"
-                                style={{ padding: '1px 8px', fontSize: 11, marginRight: 6 }}
-                                onClick={() =>
-                                  setAssignForm((f) => ({ ...f, scenarioId: t.scenarioId }))
-                                }
-                              >
-                                Выбрать тему
-                              </button>
-                              <strong style={{ color: tokens.text.primary }}>
-                                {t.scenarioName}
-                              </strong>
-                              <div style={{ color: tokens.text.secondary, marginTop: 2 }}>
-                                {t.detail}
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            )}
-
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 12, color: tokens.text.muted }}>Тема экзамена</label>
-              <Select
-                style={{ width: '100%', marginTop: 4 }}
-                placeholder="Выберите тему"
-                value={assignForm.scenarioId || undefined}
-                onChange={(v) => setAssignForm((f) => ({ ...f, scenarioId: v }))}
-                options={examScenarios.map((s) => ({ value: s.id, label: s.name }))}
-              />
-            </div>
-
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 12, color: tokens.text.muted }}>Срок сдачи</label>
-              <Input
-                type="date"
-                style={{ marginTop: 4 }}
-                min={todayStr}
-                value={assignForm.dueDate}
-                onChange={(e) => setAssignForm((f) => ({ ...f, dueDate: e.target.value }))}
-              />
-            </div>
-
-            <div>
-              <label style={{ fontSize: 12, color: tokens.text.muted }}>
-                Комментарий (необязательно)
-              </label>
-              <Input.TextArea
-                rows={2}
-                style={{ marginTop: 4 }}
-                value={assignForm.note}
-                onChange={(e) => setAssignForm((f) => ({ ...f, note: e.target.value }))}
-                placeholder="На что обратить внимание при подготовке..."
-              />
-            </div>
-          </Modal>
-        </>
-      )}
 
       <Modal
         title="Новая сессия"
@@ -814,26 +530,71 @@ export default function InstructorConsole() {
         okText="Восстановить"
         cancelText="Отмена"
       >
-        <Select
-          style={{ width: '100%', marginBottom: 12 }}
-          value={selectedSnapshotId ?? undefined}
-          onChange={(id) => {
-            setSelectedSnapshotId(id)
-            void viewSnapshotDetail(id)
-          }}
-          options={sessionSnapshots.map((s) => ({
-            value: s.id,
-            label: s.name || s.id,
-          }))}
-          placeholder="Выберите снимок"
-        />
+        {sessionSnapshots.length === 0 ? (
+          <div style={{ color: tokens.text.secondary, textAlign: 'center', padding: '12px 0' }}>
+            Снимков нет
+          </div>
+        ) : (
+          sessionSnapshots.map((s) => (
+            <div
+              key={s.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 0',
+                borderBottom: '1px solid var(--ln)',
+              }}
+            >
+              <input
+                type="radio"
+                name="snapshot"
+                value={s.id}
+                checked={selectedSnapshotId === s.id}
+                onChange={() => {
+                  setSelectedSnapshotId(s.id)
+                  void viewSnapshotDetail(s.id)
+                }}
+              />
+              <div style={{ flex: 1, fontSize: 13 }}>
+                <span style={{ color: tokens.text.primary }}>{s.name || s.id}</span>
+                {s.modelTime !== undefined && (
+                  <span
+                    style={{
+                      marginLeft: 8,
+                      fontSize: 11,
+                      color: tokens.text.muted,
+                      fontFamily: 'var(--mono)',
+                    }}
+                  >
+                    t={s.modelTime}s
+                  </span>
+                )}
+                {s.isPreset && (
+                  <span style={{ marginLeft: 6, fontSize: 10, color: tokens.text.muted }}>
+                    (пресет)
+                  </span>
+                )}
+              </div>
+              {!s.isPreset && (
+                <Button
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  title="Удалить снимок"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void deleteSnapshot(s.id)
+                  }}
+                />
+              )}
+            </div>
+          ))
+        )}
         {snapshotDetail && (
-          <div style={{ fontSize: 12, color: tokens.text.secondary }}>
+          <div style={{ fontSize: 12, color: tokens.text.secondary, marginTop: 12 }}>
             <div>ID: {snapshotDetail.id}</div>
             <div>Сессия: {snapshotDetail.sessionId}</div>
-            {snapshotDetail.modelTime !== undefined && (
-              <div>Модельное время: {snapshotDetail.modelTime}s</div>
-            )}
             {snapshotDetail.createdAt && (
               <div>{new Date(snapshotDetail.createdAt).toLocaleString('ru-RU')}</div>
             )}

@@ -106,9 +106,6 @@ export const authHandlers = [
     if (!found) {
       return HttpResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
-    if (found.user.mfa_enabled && !body.mfa_code) {
-      return HttpResponse.json({ mfa_required: true })
-    }
     return HttpResponse.json(tokensFor(found))
   }),
 

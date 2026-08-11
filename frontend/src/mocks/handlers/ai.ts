@@ -1,16 +1,8 @@
 import { http, HttpResponse, delay } from 'msw'
 
-export interface ChatMessage {
+interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
-}
-
-interface ChatRequest {
-  messages: ChatMessage[]
-}
-
-interface ChatResponse {
-  reply: string
 }
 
 /**
@@ -130,12 +122,15 @@ function answerFor(question: string): string {
 }
 
 export const aiHandlers = [
-  http.post('/api/ai/chat', async ({ request }) => {
-    const body = (await request.json()) as ChatRequest
-    const lastUser = [...(body.messages ?? [])].reverse().find((m) => m.role === 'user')
-    // Simulate model latency so the "печатает…" indicator is visible.
+  // Real path: POST /api/v1/ai/chat  (gateway → ai /v1/chat)
+  http.post('/api/v1/ai/chat', async ({ request }) => {
+    const body = (await request.json()) as { question?: string; messages?: ChatMessage[] }
+    // Accept both the new {question} shape and old {messages} shape for compatibility.
+    const question =
+      body.question ??
+      [...(body.messages ?? [])].reverse().find((m) => m.role === 'user')?.content ??
+      ''
     await delay(600 + Math.random() * 500)
-    const reply = answerFor(lastUser?.content ?? '')
-    return HttpResponse.json<ChatResponse>({ reply })
+    return HttpResponse.json({ answer: answerFor(question) })
   }),
 ]

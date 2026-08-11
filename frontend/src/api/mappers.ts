@@ -1,8 +1,6 @@
 import type { UserProfile, UserRole } from '@/store/auth'
 import type { CanvasEdge, CanvasNode } from '@/store/constructor'
-import type { Template } from '@/mocks/fixtures/templates'
-import type { SessionRecord } from '@/mocks/fixtures/sessions'
-import type { ComponentType } from '@/mocks/fixtures/components'
+import type { Template, SessionRecord, ComponentType } from '@/types'
 
 const ROLES: UserRole[] = ['admin', 'instructor', 'operator']
 

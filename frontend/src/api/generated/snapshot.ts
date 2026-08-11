@@ -101,6 +101,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/snapshots/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Сохранить снапшот — internal (orchestrator) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SaveSnapshotRequest"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SaveSnapshotResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/snapshots/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Восстановить из снапшота — internal (orchestrator) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RestoreSnapshotRequest"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RestoreSnapshotResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -150,6 +228,32 @@ export interface components {
             is_preset?: boolean;
             /** Format: date-time */
             created_at?: string;
+        };
+        SaveSnapshotRequest: {
+            session_id: string;
+            name?: string;
+            is_preset?: boolean;
+            schema_version?: string;
+            model_time?: number;
+            seed?: number;
+            /** @description JSON-снимок состояния (json.RawMessage) */
+            payload_json: string;
+        };
+        SaveSnapshotResponse: {
+            snapshot_id?: string;
+            sha256?: string;
+            storage_key?: string;
+        };
+        RestoreSnapshotRequest: {
+            snapshot_id: string;
+        };
+        RestoreSnapshotResponse: {
+            /** @description JSON-снимок состояния (json.RawMessage) */
+            payload_json?: string;
+            model_time?: number;
+            seed?: number;
+            sha256_valid?: boolean;
+            schema_version?: string;
         };
         Error: components["schemas"]["error"];
         /** Problem Details (RFC 7807) */

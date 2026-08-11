@@ -113,6 +113,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/mfa/enrollment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Получить TOTP-секрет по enrollment_token (после password-step login) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Секрет для QR / ручного ввода */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MFAEnrollmentResponse"];
+                    };
+                };
+                /** @description Невалидный enrollment_token */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/logout": {
         parameters: {
             query?: never;
@@ -549,7 +592,19 @@ export interface components {
         };
         MFARequiredResponse: {
             /** @example true */
-            mfa_required?: boolean;
+            mfa_required: boolean;
+            /** @description ID пользователя (для enrollment) */
+            user_id?: string;
+            login?: string;
+            /** @description Короткоживущий токен для POST /mfa/enrollment (секрет не отдаётся на login) */
+            enrollment_token?: string;
+        };
+        MFAEnrollmentResponse: {
+            /** @description Base32 TOTP-секрет для QR */
+            secret: string;
+            /** @description otpauth:// URI */
+            otpauth_uri: string;
+            login?: string;
         };
         IntrospectRequest: {
             token: string;

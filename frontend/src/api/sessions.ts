@@ -1,9 +1,8 @@
 import { apiClient } from './client'
-import { unwrap } from './request'
+import { unwrap, unwrapVoid } from './request'
 import { mapSession } from './mappers'
-import type { SessionRecord } from '@/mocks/fixtures/sessions'
+import type { SessionRecord } from '@/types'
 
-/** Gateway enum is start|pause|resume|stop|checkpoint|restore|actuator. */
 export type SessionAction =
   'start' | 'pause' | 'resume' | 'stop' | 'checkpoint' | 'restore' | 'actuator'
 
@@ -14,6 +13,16 @@ export interface CreateSessionInput {
   mode: 'training' | 'exam' | 'demo'
   speed?: number
 }
+
+const ACTION_PATHS = {
+  start: '/api/v1/sessions/{id}/start',
+  pause: '/api/v1/sessions/{id}/pause',
+  resume: '/api/v1/sessions/{id}/resume',
+  stop: '/api/v1/sessions/{id}/stop',
+  checkpoint: '/api/v1/sessions/{id}/checkpoint',
+  restore: '/api/v1/sessions/{id}/restore',
+  actuator: '/api/v1/sessions/{id}/actuator',
+} as const
 
 export const sessionsApi = {
   async list(): Promise<SessionRecord[]> {
@@ -43,27 +52,10 @@ export const sessionsApi = {
     return mapSession(raw)
   },
 
-  async action(
-    id: string,
-    action: SessionAction,
-    body?: unknown,
-  ): Promise<SessionRecord | unknown> {
-    const raw = await unwrap<unknown>(
-      apiClient.POST('/api/v1/sessions/{id}/{action}', {
-        params: {
-          path: {
-            id,
-            action,
-          },
-        },
-        body: (body ?? {}) as never,
-      }),
-    )
-    // Action responses may be a session or a simple ack.
-    if (raw && typeof raw === 'object' && 'id' in (raw as object)) {
-      return mapSession(raw)
-    }
-    return raw
+  async action(id: string, action: 'start' | 'pause' | 'resume' | 'stop'): Promise<SessionRecord> {
+    const path = ACTION_PATHS[action]
+    const raw = await unwrap<unknown>(apiClient.POST(path, { params: { path: { id } } } as never))
+    return mapSession(raw)
   },
 
   async setSpeed(id: string, speed: number): Promise<void> {
@@ -75,20 +67,40 @@ export const sessionsApi = {
     )
   },
 
-  async checkpoint(id: string, name: string): Promise<unknown> {
-    return unwrap<unknown>(
-      apiClient.POST('/api/v1/sessions/{id}/{action}', {
-        params: { path: { id, action: 'checkpoint' } },
+  async checkpoint(id: string, name: string): Promise<{ snapshot_id?: string }> {
+    const raw = await unwrap<{ snapshot_id?: string }>(
+      apiClient.POST('/api/v1/sessions/{id}/checkpoint', {
+        params: { path: { id } },
         body: { name } as never,
+      }),
+    )
+    return raw ?? {}
+  },
+
+  async restore(id: string, snapshotId: string): Promise<SessionRecord> {
+    const raw = await unwrap<unknown>(
+      apiClient.POST('/api/v1/sessions/{id}/restore', {
+        params: { path: { id } },
+        body: { snapshot_id: snapshotId } as never,
+      }),
+    )
+    return mapSession(raw)
+  },
+
+  async actuator(id: string, tag: string, value: unknown): Promise<void> {
+    await unwrapVoid(
+      apiClient.POST('/api/v1/sessions/{id}/actuator', {
+        params: { path: { id } },
+        body: { tag, value } as never,
       }),
     )
   },
 
-  async restore(id: string, snapshotId: string): Promise<unknown> {
-    return unwrap<unknown>(
-      apiClient.POST('/api/v1/sessions/{id}/{action}', {
-        params: { path: { id, action: 'restore' } },
-        body: { snapshot_id: snapshotId } as never,
+  /** Acknowledge an alarm via REST (used by instructor in observe channel). */
+  async ackAlarm(sessionId: string, alarmId: string): Promise<void> {
+    await unwrapVoid(
+      apiClient.POST('/api/v1/sessions/{id}/alarms/{alarm_id}/ack', {
+        params: { path: { id: sessionId, alarm_id: alarmId } },
       }),
     )
   },

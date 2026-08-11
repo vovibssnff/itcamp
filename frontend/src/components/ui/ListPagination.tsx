@@ -7,6 +7,7 @@ export const LIST_PAGE_SIZE = 20
 
 export const listPaginationClassName = 'list-pagination'
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function listShowTotal(total: number, range: [number, number]): string {
   return `${range[0]}–${range[1]} из ${total}`
 }
@@ -18,6 +19,7 @@ const sharedProps = {
 }
 
 /** Shared Ant Table `pagination` object — same chrome as ListPagination. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function tablePagination(overrides?: TablePaginationConfig): TablePaginationConfig {
   const { className, ...rest } = overrides ?? {}
   return {

@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import { unwrap } from './request'
+import { unwrap, unwrapVoid } from './request'
 import { mapSnapshot, type SnapshotMeta } from './mappers'
 
 export const snapshotsApi = {
@@ -17,5 +17,10 @@ export const snapshotsApi = {
       apiClient.GET('/api/v1/snapshots/{id}', { params: { path: { id } } }),
     )
     return mapSnapshot(raw)
+  },
+
+  /** Delete a checkpoint snapshot. Presets cannot be deleted (403 from server). */
+  async delete(id: string): Promise<void> {
+    await unwrapVoid(apiClient.DELETE('/api/v1/snapshots/{id}', { params: { path: { id } } }))
   },
 }

@@ -7,10 +7,8 @@ import {
   EditOutlined,
   CopyOutlined,
   RobotOutlined,
-  CheckCircleOutlined,
-  InboxOutlined,
-  UndoOutlined,
   SaveOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons'
 import type {
   Scenario,
@@ -18,8 +16,7 @@ import type {
   ReferenceActionEntry,
   ScenarioCriteria,
   FaultCatalogItem,
-  ScenarioStatus,
-} from '@/mocks/fixtures/scenarios'
+} from '@/types'
 import {
   DataTable,
   Pill,
@@ -36,19 +33,8 @@ import { scenariosApi } from '@/api/scenarios'
 import { summarizeImport } from '@/api/import'
 import { templatesApi } from '@/api/templates'
 import { snapshotsApi } from '@/api/snapshots'
+import { ensureAccessToken } from '@/api/client'
 import { isMockApi } from '@/utils/env'
-
-const STATUS_LABELS: Record<ScenarioStatus, string> = {
-  draft: 'Черновик',
-  published: 'Опубликован',
-  archived: 'Архив',
-}
-
-const STATUS_VARIANT: Record<ScenarioStatus, 'ok' | 'warn' | 'alarm' | 'default'> = {
-  draft: 'default',
-  published: 'ok',
-  archived: 'warn',
-}
 
 // ─── List View ────────────────────────────────────────────────────────────────
 
@@ -62,7 +48,6 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
   >([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
-  const [filterStatus, setFilterStatus] = useState('')
   const [filterType, setFilterType] = useState('')
   const [q, setQ] = useState('')
   const [aiModal, setAiModal] = useState(false)
@@ -73,7 +58,6 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
     setLoading(true)
     try {
       const query: Record<string, string> = {}
-      if (mock && filterStatus) query.status = filterStatus
       if (filterType) query.type = filterType
       if (q) query.q = q
       const data = (await scenariosApi.list(query)) as typeof scenarios
@@ -84,7 +68,7 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
     } finally {
       setLoading(false)
     }
-  }, [filterStatus, filterType, q, mock])
+  }, [filterType, q])
 
   useEffect(() => {
     void fetch_()
@@ -105,23 +89,6 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
     await scenariosApi.clone(id, {})
     void fetch_()
     void message.success('Сценарий скопирован')
-  }
-
-  async function doModerate(id: string, action: 'publish' | 'archive' | 'unpublish') {
-    if (!isMockApi()) {
-      void message.info('Модерация сценариев доступна только в mock-режиме')
-      return
-    }
-    // Moderation endpoints are mock-only (not in gateway OpenAPI).
-    await fetch(`/api/v1/scenarios/${id}/${action}`, { method: 'POST' })
-    void fetch_()
-    void message.success(
-      action === 'publish'
-        ? 'Опубликован'
-        : action === 'archive'
-          ? 'Архивирован'
-          : 'Снят с публикации',
-    )
   }
 
   async function doAiGenerate() {
@@ -209,18 +176,6 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
           onChange={(e) => setQ(e.target.value)}
           style={{ width: 220 }}
         />
-        {mock && (
-          <Seg
-            options={[
-              { value: '', label: 'Все' },
-              { value: 'draft', label: 'Черновики' },
-              { value: 'published', label: 'Опубликованные' },
-              { value: 'archived', label: 'Архив' },
-            ]}
-            value={filterStatus}
-            onChange={setFilterStatus}
-          />
-        )}
         <Seg
           options={[
             { value: '', label: 'Все' },
@@ -251,14 +206,6 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
                 ),
               },
               {
-                key: 'status',
-                title: 'Статус',
-                width: '120px',
-                render: (row) => (
-                  <Pill variant={STATUS_VARIANT[row.status]}>{STATUS_LABELS[row.status]}</Pill>
-                ),
-              },
-              {
                 key: 'updated_at',
                 title: 'Обновлён',
                 width: '110px',
@@ -280,30 +227,6 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
                     <button className="btn btn-ghost btn-sm" onClick={() => void doClone(row.id)}>
                       <CopyOutlined />
                     </button>
-                    {mock && row.status === 'draft' && (
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => void doModerate(row.id, 'publish')}
-                      >
-                        <CheckCircleOutlined />
-                      </button>
-                    )}
-                    {mock && row.status === 'published' && (
-                      <>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => void doModerate(row.id, 'unpublish')}
-                        >
-                          <UndoOutlined />
-                        </button>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => void doModerate(row.id, 'archive')}
-                        >
-                          <InboxOutlined />
-                        </button>
-                      </>
-                    )}
                     <button className="btn btn-danger btn-sm" onClick={() => void doDelete(row.id)}>
                       <DeleteOutlined />
                     </button>
@@ -398,7 +321,6 @@ function ScenarioEditor({ id }: { id: string }) {
           template_id: 'tmpl-elou-avt',
           type: 'training',
           author_id: 'user-instructor',
-          status: 'draft',
           faults: [],
           reference_actions: [],
           criteria: {
@@ -418,7 +340,6 @@ function ScenarioEditor({ id }: { id: string }) {
         const data = (await scenariosApi.get(id!)) as Scenario
         setScenario({
           ...data,
-          status: data.status ?? 'draft',
           faults: data.faults ?? [],
           reference_actions: data.reference_actions ?? [],
           criteria: data.criteria ?? {
@@ -458,6 +379,32 @@ function ScenarioEditor({ id }: { id: string }) {
       .catch(() => setTemplateNodes([]))
   }, [boundTemplateId])
 
+  const [faultDetailId, setFaultDetailId] = useState<string | null>(null)
+  const [faultDetail, setFaultDetail] = useState<FaultCatalogItem | null>(null)
+  const [faultDetailLoading, setFaultDetailLoading] = useState(false)
+
+  async function showFaultDetail(faultId: string) {
+    if (faultDetailId === faultId) {
+      setFaultDetailId(null)
+      return
+    }
+    setFaultDetailId(faultId)
+    setFaultDetailLoading(true)
+    try {
+      const token = await ensureAccessToken()
+      const raw = await fetch(`/api/v1/faults/${encodeURIComponent(faultId)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!raw.ok) throw new Error()
+      setFaultDetail((await raw.json()) as FaultCatalogItem)
+    } catch {
+      const catalogItem = faultCatalog.find((f) => f.fault_id === faultId) ?? null
+      setFaultDetail(catalogItem)
+    } finally {
+      setFaultDetailLoading(false)
+    }
+  }
+
   function patch(p: Partial<Scenario>) {
     setScenario((prev) => (prev ? { ...prev, ...p } : prev))
     setDirty(true)
@@ -478,25 +425,6 @@ function ScenarioEditor({ id }: { id: string }) {
   }, [scenario, isNew, navigate])
 
   useAutoSave(dirty && !isNew, save, 30000)
-
-  async function doModerate(action: 'publish' | 'archive' | 'unpublish') {
-    if (!scenario) return
-    if (!isMockApi()) {
-      void message.info('Модерация сценариев доступна только в mock-режиме')
-      return
-    }
-    await fetch(`/api/v1/scenarios/${scenario.id}/${action}`, { method: 'POST' })
-    patch({
-      status: action === 'publish' ? 'published' : action === 'archive' ? 'archived' : 'draft',
-    })
-    void message.success(
-      action === 'publish'
-        ? 'Опубликован'
-        : action === 'archive'
-          ? 'Архивирован'
-          : 'Снят с публикации',
-    )
-  }
 
   function addFault() {
     setEditFault({
@@ -584,7 +512,6 @@ function ScenarioEditor({ id }: { id: string }) {
           <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--tx2)' }}>
             {isNew ? 'Новый сценарий' : scenario.name || 'Без названия'}
           </span>
-          <Pill variant={STATUS_VARIANT[scenario.status]}>{STATUS_LABELS[scenario.status]}</Pill>
           {dirty && (
             <span style={{ fontSize: 10, color: 'var(--warn)', fontFamily: 'var(--mono)' }}>
               ● несохранено
@@ -592,21 +519,6 @@ function ScenarioEditor({ id }: { id: string }) {
           )}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {scenario.status === 'draft' && !isNew && (
-            <button className="btn btn-ghost btn-sm" onClick={() => void doModerate('publish')}>
-              <CheckCircleOutlined /> Опубликовать
-            </button>
-          )}
-          {scenario.status === 'published' && (
-            <>
-              <button className="btn btn-ghost btn-sm" onClick={() => void doModerate('unpublish')}>
-                <UndoOutlined /> Снять
-              </button>
-              <button className="btn btn-ghost btn-sm" onClick={() => void doModerate('archive')}>
-                <InboxOutlined /> Архив
-              </button>
-            </>
-          )}
           <button className="btn btn-acc btn-sm" onClick={() => void save()}>
             <SaveOutlined /> Сохранить
           </button>
@@ -631,6 +543,7 @@ function ScenarioEditor({ id }: { id: string }) {
                 label: `Эталонные действия (${scenario.reference_actions.length})`,
               },
               { key: 'criteria', label: 'Критерии оценки' },
+              { key: 'overview', label: 'Обзор' },
             ].map((t) => (
               <div
                 key={t.key}
@@ -770,6 +683,13 @@ function ScenarioEditor({ id }: { id: string }) {
                         <div style={{ display: 'flex', gap: 4 }}>
                           <button
                             className="btn btn-ghost btn-sm"
+                            title="Подробности"
+                            onClick={() => void showFaultDetail(row.fault_id)}
+                          >
+                            <InfoCircleOutlined />
+                          </button>
+                          <button
+                            className="btn btn-ghost btn-sm"
                             onClick={() => {
                               setEditFault(row)
                               setFaultModal(true)
@@ -891,6 +811,210 @@ function ScenarioEditor({ id }: { id: string }) {
                 criteria={scenario.criteria}
                 onChange={(c) => patch({ criteria: c })}
               />
+            </div>
+          )}
+
+          {/* ─── Fault detail panel ─── */}
+          {faultDetailId && (
+            <div
+              className="box-mute rise"
+              style={{
+                margin: '16px 0',
+                padding: '16px 18px',
+                borderLeft: '3px solid var(--warn)',
+                maxWidth: 600,
+              }}
+            >
+              {faultDetailLoading ? (
+                <div className="loading-spinner" />
+              ) : faultDetail ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <strong style={{ fontSize: 14 }}>{faultDetail.name}</strong>
+                    <Pill
+                      variant={
+                        faultDetail.severity === 'critical'
+                          ? 'alarm'
+                          : faultDetail.severity === 'high'
+                            ? 'alarm'
+                            : faultDetail.severity === 'medium'
+                              ? 'warn'
+                              : 'default'
+                      }
+                    >
+                      {faultDetail.severity}
+                    </Pill>
+                  </div>
+                  <p className="note" style={{ marginBottom: 8 }}>
+                    {faultDetail.description}
+                  </p>
+                  <div style={{ display: 'flex', gap: 24, fontSize: 12, color: 'var(--tx2)' }}>
+                    <span>
+                      Ущерб:{' '}
+                      <strong style={{ fontFamily: 'var(--mono)' }}>
+                        {faultDetail.damage_per_sec}/с
+                      </strong>
+                    </span>
+                    <span>Теги: {faultDetail.affected_tags.join(', ') || '—'}</span>
+                  </div>
+                  {faultDetail.applicable_component_types.length > 0 && (
+                    <div style={{ marginTop: 6, fontSize: 12, color: 'var(--tx2)' }}>
+                      Типы компонентов: {faultDetail.applicable_component_types.join(', ')}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="note">Не удалось загрузить данные неисправности</div>
+              )}
+            </div>
+          )}
+
+          {/* ─── Overview ─── */}
+          {activeTab === 'overview' && (
+            <div>
+              {/* Criteria summary */}
+              <div
+                className="box-mute rise"
+                style={{ marginBottom: 20, padding: '16px 18px', maxWidth: 700 }}
+              >
+                <SectionLabel style={{ marginBottom: 10 }}>Критерии оценки</SectionLabel>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: 24,
+                    flexWrap: 'wrap',
+                    fontSize: 13,
+                    color: 'var(--tx2)',
+                  }}
+                >
+                  <span>
+                    Макс. балл:{' '}
+                    <strong style={{ color: 'var(--tx1)' }}>{scenario.criteria.max_score}</strong>
+                  </span>
+                  <span>
+                    Порог:{' '}
+                    <strong style={{ color: 'var(--tx1)' }}>
+                      {scenario.criteria.pass_threshold}%
+                    </strong>
+                  </span>
+                  <span>Пропуск: −{scenario.criteria.penalty_miss}</span>
+                  <span>Опоздание: −{scenario.criteria.penalty_late}/с</span>
+                  <span>Запрещ. действие: −{scenario.criteria.penalty_forbidden}</span>
+                </div>
+              </div>
+
+              {/* Trigger timeline */}
+              <SectionLabel style={{ marginBottom: 12 }}>
+                Неисправности ({scenario.faults.length}) — хронология
+              </SectionLabel>
+              {scenario.faults.length === 0 ? (
+                <div className="box-mute note" style={{ padding: '14px 16px', marginBottom: 20 }}>
+                  Нет неисправностей
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+                  {[...scenario.faults]
+                    .sort((a, b) => {
+                      const ta = a.trigger.type === 'time' ? (a.trigger.at_model_time ?? 0) : 9999
+                      const tb = b.trigger.type === 'time' ? (b.trigger.at_model_time ?? 0) : 9999
+                      return ta - tb
+                    })
+                    .map((f) => {
+                      const catalogEntry = faultCatalog.find((c) => c.fault_id === f.fault_id)
+                      return (
+                        <div
+                          key={f.id}
+                          className="box-mute"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 12,
+                            padding: '10px 14px',
+                            borderLeft: f.hidden ? '3px solid var(--tx3)' : '3px solid var(--warn)',
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontFamily: 'var(--mono)',
+                              fontSize: 11,
+                              color: 'var(--tx3)',
+                              minWidth: 70,
+                            }}
+                          >
+                            {f.trigger.type === 'time'
+                              ? `t=${f.trigger.at_model_time ?? 0}с`
+                              : `${f.trigger.condition?.tag ?? '?'} ${f.trigger.condition?.op ?? ''} ${f.trigger.condition?.value ?? ''}`}
+                          </span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 500, fontSize: 13 }}>
+                              {catalogEntry?.name ?? f.fault_id}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--tx3)' }}>
+                              узел: {f.component_instance_id || '—'} · тяжесть:{' '}
+                              {f.params.severity_pct}%
+                            </div>
+                          </div>
+                          {f.hidden && (
+                            <Pill variant="default" style={{ fontSize: 10 }}>
+                              скрытая
+                            </Pill>
+                          )}
+                        </div>
+                      )
+                    })}
+                </div>
+              )}
+
+              {/* Reference actions */}
+              <SectionLabel style={{ marginBottom: 12 }}>
+                Эталонные действия ({scenario.reference_actions.length})
+              </SectionLabel>
+              {scenario.reference_actions.length === 0 ? (
+                <div className="box-mute note" style={{ padding: '14px 16px' }}>
+                  Нет эталонных действий
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {[...scenario.reference_actions]
+                    .sort((a, b) => a.step - b.step)
+                    .map((a) => (
+                      <div
+                        key={a.step}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 12,
+                          padding: '8px 14px',
+                          borderLeft: a.mandatory
+                            ? '3px solid var(--alarm)'
+                            : '3px solid var(--ln)',
+                          background: 'var(--srf2)',
+                          borderRadius: 4,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: 'var(--mono)',
+                            fontSize: 11,
+                            color: 'var(--tx3)',
+                            minWidth: 28,
+                          }}
+                        >
+                          {String(a.step).padStart(2, '0')}
+                        </span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13 }}>{a.description}</div>
+                          <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>
+                            {a.expected.target} · {a.expected.action}
+                            {a.expected.value !== undefined && ` → ${a.expected.value}`} · срок:{' '}
+                            {a.deadline_seconds}с
+                          </div>
+                        </div>
+                        {a.mandatory && <Pill variant="alarm">крит.</Pill>}
+                      </div>
+                    ))}
+                </div>
+              )}
             </div>
           )}
         </div>

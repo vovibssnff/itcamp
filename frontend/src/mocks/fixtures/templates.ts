@@ -1,22 +1,5 @@
-import type { CanvasNode, CanvasEdge } from '@/store/constructor'
-
-export interface Template {
-  id: string
-  name: string
-  description: string
-  createdAt: string
-  updatedAt: string
-  nodes: CanvasNode[]
-  edges: CanvasEdge[]
-  isValid: boolean
-  /**
-   * Built-in hand-drawn mnemonic to render on the operator HMI instead of the
-   * generic constructor-driven canvas — used for the one default installation
-   * that ships with the trainer. Templates built via the constructor (no
-   * value here) always render through the generic `HmiCanvas`.
-   */
-  scheme?: 'elou-avt'
-}
+import type { Template } from '@/types'
+export type { Template } from '@/types'
 
 export const TEMPLATES: Template[] = [
   {

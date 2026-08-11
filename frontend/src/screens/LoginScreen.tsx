@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Input, message } from 'antd'
-import QRCode from 'qrcode'
 import { useAuthStore } from '@/store/auth'
-import { authApi, isMfaRequired } from '@/api/auth'
+import { authApi } from '@/api/auth'
 import { toErrorMessage } from '@/api/errors'
 import { useTranslation } from 'react-i18next'
 import { useUIStore } from '@/store/ui'
@@ -11,75 +10,24 @@ import { useUIStore } from '@/store/ui'
 export default function LoginScreen() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [mfaCode, setMfaCode] = useState('')
-  const [mfaRequired, setMfaRequired] = useState(false)
-  const [mfaSecret, setMfaSecret] = useState<string | null>(null)
-  const [otpauthUri, setOtpauthUri] = useState<string | null>(null)
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const { setTokens, setUser } = useAuthStore()
   const { theme, setTheme } = useUIStore()
   const navigate = useNavigate()
   const { t } = useTranslation()
 
-  useEffect(() => {
-    if (!otpauthUri) {
-      setQrDataUrl(null)
-      return
-    }
-    let cancelled = false
-    void QRCode.toDataURL(otpauthUri, {
-      width: 200,
-      margin: 1,
-      errorCorrectionLevel: 'M',
-      color: { dark: '#111111', light: '#ffffff' },
-    }).then((url) => {
-      if (!cancelled) setQrDataUrl(url)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [otpauthUri])
-
-  async function completeLogin(access: string, refresh: string) {
-    setTokens(access, refresh)
+  async function handleSubmit() {
+    if (!username || !password) return
+    setLoading(true)
     try {
+      const result = await authApi.login(username, password)
+      setTokens(result.access_token, result.refresh_token)
       const user = await authApi.me()
       setUser(user)
       void navigate('/', { replace: true })
     } catch (err) {
-      useAuthStore.getState().logout()
-      throw err
-    }
-  }
-
-  async function handleSubmit() {
-    if (!username || !password) return
-    if (mfaRequired && !mfaCode) return
-    setLoading(true)
-    try {
-      const result = await authApi.login(username, password, mfaRequired ? mfaCode : undefined)
-      if (isMfaRequired(result)) {
-        setMfaRequired(true)
-        let secret = result.secret ?? null
-        let uri = result.otpauth_uri ?? null
-        if (result.enrollment_token) {
-          const enroll = await authApi.enrollmentSetup(result.enrollment_token)
-          secret = enroll.secret
-          uri = enroll.otpauth_uri
-        }
-        setMfaSecret(secret)
-        setOtpauthUri(uri)
-        void message.info(
-          secret
-            ? t('auth.mfaSetup', { defaultValue: 'Отсканируйте QR и введите код из приложения' })
-            : t('auth.mfaRequired', { defaultValue: 'Введите код MFA' }),
-        )
-        return
-      }
-      await completeLogin(result.access_token, result.refresh_token)
-    } catch (err) {
       void message.error(toErrorMessage(err, t('auth.loginError')))
+      useAuthStore.getState().logout()
     } finally {
       setLoading(false)
     }
@@ -87,16 +35,6 @@ export default function LoginScreen() {
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') void handleSubmit()
-  }
-
-  async function copySecret() {
-    if (!mfaSecret) return
-    try {
-      await navigator.clipboard.writeText(mfaSecret)
-      void message.success(t('auth.mfaSecretCopied', { defaultValue: 'Секрет скопирован' }))
-    } catch {
-      void message.error(t('auth.mfaSecretCopyFailed', { defaultValue: 'Не удалось скопировать' }))
-    }
   }
 
   return (
@@ -191,7 +129,6 @@ export default function LoginScreen() {
               onKeyDown={handleKeyDown}
               autoFocus
               autoComplete="username"
-              disabled={mfaRequired}
             />
           </div>
 
@@ -205,7 +142,6 @@ export default function LoginScreen() {
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={handleKeyDown}
               autoComplete="current-password"
-              disabled={mfaRequired}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -220,88 +156,11 @@ export default function LoginScreen() {
             />
           </div>
 
-          {mfaRequired && mfaSecret && (
-            <div className="rise d4" style={{ marginTop: 28 }}>
-              <label className="fld-lbl">
-                {t('auth.mfaEnrollTitle', { defaultValue: 'Настройка 2FA' })}
-              </label>
-              <p
-                style={{
-                  margin: '8px 0 14px',
-                  fontSize: 13,
-                  lineHeight: 1.45,
-                  color: 'var(--tx2)',
-                }}
-              >
-                {t('auth.mfaEnrollHint', {
-                  defaultValue:
-                    'Отсканируйте QR в Google Authenticator / Authy или введите секрет вручную, затем укажите 6-значный код.',
-                })}
-              </p>
-              {qrDataUrl && (
-                <img
-                  src={qrDataUrl}
-                  alt={t('auth.mfaQrAlt', { defaultValue: 'QR-код для настройки MFA' })}
-                  width={200}
-                  height={200}
-                  style={{
-                    display: 'block',
-                    marginBottom: 12,
-                    background: '#fff',
-                    padding: 8,
-                    border: '1px solid var(--ln2)',
-                  }}
-                />
-              )}
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 8,
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <code
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    fontFamily: 'var(--mono)',
-                    fontSize: 12,
-                    wordBreak: 'break-all',
-                    color: 'var(--tx)',
-                    padding: '8px 0',
-                  }}
-                >
-                  {mfaSecret}
-                </code>
-                <button type="button" className="btn" onClick={() => void copySecret()}>
-                  {t('auth.mfaCopySecret', { defaultValue: 'Копировать' })}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {mfaRequired && (
-            <div className="rise d4" style={{ marginTop: 22 }}>
-              <label className="fld-lbl">{t('auth.mfaCode', { defaultValue: 'Код MFA' })}</label>
-              <input
-                className="fld"
-                placeholder="123456"
-                value={mfaCode}
-                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                onKeyDown={handleKeyDown}
-                autoFocus
-                autoComplete="one-time-code"
-                inputMode="numeric"
-              />
-            </div>
-          )}
-
           <div className="rise d5" style={{ marginTop: 34 }}>
             <button
               className="btn btn-acc btn-w"
               onClick={() => void handleSubmit()}
-              disabled={loading || !username || !password || (mfaRequired && mfaCode.length < 6)}
+              disabled={loading || !username || !password}
             >
               {loading ? '...' : 'Войти в тренажёр'}
             </button>

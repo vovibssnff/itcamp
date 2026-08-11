@@ -4,14 +4,22 @@ import {
   FAULT_CATALOG,
   type Scenario,
   type FaultCatalogItem,
+  type ScenarioStatus,
 } from '../fixtures/scenarios'
 
-// Mutable in-memory copy
-const scenarios: Scenario[] = SCENARIOS.map((s) => ({ ...s }))
+/** In-memory scenarios always have a status field. */
+type MockScenario = Omit<Scenario, 'status'> & { status: ScenarioStatus }
+
+function toMock(s: Scenario): MockScenario {
+  return { ...s, status: (s.status as ScenarioStatus | undefined) ?? 'draft' }
+}
+
+// Mutable in-memory copy — ensure every scenario has a status
+const scenarios: MockScenario[] = SCENARIOS.map(toMock)
 
 /** Filter helper */
 function applyFilters(
-  list: Scenario[],
+  list: MockScenario[],
   params: { template_id?: string; type?: string; status?: string; q?: string },
 ) {
   return list.filter((s) => {
@@ -94,8 +102,9 @@ export const scenarioHandlers = [
       ...body,
       id: `sc-${Date.now()}`,
     }
-    scenarios.push(created)
-    return HttpResponse.json(created, { status: 201 })
+    const mockCreated = toMock(created as Scenario)
+    scenarios.push(mockCreated)
+    return HttpResponse.json(mockCreated, { status: 201 })
   }),
 
   // ── Update ─────────────────────────────────────────────────────────────────
@@ -105,9 +114,10 @@ export const scenarioHandlers = [
     if (idx === -1) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
     scenarios[idx] = {
       ...scenarios[idx]!,
-      ...body,
+      ...(body as Partial<MockScenario>),
       id: scenarios[idx]!.id,
       updated_at: new Date().toISOString(),
+      status: (body as { status?: ScenarioStatus }).status ?? scenarios[idx]!.status,
     }
     return HttpResponse.json(scenarios[idx])
   }),
@@ -126,8 +136,8 @@ export const scenarioHandlers = [
     if (!src) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
     const body = (await request.json()) as { template_id?: string } | null
     const now = new Date().toISOString()
-    const clone: Scenario = {
-      ...(JSON.parse(JSON.stringify(src)) as Scenario),
+    const clone: MockScenario = {
+      ...(JSON.parse(JSON.stringify(src)) as MockScenario),
       id: `sc-${Date.now()}`,
       name: `${src.name} (копия)`,
       status: 'draft',
@@ -144,7 +154,7 @@ export const scenarioHandlers = [
   http.post('/api/scenarios/ai-generate', async ({ request }) => {
     const body = (await request.json()) as { template_id: string; description?: string }
     const now = new Date().toISOString()
-    const draft: Scenario = {
+    const draft: MockScenario = {
       id: `sc-ai-${Date.now()}`,
       name: `Сценарий ИИ: ${body.description ?? 'Авто-генерация'}`,
       description: body.description ?? 'Автоматически сгенерированный сценарий на основе шаблона',
@@ -254,18 +264,17 @@ export const scenarioHandlers = [
     for (const s of body.scenarios ?? []) {
       const id = s.id || `sc-${Date.now()}`
       const idx = scenarios.findIndex((x) => x.id === id)
-      const next = {
+      const next: MockScenario = toMock({
         ...s,
         id,
-        status: s.status ?? 'draft',
         created_at: s.created_at ?? new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      } as Scenario
+      })
       if (idx === -1) {
         scenarios.push(next)
         created++
       } else {
-        scenarios[idx] = { ...scenarios[idx], ...next }
+        scenarios[idx] = { ...scenarios[idx]!, ...next }
         updated++
       }
     }

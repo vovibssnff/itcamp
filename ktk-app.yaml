@@ -1,0 +1,945 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ktk-app
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ktk-app-secrets
+  namespace: ktk-app
+type: Opaque
+stringData:
+  DB_DSN: "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+  AUTH_DB_DSN: "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+  CONSTRUCTOR_DB_DSN: "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+  SCENARIO_DB_DSN: "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+  ORCHESTRATOR_DB_DSN: "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+  ASSESSMENT_DB_DSN: "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+  SNAPSHOT_DB_DSN: "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+  REPORT_DB_DSN: "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+  AUTH_JWT_SIGNING_KEY: "dev-only-signing-key-please-change-1234567890"
+  AUTH_TOTP_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef"
+  AUTH_MFA_DISABLED: "true"
+  S3_ENDPOINT: "minio:9000"
+  S3_ACCESS_KEY: "ktcminio"
+  S3_SECRET_KEY: "ktcminio_secret"
+  NATS_URL: "nats://nats:4222"
+  REDIS_ADDR: "radix:7379"
+  GW_AUTH_URL: "http://auth:8080/introspect"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-config
+  namespace: ktk-app
+data:
+  config.toml: |
+    [http]
+    addr              = ":8080"
+    read_timeout      = "10s"
+    write_timeout     = "10s"
+    shutdown_timeout  = "15s"
+
+    [db]
+    dsn               = "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+    max_conns         = 10
+    min_conns         = 2
+    conn_timeout      = "5s"
+    query_timeout     = "5s"
+
+    [jwt]
+    signing_key       = "dev-only-signing-key-please-change-1234567890"
+    signing_method    = "HS256"
+    access_ttl        = "15m"
+    refresh_ttl       = "24h"
+    issuer            = "ktc-auth"
+
+    [auth]
+    mode = "stub"
+
+    [[auth.stub_users]]
+    login     = "admin"
+    password  = "admin123"
+    full_name = "Администратор"
+    roles     = ["admin"]
+
+    [[auth.stub_users]]
+    login     = "instructor"
+    password  = "instructor123"
+    full_name = "Инструктор"
+    roles     = ["instructor"]
+
+    [[auth.stub_users]]
+    login     = "operator"
+    password  = "operator123"
+    full_name = "Оператор"
+    roles     = ["operator"]
+
+    [ldap]
+    url               = "ldaps://dc01.corp.example.ru:636"
+    bind_dn           = "CN=svc-ktc,OU=ServiceAccounts,DC=corp,DC=example,DC=ru"
+    bind_password     = ""
+    base_dn           = "DC=corp,DC=example,DC=ru"
+    user_filter       = "(sAMAccountName=%s)"
+    group_attr        = "memberOf"
+    start_tls         = true
+    skip_verify       = false
+    timeout           = "5s"
+    admin_group       = "CN=ktc-admins,OU=Groups,DC=corp,DC=example,DC=ru"
+    instructor_group  = "CN=ktc-instructors,OU=Groups,DC=corp,DC=example,DC=ru"
+    operator_group    = "CN=ktc-operators,OU=Groups,DC=corp,DC=example,DC=ru"
+
+    [pam]
+    enabled           = false
+    endpoint          = "https://pam.ktc-app.svc.cluster.local"
+
+    [security]
+    password_min_len   = 8
+    lockout_threshold  = 10000
+    lockout_window     = "15m"
+    lockout_duration   = "30m"
+    auth_rate_limit    = 10000
+    rate_limit_window  = "1m"
+    mfa_disabled       = true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: constructor-config
+  namespace: ktk-app
+data:
+  config.toml: |
+    [http]
+    addr              = ":8080"
+    read_timeout      = "10s"
+    write_timeout     = "10s"
+    shutdown_timeout  = "15s"
+
+    [db]
+    dsn               = "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+    max_conns         = 10
+    min_conns         = 2
+    conn_timeout      = "5s"
+    query_timeout     = "5s"
+
+    [s3]
+    endpoint          = "minio:9000"
+    bucket            = "component-icons"
+    access_key        = "ktcminio"
+    secret_key        = "ktcminio_secret"
+    use_ssl           = false
+
+    [seed]
+    enabled           = true
+    seed_file         = ""
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scenario-config
+  namespace: ktk-app
+data:
+  config.toml: |
+    [http]
+    addr              = ":8080"
+    read_timeout      = "10s"
+    write_timeout     = "10s"
+    shutdown_timeout  = "15s"
+
+    [db]
+    dsn               = "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+    max_conns         = 10
+    min_conns         = 2
+    conn_timeout      = "5s"
+    query_timeout     = "5s"
+
+    [seed]
+    enabled           = true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orchestrator-config
+  namespace: ktk-app
+data:
+  config.toml: |
+    [http]
+    addr              = ":8080"
+    read_timeout      = "10s"
+    write_timeout     = "30s"
+    shutdown_timeout  = "15s"
+
+    [db]
+    dsn               = "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+    max_conns         = 10
+    min_conns         = 2
+    conn_timeout      = "5s"
+    query_timeout     = "5s"
+
+    [redis]
+    addr              = "radix:7379"
+    password          = ""
+    db                = 0
+
+    [nats]
+    url               = "nats://nats:4222"
+
+    [clients]
+    constructor_url   = "http://constructor:8080"
+    scenario_url      = "http://scenario:8080"
+    sim_url           = "http://sim-worker:8081"
+    assessment_url    = "http://assessment:8080"
+    snapshot_url      = "http://snapshot:8080"
+
+    [telemetry]
+    hz                = 1.0
+    tick_timeout      = "2s"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: assessment-config
+  namespace: ktk-app
+data:
+  config.toml: |
+    [http]
+    addr              = ":8080"
+    read_timeout      = "10s"
+    write_timeout     = "10s"
+    shutdown_timeout  = "15s"
+
+    [db]
+    dsn               = "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+    max_conns         = 10
+    min_conns         = 2
+    conn_timeout      = "5s"
+    query_timeout     = "5s"
+
+    [clients]
+    scenario_url      = "http://scenario:8080"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: snapshot-config
+  namespace: ktk-app
+data:
+  config.toml: |
+    [http]
+    addr              = ":8080"
+    read_timeout      = "10s"
+    write_timeout     = "30s"
+    shutdown_timeout  = "15s"
+
+    [db]
+    dsn               = "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+    max_conns         = 10
+    min_conns         = 2
+    conn_timeout      = "5s"
+    query_timeout     = "5s"
+
+    [s3]
+    endpoint          = "minio:9000"
+    bucket            = "snapshots"
+    access_key        = "ktcminio"
+    secret_key        = "ktcminio_secret"
+    use_ssl           = false
+    region            = "us-east-1"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: report-config
+  namespace: ktk-app
+data:
+  config.toml: |
+    [http]
+    addr              = ":8080"
+    read_timeout      = "10s"
+    write_timeout     = "30s"
+    shutdown_timeout  = "15s"
+
+    [db]
+    dsn               = "postgres://admin:T0psecret@picodata:4327/postgres?sslmode=disable"
+    max_conns         = 10
+    min_conns         = 2
+    conn_timeout      = "5s"
+    query_timeout     = "5s"
+
+    [nats]
+    url               = "nats://nats:4222"
+    report_tasks_subj = "report.tasks"
+    queue_group       = "report-workers"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gw-config
+  namespace: ktk-app
+data:
+  config.toml: |
+    [http]
+    addr              = ":8080"
+    read_timeout      = "10s"
+    write_timeout     = "30s"
+    shutdown_timeout  = "15s"
+
+    [auth_client]
+    url               = "http://auth:8080/introspect"
+    timeout           = "3s"
+    cache_ttl         = "30s"
+    cache_max_size    = 1000
+
+    [security]
+    rate_limit_per_min = 2000
+
+    [upstreams.auth]
+    url = "http://auth:8080"
+
+    [upstreams.constructor]
+    url = "http://constructor:8080"
+
+    [upstreams.scenario]
+    url = "http://scenario:8080"
+
+    [upstreams.orchestrator]
+    url = "http://orchestrator:8080"
+
+    [upstreams.assessment]
+    url = "http://assessment:8080"
+
+    [upstreams.snapshot]
+    url = "http://snapshot:8080"
+
+    [upstreams.report]
+    url = "http://report:8080"
+
+    [upstreams.ai]
+    url = "http://ai:8080/v1"
+
+    [[routes]]
+    prefix       = "/api/v1/auth/login"
+    upstream     = "auth"
+    strip_prefix = "/api/v1/auth"
+    auth         = false
+
+    [[routes]]
+    prefix       = "/api/v1/auth/refresh"
+    upstream     = "auth"
+    strip_prefix = "/api/v1/auth"
+    auth         = false
+
+    [[routes]]
+    prefix       = "/api/v1/auth/mfa/enrollment"
+    upstream     = "auth"
+    strip_prefix = "/api/v1/auth"
+    auth         = false
+
+    [[routes]]
+    prefix       = "/api/v1/auth"
+    upstream     = "auth"
+    strip_prefix = "/api/v1/auth"
+    auth         = true
+
+    [[routes]]
+    prefix       = "/api/v1/users"
+    upstream     = "auth"
+    strip_prefix = "/api/v1"
+    auth         = true
+    roles        = ["admin", "instructor"]
+
+    [[routes]]
+    prefix       = "/api/v1/components"
+    upstream     = "constructor"
+    strip_prefix = "/api/v1"
+    auth         = true
+    roles        = ["instructor", "admin", "operator"]
+
+    [[routes]]
+    prefix       = "/api/v1/templates"
+    upstream     = "constructor"
+    strip_prefix = "/api/v1"
+    auth         = true
+    roles        = ["instructor", "admin", "operator"]
+
+    [[routes]]
+    prefix       = "/api/v1/scenarios"
+    upstream     = "scenario"
+    strip_prefix = "/api/v1"
+    auth         = true
+    roles        = ["instructor", "admin"]
+
+    [[routes]]
+    prefix       = "/api/v1/faults"
+    upstream     = "scenario"
+    strip_prefix = "/api/v1"
+    auth         = true
+    roles        = ["instructor", "admin"]
+
+    [[routes]]
+    prefix       = "/api/v1/sessions"
+    upstream     = "orchestrator"
+    strip_prefix = "/api/v1"
+    auth         = true
+
+    [[routes]]
+    prefix       = "/api/v1/assessment"
+    upstream     = "assessment"
+    strip_prefix = "/api/v1"
+    auth         = true
+    roles        = ["instructor", "admin", "operator"]
+
+    [[routes]]
+    prefix       = "/api/v1/snapshots"
+    upstream     = "snapshot"
+    strip_prefix = "/api/v1"
+    auth         = true
+    roles        = ["instructor", "admin"]
+
+    [[routes]]
+    prefix       = "/api/v1/reports"
+    upstream     = "report"
+    strip_prefix = "/api/v1"
+    auth         = true
+
+    [[routes]]
+    prefix       = "/api/v1/ws/sessions"
+    upstream     = "orchestrator"
+    strip_prefix = "/api/v1"
+    auth         = true
+    websocket    = true
+
+    [[routes]]
+    prefix       = "/api/v1/ai"
+    upstream     = "ai"
+    strip_prefix = "/api/v1/ai"
+    auth         = true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai
+  namespace: ktk-app
+spec:
+  type: ExternalName
+  externalName: ai-service.ktk-ai.svc.cluster.local
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sim-worker
+  namespace: ktk-app
+spec:
+  type: ExternalName
+  externalName: sim-worker.ktk-sim.svc.cluster.local
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth
+  namespace: ktk-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth
+  template:
+    metadata:
+      labels:
+        app: auth
+    spec:
+      containers:
+        - name: auth
+          image: registry.example.local/ktk-app/auth:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: ktk-app-secrets
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.toml
+              subPath: config.toml
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: auth-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth
+  namespace: ktk-app
+spec:
+  selector:
+    app: auth
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: constructor
+  namespace: ktk-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: constructor
+  template:
+    metadata:
+      labels:
+        app: constructor
+    spec:
+      containers:
+        - name: constructor
+          image: registry.example.local/ktk-app/constructor:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: ktk-app-secrets
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.toml
+              subPath: config.toml
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: constructor-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: constructor
+  namespace: ktk-app
+spec:
+  selector:
+    app: constructor
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario
+  namespace: ktk-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario
+  template:
+    metadata:
+      labels:
+        app: scenario
+    spec:
+      containers:
+        - name: scenario
+          image: registry.example.local/ktk-app/scenario:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: ktk-app-secrets
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.toml
+              subPath: config.toml
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: scenario-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scenario
+  namespace: ktk-app
+spec:
+  selector:
+    app: scenario
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  namespace: ktk-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orchestrator
+  template:
+    metadata:
+      labels:
+        app: orchestrator
+    spec:
+      containers:
+        - name: orchestrator
+          image: registry.example.local/ktk-app/orchestrator:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: ktk-app-secrets
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.toml
+              subPath: config.toml
+              readOnly: true
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: orchestrator-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+  namespace: ktk-app
+spec:
+  selector:
+    app: orchestrator
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: assessment
+  namespace: ktk-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: assessment
+  template:
+    metadata:
+      labels:
+        app: assessment
+    spec:
+      containers:
+        - name: assessment
+          image: registry.example.local/ktk-app/assessment:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: ktk-app-secrets
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.toml
+              subPath: config.toml
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: assessment-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: assessment
+  namespace: ktk-app
+spec:
+  selector:
+    app: assessment
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: snapshot
+  namespace: ktk-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: snapshot
+  template:
+    metadata:
+      labels:
+        app: snapshot
+    spec:
+      containers:
+        - name: snapshot
+          image: registry.example.local/ktk-app/snapshot:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: ktk-app-secrets
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.toml
+              subPath: config.toml
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: snapshot-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: snapshot
+  namespace: ktk-app
+spec:
+  selector:
+    app: snapshot
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: report
+  namespace: ktk-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: report
+  template:
+    metadata:
+      labels:
+        app: report
+    spec:
+      containers:
+        - name: report
+          image: registry.example.local/ktk-app/report:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: ktk-app-secrets
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.toml
+              subPath: config.toml
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: report-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: report
+  namespace: ktk-app
+spec:
+  selector:
+    app: report
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gw
+  namespace: ktk-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gw
+  template:
+    metadata:
+      labels:
+        app: gw
+    spec:
+      containers:
+        - name: gw
+          image: registry.example.local/ktk-app/gw:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: ktk-app-secrets
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.toml
+              subPath: config.toml
+              readOnly: true
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: gw-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gw
+  namespace: ktk-app
+spec:
+  selector:
+    app: gw
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: ktk-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: registry.example.local/ktk-app/frontend:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: ktk-app
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 8080
+      targetPort: 8080

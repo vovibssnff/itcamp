@@ -43,7 +43,13 @@ roles     = ["instructor"]
 [[auth.stub_users]]
 login     = "operator"
 password  = "operator123"
-full_name = "Оператор"
+full_name = "Щербаков Артём"
+roles     = ["operator"]
+
+[[auth.stub_users]]
+login     = "operator2"
+password  = "operator123"
+full_name = "Бессонов Владимир"
 roles     = ["operator"]
 
 [ldap]

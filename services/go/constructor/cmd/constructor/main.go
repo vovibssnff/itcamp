@@ -9,6 +9,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+
+	sharedcache "github.com/itcamp/ktc/shared/go/cache"
 
 	"github.com/itcamp/ktc/services/constructor/internal/config"
 	"github.com/itcamp/ktc/services/constructor/internal/repository"
@@ -42,11 +45,28 @@ func main() {
 	componentRepo := repository.NewComponentRepo(pg)
 	templateRepo := repository.NewTemplateRepo(pg)
 
-	componentSvc := service.NewComponentService(componentRepo).WithAudit(log)
+	var cacheClient *sharedcache.Cache
+	if cfg.Redis.Addr != "" {
+		cacheClient, err = sharedcache.New(ctx, cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.DB)
+		if err != nil {
+			log.Error("redis init failed, caching disabled", "error", err)
+		} else {
+			defer cacheClient.Close()
+			log.Info("redis cache connected", "addr", cfg.Redis.Addr)
+		}
+	}
 
-	validator := service.NewValidator(componentRepo.GetByIDSync)
-	exporter := service.NewExporter(componentRepo.GetByIDSync)
+	componentSvc := service.NewComponentService(componentRepo).WithAudit(log)
+	if cacheClient != nil {
+		componentSvc = componentSvc.WithCache(cacheClient, cacheTTL(cfg.Redis.TTL))
+	}
+
+	validator := service.NewValidator(componentSvc.GetSync)
+	exporter := service.NewExporter(componentSvc.GetSync)
 	templateSvc := service.NewTemplateService(templateRepo, validator, exporter).WithAudit(log)
+	if cacheClient != nil {
+		templateSvc = templateSvc.WithCache(cacheClient, cacheTTL(cfg.Redis.TTL))
+	}
 
 	if cfg.Seed.Enabled {
 		log.Info("seeding component library")
@@ -95,4 +115,11 @@ func main() {
 	}
 
 	log.Info("constructor server stopped gracefully")
+}
+
+func cacheTTL(d config.Duration) time.Duration {
+	if d.Std() > 0 {
+		return d.Std()
+	}
+	return 5 * time.Minute
 }

@@ -9,6 +9,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+
+	sharedcache "github.com/itcamp/ktc/shared/go/cache"
 
 	"github.com/itcamp/ktc/services/scenario/internal/config"
 	"github.com/itcamp/ktc/services/scenario/internal/repository"
@@ -42,9 +45,26 @@ func main() {
 	scenarioRepo := repository.NewScenarioRepo(pg)
 	faultRepo := repository.NewFaultRepo(pg)
 
+	var cacheClient *sharedcache.Cache
+	if cfg.Redis.Addr != "" {
+		cacheClient, err = sharedcache.New(ctx, cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.DB)
+		if err != nil {
+			log.Error("redis init failed, caching disabled", "error", err)
+		} else {
+			defer cacheClient.Close()
+			log.Info("redis cache connected", "addr", cfg.Redis.Addr)
+		}
+	}
+
 	triggerValidator := service.NewTriggerValidator()
 	scenarioSvc := service.NewScenarioService(scenarioRepo, triggerValidator).WithAudit(log)
+	if cacheClient != nil {
+		scenarioSvc = scenarioSvc.WithCache(cacheClient, cacheTTL(cfg.Redis.TTL))
+	}
 	faultSvc := service.NewFaultService(faultRepo)
+	if cacheClient != nil {
+		faultSvc = faultSvc.WithCache(cacheClient, cacheTTL(cfg.Redis.TTL))
+	}
 
 	if cfg.Seed.Enabled {
 		log.Info("seeding faults catalog")
@@ -93,4 +113,11 @@ func main() {
 	}
 
 	log.Info("scenario server stopped gracefully")
+}
+
+func cacheTTL(d config.Duration) time.Duration {
+	if d.Std() > 0 {
+		return d.Std()
+	}
+	return 5 * time.Minute
 }

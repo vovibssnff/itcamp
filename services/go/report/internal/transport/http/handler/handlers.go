@@ -3,7 +3,10 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/itcamp/ktc/services/report/internal/domain"
 	"github.com/itcamp/ktc/services/report/internal/service"
@@ -71,13 +74,27 @@ func (h *ReportHandler) Get(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, rep)
+	writeJSON(w, http.StatusOK, toReportResponse(rep))
 }
 
 func (h *ReportHandler) List(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.URL.Query().Get("session_id")
 	if sessionID == "" {
-		writeJSON(w, http.StatusOK, []any{})
+		// Журнал отчётов: admin/instructor видят все, operator — только свои.
+		operatorID := ""
+		if !isPrivileged(r) {
+			operatorID = r.Header.Get("X-User-ID")
+		}
+		reports, err := h.svc.ListAll(r.Context(), operatorID)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		resp := make([]ReportResponse, 0, len(reports))
+		for _, rep := range reports {
+			resp = append(resp, toReportResponse(rep))
+		}
+		writeJSON(w, http.StatusOK, resp)
 		return
 	}
 	reports, err := h.svc.ListBySession(r.Context(), sessionID)
@@ -85,7 +102,23 @@ func (h *ReportHandler) List(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, reports)
+	resp := make([]ReportResponse, 0, len(reports))
+	for _, rep := range reports {
+		resp = append(resp, toReportResponse(rep))
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// isPrivileged — admin/instructor видят все отчёты; operator — только свои.
+func isPrivileged(r *http.Request) bool {
+	raw := strings.TrimSpace(r.Header.Get("X-Roles"))
+	for _, p := range strings.Split(raw, ",") {
+		p = strings.TrimSpace(p)
+		if p == "admin" || p == "instructor" {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *ReportHandler) Download(w http.ResponseWriter, r *http.Request) {
@@ -99,10 +132,52 @@ func (h *ReportHandler) Download(w http.ResponseWriter, r *http.Request) {
 		writeError(w, domain.ErrReportNotReady)
 		return
 	}
-	if rep.StorageKey != "" {
-		w.Header().Set("Location", "/reports/"+id+"/file")
+	if rep.DownloadURL != "" {
+		// Redirect to the gateway-routed path (files are served behind /api/v1).
+		loc := rep.DownloadURL
+		if !strings.HasPrefix(loc, "/api/v1/") {
+			loc = "/api/v1" + loc
+		}
+		w.Header().Set("Location", loc)
 		w.WriteHeader(http.StatusFound)
 		return
 	}
 	w.WriteHeader(http.StatusNotFound)
+}
+
+func (h *ReportHandler) File(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	pdfBytes, err := h.svc.Download(r.Context(), id)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"report-%s.pdf\"", id))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(pdfBytes)
+}
+
+type ReportResponse struct {
+	ID          string    `json:"id"`
+	SessionID   string    `json:"session_id"`
+	Type        string    `json:"type"`
+	Status      string    `json:"status"`
+	DownloadURL string    `json:"download_url,omitempty"`
+	Error       string    `json:"error,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+func toReportResponse(r domain.Report) ReportResponse {
+	return ReportResponse{
+		ID:          r.ID,
+		SessionID:   r.SessionID,
+		Type:        string(r.Type),
+		Status:      string(r.Status),
+		DownloadURL: r.DownloadURL,
+		Error:       r.Error,
+		CreatedAt:   r.CreatedAt,
+		UpdatedAt:   r.UpdatedAt,
+	}
 }

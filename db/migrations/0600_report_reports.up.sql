@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS reports (
                     CHECK (status IN ('queued', 'processing', 'ready', 'failed')),
     canonical_json  TEXT NOT NULL DEFAULT '',
     storage_key     TEXT NOT NULL DEFAULT '',
+    download_url    TEXT NOT NULL DEFAULT '',
     error           TEXT NOT NULL DEFAULT '',
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()

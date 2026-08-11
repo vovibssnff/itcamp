@@ -396,6 +396,10 @@ func (m *MockAssessmentClient) Finalize(_ context.Context, sessionID string) err
 	return nil
 }
 
+func (m *MockAssessmentClient) CheckMissedSteps(_ context.Context, _ string, _ float64) error {
+	return nil
+}
+
 type MockSnapshotClient struct {
 	Snapshots map[string]domain.SimState
 	counter   int

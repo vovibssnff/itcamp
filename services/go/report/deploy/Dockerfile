@@ -1,7 +1,8 @@
 # build stage
 # Контекст сборки = services/go (содержит report/ + shared/),
 # поэтому replace ../shared резолвится корректно.
-FROM golang:1.22-alpine AS builder
+# go.mod требует go >= 1.25 (транзитивы minio-go/nats/crypto).
+FROM golang:1.25-alpine AS builder
 WORKDIR /src/report
 COPY report/go.mod report/go.sum* ./
 COPY shared/go.mod shared/go.sum* /src/shared/

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -19,11 +20,11 @@ func NewReportRepo(pg *Postgres) *ReportRepo {
 	return &ReportRepo{db: pg}
 }
 
-const reportCols = `id, session_id, type, status, canonical_json, storage_key, error, created_at, updated_at`
+const reportCols = `id, session_id, type, status, canonical_json, storage_key, download_url, error, created_at, updated_at`
 
 func (r *ReportRepo) scanReport(row pgx.Row) (domain.Report, error) {
 	var rep domain.Report
-	if err := row.Scan(&rep.ID, &rep.SessionID, &rep.Type, &rep.Status, &rep.CanonicalJSON, &rep.StorageKey, &rep.Error, &rep.CreatedAt, &rep.UpdatedAt); err != nil {
+	if err := row.Scan(&rep.ID, &rep.SessionID, &rep.Type, &rep.Status, &rep.CanonicalJSON, &rep.StorageKey, &rep.DownloadURL, &rep.Error, &rep.CreatedAt, &rep.UpdatedAt); err != nil {
 		return domain.Report{}, err
 	}
 	return rep, nil
@@ -40,6 +41,36 @@ func (r *ReportRepo) GetByID(ctx context.Context, id string) (domain.Report, err
 
 func (r *ReportRepo) ListBySession(ctx context.Context, sessionID string) ([]domain.Report, error) {
 	rows, err := r.db.Pool.Query(ctx, `SELECT `+reportCols+` FROM reports WHERE session_id = $1 ORDER BY created_at DESC`, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var reports []domain.Report
+	for rows.Next() {
+		rep, err := r.scanReport(rows)
+		if err != nil {
+			return nil, err
+		}
+		reports = append(reports, rep)
+	}
+	return reports, rows.Err()
+}
+
+// ListAll возвращает все отчёты (для admin/instructor) либо только те, что
+// относятся к сессиям указанного оператора. Если operatorID пуст — все отчёты.
+func (r *ReportRepo) ListAll(ctx context.Context, operatorID string) ([]domain.Report, error) {
+	q := `SELECT ` + reportCols + ` FROM reports`
+	args := []any{}
+	if operatorID != "" {
+		q = `SELECT r.id, r.session_id, r.type, r.status, r.canonical_json, r.storage_key, r.download_url, r.error, r.created_at, r.updated_at
+		     FROM reports r
+		     WHERE r.session_id IN (
+		         SELECT id FROM sessions WHERE operator_ids @> to_jsonb($1::text) OR instructor_id = $1
+		     )`
+		args = append(args, operatorID)
+	}
+	q += ` ORDER BY created_at DESC`
+	rows, err := r.db.Pool.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -85,6 +116,11 @@ func (r *ReportRepo) SetReady(ctx context.Context, id, canonicalJSON, storageKey
 		return domain.ErrReportNotFound
 	}
 	return nil
+}
+
+func (r *ReportRepo) SetDownloadURL(ctx context.Context, id, url string) error {
+	_, err := r.db.Pool.Exec(ctx, `UPDATE reports SET download_url = $2, updated_at = now() WHERE id = $1`, id, url)
+	return err
 }
 
 type ScoreData struct {
@@ -160,4 +196,26 @@ func (r *ReportRepo) GetFaults(ctx context.Context, sessionID string) ([]domain.
 		faults = append(faults, f)
 	}
 	return faults, rows.Err()
+}
+
+func (r *ReportRepo) GetSessionMeta(ctx context.Context, sessionID string) (domain.SessionData, error) {
+	var d domain.SessionData
+	var startedAt, stoppedAt *time.Time
+	err := r.db.Pool.QueryRow(ctx, `
+		SELECT s.id, s.mode, s.model_time, s.started_at, s.stopped_at,
+		       sc.name
+		FROM sessions s
+		LEFT JOIN scenarios sc ON sc.id = s.scenario_id
+		WHERE s.id = $1`, sessionID).
+		Scan(&d.SessionID, &d.Mode, &d.ModelTime, &startedAt, &stoppedAt, &d.ScenarioName)
+	if err != nil {
+		return domain.SessionData{}, err
+	}
+	if startedAt != nil {
+		d.StartedAt = startedAt.UTC().Format(time.RFC3339)
+	}
+	if stoppedAt != nil {
+		d.StoppedAt = stoppedAt.UTC().Format(time.RFC3339)
+	}
+	return d, nil
 }

@@ -109,4 +109,14 @@ func (h *AssessmentHandler) Replay(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, replay)
 }
 
+func (h *AssessmentHandler) CheckMissed(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		ModelTime float64 `json:"model_time"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	h.svc.CheckMissedSteps(r.Context(), id, req.ModelTime)
+	w.WriteHeader(http.StatusNoContent)
+}
+
 var _ = fmt.Sprintf

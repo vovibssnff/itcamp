@@ -5,9 +5,11 @@ import (
 	"errors"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/itcamp/ktc/services/constructor/internal/domain"
 	"github.com/itcamp/ktc/shared/go/audit"
+	sharedcache "github.com/itcamp/ktc/shared/go/cache"
 )
 
 // ComponentStore — зависимость ComponentService для тестов с mock-ами.
@@ -22,8 +24,10 @@ type ComponentStore interface {
 }
 
 type ComponentService struct {
-	repo ComponentStore
-	log  *slog.Logger
+	repo     ComponentStore
+	log      *slog.Logger
+	cache    *sharedcache.Cache
+	cacheTTL time.Duration
 }
 
 func NewComponentService(repo ComponentStore) *ComponentService {
@@ -37,7 +41,19 @@ func (s *ComponentService) WithAudit(log *slog.Logger) *ComponentService {
 }
 
 func (s *ComponentService) Get(ctx context.Context, id string) (domain.ComponentType, error) {
-	return s.repo.GetByID(ctx, id)
+	if s.cache != nil {
+		if cached, err := sharedcache.Get[domain.ComponentType](ctx, s.cache, componentCacheKeyPrefix+id); err == nil {
+			return cached, nil
+		}
+	}
+	c, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return domain.ComponentType{}, err
+	}
+	if s.cache != nil {
+		_ = sharedcache.Set(ctx, s.cache, componentCacheKeyPrefix+id, c, s.cacheTTL)
+	}
+	return c, nil
 }
 
 func (s *ComponentService) List(ctx context.Context, category, query string, limit, offset int) ([]domain.ComponentType, error) {
@@ -54,6 +70,7 @@ func (s *ComponentService) Create(ctx context.Context, c domain.ComponentType) (
 	if err := s.repo.Create(ctx, c); err != nil {
 		return domain.ComponentType{}, err
 	}
+	s.invalidateCache(ctx, c.ID)
 	IncComponentCreated()
 	audit.Emit(ctx, s.log, "component.created", "id", c.ID)
 	return c, nil
@@ -63,6 +80,7 @@ func (s *ComponentService) Update(ctx context.Context, c domain.ComponentType) (
 	if err := s.repo.Update(ctx, c); err != nil {
 		return domain.ComponentType{}, err
 	}
+	s.invalidateCache(ctx, c.ID)
 	audit.Emit(ctx, s.log, "component.updated", "id", c.ID)
 	return c, nil
 }
@@ -78,6 +96,7 @@ func (s *ComponentService) Delete(ctx context.Context, id string) error {
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return err
 	}
+	s.invalidateCache(ctx, id)
 	audit.Emit(ctx, s.log, "component.deleted", "id", id)
 	return nil
 }
@@ -119,6 +138,7 @@ func (s *ComponentService) Import(ctx context.Context, components []domain.Compo
 			result.Errors = append(result.Errors, ImportItemError{ID: c.ID, Index: i, Message: err.Error()})
 			continue
 		}
+		s.invalidateCache(ctx, c.ID)
 		if exists {
 			result.Updated++
 			audit.Emit(ctx, s.log, "component.imported", "id", c.ID, "action", "updated")

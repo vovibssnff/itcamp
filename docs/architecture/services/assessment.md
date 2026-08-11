@@ -1,81 +1,73 @@
 # Сервис: Assessment Engine — `assessment`
 
-> Слой: Прикладной | Namespace: `ktc-app` | Под: `assessment`
-> Смежно: `Реестр_сервисов...`, `Сценарии_экзамен...`, `Архитектура_КТК_K8s.drawio`
+> Язык: Go | Слой: Прикладной | HTTP: `:8081` (за gw) | Сервис: `services/go/assessment`
 
 ## 1. Назначение
 
-**«Экзаменатор и судья»** — оценивает действия оператора по эталону, накапливает штрафы, даёт итоговый вердикт. Работает даже при недоступности ИИ (rule-based фолбэк).
+**«Экзаменатор и судья»** — оценивает действия оператора по эталону сценария, накапливает
+штрафы, фиксирует критические ошибки и выдаёт итоговый вердикт. Работает **rule-based**
+(детерминированно) и не зависит от ИИ (NFR-REL-03).
+
+Реализация: **Go + REST** + Picodata + клиент к `scenario` (получение эталона).
 
 ## 2. Основные функции
 
-- Сравнение действий с **эталоном сценария** (эталон берёт из `scenario`/Picodata).
-- Начисление **штрафов**, отметка **критических ошибок** (HH/H/L/LL).
-- Итоговая **оценка**, переопределение инструктором (с записью в аудит).
-- **Append-only** журнал оценки с **HMAC-подписью** протокола.
-- Пост-экзамен разбор (сбор статистики ошибок для AI).
+- Приём событий (action/alarm) от `orchestrator` (FR-ASSESS-01/02).
+- Сравнение действий с **эталоном сценария** (`reference_actions`) — берётся из `scenario`.
+- Штрафы: просрочка (LATE_STEP), пропуск (MISSED_STEP), запрещённое действие (FR-ASSESS-03).
+- Критические ошибки → автоматический fail (FR-ASSESS-04).
+- Время реакции на аларм (FR-ASSESS-01).
+- Финализация вердикта (pass/fail) по порогу (FR-ASSESS-05).
+- Переопределение оценки инструктором с комментарием (FR-ASSESS-05).
+- **Replay**: действия, алармы, неисправности (FR-ASSESS-06).
+- **Расшифровка кодов** — отдаёт человекочитаемые `description` для алярмов/неисправностей в данных replay.
 
-## 3. Технологии
+## 3. Внутренняя структура
 
-Python-сервис (rule-based + таблицы эталонов).
+```
+cmd/assessment/main.go        — точка входа
+internal/
+  config/                     — конфиг TOML
+  domain/                     — Score, Penalty, CriticalError, ReactionTime, Override, Criteria
+  repository/                 — Picodata (assessments, overrides, replay)
+  client/                     — ScenarioClient (HTTP + mock)
+  service/                    — assessment_service, scoring_engine
+  transport/http/handler/     — REST handlers
+  server/                     — http.Server, маршруты, shutdown
+api/openapi.yaml              — REST-контракт
+deploy/config.example.toml    — пример конфигурации
+```
 
-## 4. Внутренняя структура
+## 4. Конфигурация
 
-- Модуль эталонов (загрузка из `scenario`).
-- Движок оценки (сравнение действий/тегов с эталоном, штрафы).
-- Модуль вердикта и переопределения (RBAC: инструктор — переопределение конкретной оценки; админ — настройка политики оценки/правил экзамена, просмотр статистики).
-- Публикация аудита (Fluent Bit → KUMA), HMAC-подпись протокола.
+Формат — **TOML** (`deploy/config.example.toml`). Путь через флаг `-config`.
+
+| Секция | Назначение |
+|---|---|
+| `[http]` | адрес/таймауты HTTP-сервера |
+| `[db]` | DSN и пул соединений Picodata |
+| `[clients]` | `scenario_url` — адрес сервиса scenario (эталон сценария, via HTTP + mock) |
 
 ## 5. API / контракты
 
-| Направление | Протокол | Методы |
+| Метод | Путь | Назначение |
 |---|---|---|
-| от `gw` | HTTPS/REST | `POST /assessment/session/{id}/result`, `POST /assessment/override` |
-| от `orchestrator` | HTTPS/REST | `POST /assessment/event` (действие/аларм), `GET /assessment/score` |
-| to `ai` | HTTPS/gRPC + mTLS | передача статистики ошибок (разбор) |
+| POST | /assessment/event?scenario_id= | Событие от orchestrator (action/alarm) |
+| GET | /assessment/session/{id}/score | Текущая оценка |
+| POST | /assessment/session/{id}/result | Финализировать вердикт |
+| POST | /assessment/override | Переопределить оценку (instructor) |
+| GET | /assessment/session/{id}/replay | Данные для replay (с расшифровкой описаний) |
 
-## 6. Зависимости и протоколы
+## 6. Данные
 
-| Взаимодействует с | Тип | Протокол |
-|---|---|---|
-| API Gateway (`gw`) | микросервис | HTTPS/REST, mTLS |
-| Session Orchestrator (`orchestrator`) | микросервис | HTTPS/REST, mTLS |
-| Scenario / Catalog (`scenario`) | микросервис | HTTPS/REST (эталон), mTLS |
-| AI Service (`ai`) | микросервис | HTTPS/gRPC + mTLS (статистика для разбора) |
-| Брокер сообщений (`broker`) | инфраструктура | события — NATS |
-| Picodata (`db`) | СУБД | SQL (append-only оценки) |
-| KUMA | SIEM | события ИБ (переопределение оценки) |
-| Пульт / Fluent Bit | observability | логи, `/metrics` |
+- Picodata: таблицы оценок, штрафов, вердиктов, переопределений, данные replay (append-only).
+- Эталон сценария — из `scenario` (не хранится локально).
 
-## 7. Данные
+## 7. Метрики
 
-- Пикодата: append-only таблицы оценок, штрафов, вердиктов, переопределений.
-- целостность журнала — HMAC/контроль целостности таблиц (SHA-256).
+- Число оценённых сессий/событий, задержка оценки, время до вердикта, события переопределения.
 
-## 8. Объекты Kubernetes (namespace `ktc-app`)
+## 8. Деградация / целостность
 
-| Объект | Описание |
-|---|---|
-| Deployment `assessment` | N≥2, HPA |
-| Service `assessment` | ClusterIP |
-| NetworkPolicy | accept от `gw` и `orchestrator`; egress к `db`, `ai`, `broker` |
-| Secret | ключ HMAC/тьфу для подписи протокола |
-| Pod + sidecar `istio-proxy` | mTLS |
-
-## 9. Метрики (в Пульт + Графиня)
-
-- Число оценённых сессий/событий.
-- Задержка оценки, время до вердикта.
-- События переопределения (→ KUMA).
-
-## 10. Отказоустойчивость / целостность
-
-- Rule-based фолбэк при недоступности ИИ (оценка не страдает).
-- Append-only + HMAC: защита от подмены оценки/логов (NFR-SEC-02).
-- Скаляруемый stateless-сервис.
-
-## 11. Открытые вопросы
-
-1. Механизм «переопределения итога» инструктором и его отражение в протоколе.
-2. Взаимодействие с `report` для протокола: `assessment` отдаёт данные, `report` подписывает.
-3. Правила начисления штрафов для разных аварий — конфигурируемость.
+- Rule-based — оценка не зависит от доступности ИИ.
+- Append-only журнал + целостность (SHA-256/HMAC) — защита от подмены оценки (NFR-SEC-02).

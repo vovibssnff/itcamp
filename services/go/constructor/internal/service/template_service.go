@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/itcamp/ktc/services/constructor/internal/domain"
 	"github.com/itcamp/ktc/shared/go/audit"
+	sharedcache "github.com/itcamp/ktc/shared/go/cache"
 )
 
 // TemplateStore — зависимость TemplateService для тестов с mock-ами.
@@ -24,6 +26,8 @@ type TemplateService struct {
 	validator *Validator
 	exporter  *Exporter
 	log       *slog.Logger
+	cache     *sharedcache.Cache
+	cacheTTL  time.Duration
 }
 
 func NewTemplateService(repo TemplateStore, validator *Validator, exporter *Exporter) *TemplateService {
@@ -37,7 +41,19 @@ func (s *TemplateService) WithAudit(log *slog.Logger) *TemplateService {
 }
 
 func (s *TemplateService) Get(ctx context.Context, id string) (domain.Template, error) {
-	return s.repo.GetByID(ctx, id)
+	if s.cache != nil {
+		if cached, err := sharedcache.Get[domain.Template](ctx, s.cache, templateCacheKeyPrefix+id); err == nil {
+			return cached, nil
+		}
+	}
+	t, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return domain.Template{}, err
+	}
+	if s.cache != nil {
+		_ = sharedcache.Set(ctx, s.cache, templateCacheKeyPrefix+id, t, s.cacheTTL)
+	}
+	return t, nil
 }
 
 func (s *TemplateService) List(ctx context.Context, authorID, status, query string, limit, offset int) ([]domain.Template, error) {
@@ -81,6 +97,7 @@ func (s *TemplateService) Update(ctx context.Context, t domain.Template) (domain
 	if err := s.repo.Update(ctx, t); err != nil {
 		return domain.Template{}, err
 	}
+	s.invalidateTemplateCache(ctx, t.ID)
 	IncTemplateUpdated()
 	audit.Emit(ctx, s.log, "template.updated", "id", t.ID)
 	return s.repo.GetByID(ctx, t.ID)
@@ -91,6 +108,7 @@ func (s *TemplateService) Delete(ctx context.Context, id string, force bool) err
 		if err := s.repo.UpdateStatus(ctx, id, domain.StatusArchived); err != nil {
 			return err
 		}
+		s.invalidateTemplateCache(ctx, id)
 		IncTemplateDeleted(false)
 		audit.Emit(ctx, s.log, "template.archived", "id", id)
 		return nil
@@ -98,6 +116,7 @@ func (s *TemplateService) Delete(ctx context.Context, id string, force bool) err
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return err
 	}
+	s.invalidateTemplateCache(ctx, id)
 	IncTemplateDeleted(true)
 	audit.Emit(ctx, s.log, "template.deleted", "id", id)
 	return nil

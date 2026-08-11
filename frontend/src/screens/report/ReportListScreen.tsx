@@ -31,7 +31,6 @@ export default function ReportListScreen() {
         const q = search.toLowerCase()
         items = items.filter(
           (r) =>
-            r.id.toLowerCase().includes(q) ||
             r.sessionId.toLowerCase().includes(q) ||
             r.status.toLowerCase().includes(q),
         )
@@ -40,7 +39,7 @@ export default function ReportListScreen() {
         if (sortBy === 'date') {
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         }
-        return a.id.localeCompare(b.id)
+        return a.sessionId.localeCompare(b.sessionId)
       })
       setTotal(items.length)
       const start = (page - 1) * PAGE_SIZE
@@ -88,7 +87,7 @@ export default function ReportListScreen() {
       >
         <Input
           prefix={<SearchOutlined style={{ color: 'var(--tx4)' }} />}
-          placeholder="ID отчёта, сессия…"
+          placeholder="Сессия…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ flex: '1 1 220px', maxWidth: 340 }}
@@ -110,7 +109,7 @@ export default function ReportListScreen() {
           style={{ width: 180 }}
           options={[
             { value: 'date', label: 'По дате (нов.)' },
-            { value: 'score', label: 'По ID' },
+            { value: 'score', label: 'По сессии' },
           ]}
         />
       </div>
@@ -119,11 +118,10 @@ export default function ReportListScreen() {
         <div
           className="tbl-hd"
           style={{
-            gridTemplateColumns: '1.2fr 1.4fr 120px 120px 100px',
+            gridTemplateColumns: '2fr 120px 140px 100px',
             background: 'var(--srf)',
           }}
         >
-          <div>Отчёт</div>
           <div>Сессия</div>
           <div>Тип</div>
           <div>Дата</div>
@@ -143,21 +141,9 @@ export default function ReportListScreen() {
             <div
               key={r.id}
               className="tbl-row"
-              style={{ gridTemplateColumns: '1.2fr 1.4fr 120px 120px 100px' }}
+              style={{ gridTemplateColumns: '2fr 120px 140px 100px' }}
               onClick={() => void navigate(`/reports/${r.id}`)}
             >
-              <div
-                style={{
-                  fontWeight: 500,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  fontFamily: 'var(--mono)',
-                  fontSize: 12,
-                }}
-              >
-                {r.id}
-              </div>
               <div
                 className="dim"
                 style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
@@ -167,10 +153,12 @@ export default function ReportListScreen() {
               <div className="dim">{r.type === 'exam' ? 'Экзамен' : 'Сессия'}</div>
               <div className="mono dim" style={{ fontSize: 11 }}>
                 {r.createdAt
-                  ? new Date(r.createdAt).toLocaleDateString('ru-RU', {
+                  ? new Date(r.createdAt).toLocaleString('ru-RU', {
                       day: '2-digit',
                       month: '2-digit',
                       year: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
                     })
                   : '—'}
               </div>

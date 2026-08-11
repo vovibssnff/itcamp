@@ -100,7 +100,7 @@ func (e *ScoringEngine) ApplyPenalties(maxScore int, penalties []domain.Penalty,
 
 func (e *ScoringEngine) isForbiddenAction(action domain.AssessmentEvent, ref domain.ReferenceAction) bool {
 	for _, critical := range e.criteria.CriticalActions {
-		if action.Action == critical {
+		if action.Action == critical || action.Target == critical {
 			return true
 		}
 	}

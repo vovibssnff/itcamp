@@ -95,7 +95,7 @@ export default function TrainingScreen() {
         }
       }
     })()
-  }, [sessionId])
+  }, [sessionId, setStatus])
 
   const nodes = template.nodes
   const edges = template.edges
@@ -170,10 +170,9 @@ export default function TrainingScreen() {
       send({ type: 'regulator_out', tag, out: value })
     } else if (type === 'regulator_mode') {
       send({ type: 'regulator_mode', tag, mode: value === 1 ? 'auto' : 'manual' })
-    } else {
-      send({ type: 'actuator', tag, value })
-    }
-    if (sessionId) {
+    } else if (sessionId) {
+      // Актюаторы шлём только по HTTP (авторитетный путь, пишет событие в журнал
+      // один раз). Дублирование по WS + HTTP приводило к задвоению событий.
       void sessionsApi.actuator(sessionId, tag, value).catch((err) => {
         void message.error(toErrorMessage(err, `Команда ${tag} не принята симулятором`))
       })
@@ -215,7 +214,7 @@ export default function TrainingScreen() {
       } catch {
         /* report may already exist or queue later */
       }
-      void navigate('/operator/sessions')
+      void navigate(`/reports/${sessionId}`)
     } catch (err) {
       void message.error(toErrorMessage(err, 'Не удалось завершить сессию'))
     }

@@ -25,6 +25,7 @@ type AssessmentClient interface {
 	SendEvent(ctx context.Context, sessionID, scenarioID, eventType string, data any) error
 	GetScore(ctx context.Context, sessionID string) (any, error)
 	Finalize(ctx context.Context, sessionID string) error
+	CheckMissedSteps(ctx context.Context, sessionID string, modelTime float64) error
 }
 
 type SnapshotClient interface {

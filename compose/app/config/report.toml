@@ -18,3 +18,12 @@ query_timeout     = "5s"
 url               = "nats://nats:4222"
 report_tasks_subj = "report.tasks"
 queue_group       = "report-workers"
+
+# PDF-хранилище (MinIO). Секреты перекрываются env: REPORT_S3_ENDPOINT/ACCESS_KEY/SECRET_KEY
+[s3]
+endpoint          = "minio:9000"
+bucket            = "reports"
+access_key        = "ktcminio"
+secret_key        = "ktcminio_secret"
+use_ssl           = false
+region            = "us-east-1"

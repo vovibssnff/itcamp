@@ -1,90 +1,74 @@
 # Сервис: API Gateway / BFF — `gw`
 
-> Слой: Прикладной | Namespace: `ktc-app` | Под: `gw`
-> Смежно: `Реестр_сервисов...`, `Сценарии_экзамен...`, `Архитектура_КТК_K8s.drawio`
+> Язык: Go | Слой: Прикладной | HTTP: `:8088` | Сервис: `services/go/gw`
 
 ## 1. Назначение
 
-**Прикладной контрактный слой («ворота для бизнеса»)** между клиентом и внутренними микросервисами. **Это НЕ сетевой прокси-вход в кластер** — вход, TLS-терминирование и маршрутизацию по host/path выполняет **Istio Ingress Gateway** (сетевой edge). API Gateway / BFF занимается **прикладной логикой входа**, которую сетевой уровень не делает полноценно: JWT/RBAC по ролям, агрегация данных, версионирование API, rate-limit на уровне пользователя/сессии, защита от прикладных атак. Скрывает внутренние сервисы за единым прикладным контрактом.
+**Единая точка входа** для всех клиентов — прикладной контрактный слой (BFF).
+Это не сетевой прокси-вход: `gw` выполняет **прикладную логику входа**: проверку JWT
+через `auth`, RBAC по ролям на уровне маршрута, rate-limiting, проксирование REST и
+WebSocket-телеметрии к внутренним сервисам. Внутренние сервисы скрыты за единым
+контрактом `/api/v1/*`.
 
-**Разнесение ролей (важно):**
-- **Istio Ingress Gateway** = сетевой вход: TLS, маршрутизация по host/path, балансировка, mTLS внутрь сети.
-- **API Gateway / BFF** = прикладной слой: аутентификация/авторизация, агрегация, версии, rate-limit на уровне сессии, прикладная защита. Не дублирует сетевую маршрутизацию.
+Реализация: **Go-сервис** (обратный прокси + BFF-middleware). Это НЕ Nginx/Angie —
+Angie используется только для раздачи статики фронтенда (см. `frontend.md`).
 
 ## 2. Основные функции
 
-- **Проверка JWT** и применение **RBAC** по ролям (бизнес-полномочия на уровне запроса).
-- **Агрегация (BFF-паттерн):** один клиентский запрос может собраться из нескольких внутренних сервисов.
-- **Версионирование API** и поддержание стабильного прикладного контракта (схемы).
-- **Rate limiting** на уровне пользователя/сессии (авторизация ≤10/мин, API ≤50/мин на endpoint) — тоньше, чем по IP.
-- **CSP** и защитные заголовки; единая прикладная защита от SQLi/XSS/CSRF (на уровне маршрута).
-- Проксирование **WebSocket**-телеметрии (L7) и раздача статики Frontend.
-- Логирование запросов, передача событий ИБ в аудит/KUMA.
-- **TLS входящего транспортa НЕ делает API Gateway** — это задача Ingress Gateway; API Gateway работает уже во внутренней (mTLS) сети.
+- **Trust boundary** (см. `auth.md` §6): `gw` — единственная точка проверки JWT через `auth /introspect`.
+- Проверенный контекст передаётся downstream заголовками `X-User-ID` / `X-Roles`; сам JWT дальше не рассылается.
+- **RBAC** на уровне маршрута (`roles` в таблице маршрутов).
+- **Rate limiting** per IP (`security.rate_limit_per_min`).
+- **Проксирование WebSocket** (телеметрия 1 Гц) с path-rewrite.
+- Агрегация (BFF) и стабильный прикладной контракт.
+- Не ходит в `sim`, `db`, `s3` напрямую.
 
-## 3. Технологии
+## 3. Внутренняя структура
 
-Nginx (→ отечественный форк **Angie**) или Backend-for-Frontend (Go/Python middleware). Проксирование WebSocket.
+```
+cmd/gw/main.go              — точка входа
+internal/
+  config/                   — конфиг TOML (upstreams, routes, auth_client, security)
+  auth/                     — клиент introspect + кэш токенов
+  proxy/                    — reverse proxy registry + path rewrite + WS
+  middleware/               — auth (introspect), inject headers, rbac, ratelimit, recover
+  server/                   — http.Server, маршруты из конфига, shutdown
+api/openapi.yaml            — полная таблица маршрутизации
+deploy/config.example.toml  — пример конфигурации
+```
 
-## 4. Внутренняя структура
+## 4. Конфигурация
 
-- Маршрутизатор (router/vhost) по путям `/api/*`.
-- Middleware-цепочка: auth (JWT) → RBAC → rate-limit → CSP → маршрут → upstream.
-- Обёртка для проксирования WSS.
-- Мониторинг-эндпоинт `/metrics` (HTTP-коды, latency, rate-limit, WS-соединения).
+Формат — **TOML** (`deploy/config.example.toml`). Путь через флаг `-config`.
 
-## 5. API / контракты (наружу)
-
-| Направление | Протокол | Назначение |
-|---|---|---|
-| Клиенты (браузеры), **через Istio Ingress Gateway** | HTTPS | статика + REST API (вход терминирует Ingress) |
-| Клиенты, **через Istio Ingress Gateway** | WSS | проксирование телеметрии |
-
-## 6. Зависимости и протоколы
-
-| Взаимодействует с | Тип | Протокол |
-|---|---|---|
-| Istio Ingress Gateway | инфраструктура mesh | HTTP, mTLS |
-| Frontend (`fe`) | микросервис | HTTPS/REST, WSS |
-| Auth / Session Service (`auth`) | микросервис | HTTPS/REST (JSON), mTLS |
-| Session Orchestrator (`orchestrator`) | микросервис | HTTPS/REST (команды), WS (прокси) |
-| Scenario / Catalog (`scenario`) | микросервис | HTTPS/REST, mTLS |
-| Assessment Engine (`assessment`) | микросервис | HTTPS/REST, mTLS |
-| Reporting (`report`) | микросервис | HTTPS/REST (запуск задач), mTLS |
-| Fluent Bit / promColl | observability | логи, `/metrics` |
-
-**Принцип:** никогда не ходит в `sim`, `db`, `s3` напрямую — только в свой внутренний слой.
-
-## 7. Данные
-
-- Не хранит бизнес-данные. Может кэшировать статику/токены (JWT validation cache) в памяти.
-- Секреты (ключи подписи JWT) берёт из секрет-хранилища.
-
-## 8. Объекты Kubernetes (namespace `ktc-app`)
-
-| Объект | Описание |
+| Секция | Назначение |
 |---|---|
-| Deployment `gw` | N≥2 реплики, RollingUpdate |
-| Service `gw` | ClusterIP (из Ingress) |
-| HPA | по CPU/памяти/числу соединений |
-| PDB | minAvailable≥1 |
-| NetworkPolicy | accept от Ingress, egress только к внутренним сервисам |
-| Pod + sidecar `istio-proxy` | mTLS, AuthorizationPolicy |
+| `[http]` | адрес/таймауты HTTP-сервера |
+| `[auth_client]` | URL `auth /introspect`, timeout, кэш токенов (ttl/размер) |
+| `[security]` | `rate_limit_per_min` |
+| `[upstreams.*]` | адреса внутренних сервисов (auth, constructor, scenario, orchestrator, assessment, snapshot, report, ai) |
+| `[[routes]]` | таблица маршрутизации `/api/v1/*` → upstream |
 
-## 9. Метрики (в Astra Monitoring)
+Каждый маршрут (`[[routes]]`):
+- `prefix` — путь-префикс (например `/api/v1/sessions`);
+- `upstream` — имя upstream-сервиса;
+- `strip_prefix` — префикс, вырезаемый перед проксированием (обычно `/api/v1`);
+- `auth` — проверять ли JWT через introspect (`false` для публичных `/login`, `/refresh`);
+- `roles` — RBAC (только указанные роли);
+- `websocket` — проксирование WS-upgrade.
 
-- HTTP-коды (2xx/4xx/5xx), задержки, число активных WS.
-- Срабатывания rate-limit, ошибки авторизации.
-- Число маршрутизаций на каждый upstream.
+## 5. API / контракты
 
-## 10. Отказоустойчивость / масштабирование
+Наружу отдаёт `/api/v1/*`. Полная таблица маршрутизации — в `api/openapi.yaml` и в
+`deploy/config.example.toml` (таблица `[[routes]]`).
 
-- Stateless, HPA, несколько реплик.
-- Rolling/Blue-Green обновление без даунтайма (readiness/healthz).
-- Единственная точка входа — защищается PDB и капацитетом, чтобы не стать бутылочным горлышком.
+## 6. Данные
 
-## 11. Открытые вопросы
+- Не хранит бизнес-данные.
+- Кэширует валидацию токенов в памяти (JWT validation cache).
+- Секреты (ключ подписи JWT) — во владении `auth`; `gw` обращается через `/introspect`.
 
-1. BFF на Go vs Nginx/Angie — какая комбинация для WebSocket-проксирования и rate-limit.
-2. Хранение/ротация ключа JWT и её синхронизация с `auth`.
-3. Необходимость WAF-модуля (частичная защита SQLi/XSS) на уровне gateway.
+## 7. Метрики
+
+- HTTP-коды (2xx/4xx/5xx), задержки, число активных WS-соединений.
+- Срабатывания rate-limit, ошибки авторизации, число маршрутизаций на upstream.

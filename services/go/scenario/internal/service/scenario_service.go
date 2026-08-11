@@ -6,9 +6,11 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/itcamp/ktc/services/scenario/internal/domain"
 	"github.com/itcamp/ktc/shared/go/audit"
+	sharedcache "github.com/itcamp/ktc/shared/go/cache"
 )
 
 type ScenarioStore interface {
@@ -26,6 +28,8 @@ type ScenarioService struct {
 	repo      ScenarioStore
 	validator *TriggerValidator
 	log       *slog.Logger
+	cache     *sharedcache.Cache
+	cacheTTL  time.Duration
 }
 
 func NewScenarioService(repo ScenarioStore, validator *TriggerValidator) *ScenarioService {
@@ -39,11 +43,11 @@ func (s *ScenarioService) WithAudit(log *slog.Logger) *ScenarioService {
 }
 
 func (s *ScenarioService) Get(ctx context.Context, id string) (domain.Scenario, error) {
-	return s.repo.GetByID(ctx, id)
+	return s.cachedGet(ctx, id)
 }
 
 func (s *ScenarioService) GetFull(ctx context.Context, id string) (domain.Scenario, error) {
-	return s.repo.GetByID(ctx, id)
+	return s.cachedGet(ctx, id)
 }
 
 func (s *ScenarioService) List(ctx context.Context, templateID, scenarioType, query string, limit, offset int) ([]domain.Scenario, error) {
@@ -78,6 +82,7 @@ func (s *ScenarioService) Update(ctx context.Context, sc domain.Scenario) (domai
 	if err := s.repo.Update(ctx, sc); err != nil {
 		return domain.Scenario{}, err
 	}
+	s.invalidateCache(ctx, sc.ID)
 	IncScenarioUpdated()
 	audit.Emit(ctx, s.log, "scenario.updated", "id", sc.ID)
 	return s.repo.GetByID(ctx, sc.ID)
@@ -87,6 +92,7 @@ func (s *ScenarioService) Delete(ctx context.Context, id string) error {
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return err
 	}
+	s.invalidateCache(ctx, id)
 	IncScenarioDeleted()
 	audit.Emit(ctx, s.log, "scenario.deleted", "id", id)
 	return nil

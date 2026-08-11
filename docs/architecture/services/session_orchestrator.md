@@ -1,93 +1,100 @@
 # Сервис: Session Orchestrator — `orchestrator`
 
-> Слой: Прикладной | Namespace: `ktc-app` | Под: `orchestrator`
+> Язык: Go | Слой: Прикладной | HTTP: `:8085` (за gw) | Сервис: `services/go/orchestrator`
 
 ## 1. Назначение
 
-**«Дирижёр» сессии обучения** — управляет жизненным циклом сессий и является «мозгом» real-time контура. Критичен к задержке (PERF-02), должен переживать отказы движка и ИИ (деградация).
+**«Дирижёр» сессии обучения** — «мозг» real-time контура. Управляет жизненным циклом
+сессий: запуск/пауза/стоп, модельное время, рассылка телеметрии 1 Гц по WebSocket,
+автоинъекция неисправностей из сценария, журналирование действий оператора, чекпоинты
+через snapshot. Координирует Simulation Engine, Assessment, Snapshot, AI, Broker.
+
+Реализация: **Go + REST/WebSocket** + Picodata + Radix (Redis) + NATS + клиенты gRPC/REST к sim/assessment/snapshot.
 
 ## 2. Основные функции
 
-- Создание/запуск/пауза/стоп сессий, управление режимом (Тренировка/Экзамен).
-- Получение конфигурации шаблона из `constructor` (init state) при старте сессии.
-- Управление **модельным временем** (0.1×–10×) через `sim`.
-- Рассылка **телеметрии 1 Гц** клиентам (WebSocket).
-- **Автоматическая инъекция неисправностей** из сценария (по времени/условию) → вызов `sim.inject_fault`.
-- **Чекпоинты** и координация save/restore (через snapshot).
-- Координация Simulation Engine, Assessment, AI, Broker.
-- Фиксация действий оператора и событий (журнал в Picodata).
-- Подключение инструктора в режиме **read-only** (наблюдение телеметрии через WS).
+- Создание/запуск/пауза/стоп сессий (FR-SESS-01/02).
+- Управление модельным временем `0.1×–10×` через sim (FR-SESS-03).
+- WS-телеметрия 1 Гц: канал оператора (RW) + канал наблюдения инструктора (RO) (FR-SESS-06).
+- Автоинъекция неисправностей из сценария по триггерам (time/condition) (FR-FLT-01..06).
+- Журналирование действий оператора и событий (append-only в Picodata).
+- Чекпоинты и restore через snapshot (FR-SNAP-01/02).
+- Координация sim, assessment, snapshot, ai, broker.
 
-## 3. Технологии
+## 3. Внутренняя структура
 
-Python/FastAPI, WebSocket, асинхронные задачи.
+```
+cmd/orchestrator/main.go       — точка входа
+internal/
+  config/                      — конфиг TOML (HTTP, DB, Redis, NATS, clients)
+  domain/                      — Session, Telemetry, OperatorAction, AlarmEvent, FaultEvent
+  repository/                  — Picodata (sessions, actions, alarms, faults)
+  client/                      — интерфейсы SimClient/AssessmentClient/SnapshotClient + mock
+  cache/                       — Radix (hot-state телеметрии)
+  events/                      — NATS publisher (session.events, report.tasks, ai.tasks)
+  service/                     — session_service, trigger_engine, ws_hub, ws_client
+  transport/http/handler/      — REST + WS handlers
+  server/                      — http.Server, маршруты, shutdown
+api/openapi.yaml               — REST + WS контракт
+deploy/config.example.toml     — пример конфигурации
+```
 
-## 4. Внутренняя структура
+## 4. Конфигурация
 
-- Диспетчер сессий (map session_id → состояние).
-- Цикл телеметрии: опрос `sim` (step) → push клиентам → кэш в Radix.
-- **Планировщик событий сценария**: проверка триггеров (время/условие) → inject_fault в sim.
-- Обработка команд клиентов (REST/WS).
-- Планировщик чекпоинтов и взаимодействие с snapshot/ai/broker.
+Формат — **TOML** (`deploy/config.example.toml`). Путь через флаг `-config`.
+
+| Секция | Назначение |
+|---|---|
+| `[http]` | адрес/таймауты HTTP-сервера |
+| `[db]` | DSN и пул соединений Picodata |
+| `[redis]` | адрес Radix/Redis, пароль, db (горячее состояние сессии) |
+| `[nats]` | URL брокера NATS |
+| `[clients]` | адреса constructor/scenario/sim/assessment/snapshot; `use_mock` — mock-клиенты (если сервис не готов) |
+| `[telemetry]` | `hz` (частота тика, по умолч. 1.0), `tick_timeout` |
+
+Зависимости (все через интерфейсы клиентов):
+
+| Зависимость | Протокол |
+|---|---|
+| Picodata | PG-wire (pgx) |
+| Radix | Redis (go-redis) |
+| NATS | NATS (nats.go) |
+| sim | gRPC Model API |
+| assessment | REST (events) |
+| snapshot | gRPC Save/Restore |
+| constructor | REST export |
+| scenario | REST full scenario |
 
 ## 5. API / контракты
 
-| Направление | Протокол | Методы |
+| Метод | Путь | Назначение |
 |---|---|---|
-| от `gw` | HTTPS/REST | `POST /session/start`, `/pause`, `/stop`, `GET /session/{id}`, `set_speed` |
-| к клиенту (оператор) | WebSocket | push телеметрии/статуса (RW — команды оператора) |
-| к клиенту (инструктор) | WebSocket | push телеметрии/статуса (read-only наблюдение) |
-| к `sim` | gRPC (Model API) | `step`, `get_state`, `set_state`, `inject_fault`, `set_speed` |
-| к `constructor` | HTTPS/REST | `GET /templates/{id}/export` (init state при старте) |
-| к `assessment` | HTTPS/REST | события действия/аларма, запрос оценки |
-| к `snapshot` | HTTPS/REST | save/restore |
-| к `ai` | HTTPS/gRPC + mTLS | подсказки/разбор (не в экзамене) |
-| к `broker` | NATS | асинхронные события сессии |
+| GET/POST | /sessions | Список / создание |
+| GET | /sessions/{id} | Статус |
+| POST | /sessions/{id}/start | Запуск |
+| POST | /sessions/{id}/pause | Пауза |
+| POST | /sessions/{id}/stop | Останов |
+| PUT | /sessions/{id}/speed | Скорость 0.1×–10× |
+| POST | /sessions/{id}/checkpoint | Снапшот |
+| POST | /sessions/{id}/restore | Восстановление |
+| POST | /sessions/{id}/actuator | Команда оператора |
+| POST | /sessions/{id}/alarms/{alarm_id}/ack | Квитирование |
+| GET (WS) | /ws/sessions/{id}/operator | Канал оператора (RW) |
+| GET (WS) | /ws/sessions/{id}/observe | Канал наблюдения (RO) |
 
-## 6. Зависимости и протоколы
+## 6. Данные
 
-| Взаимодействует с | Тип | Протокол |
-|---|---|---|
-| API Gateway (`gw`) | микросервис | HTTPS/REST, WS |
-| Constructor Service (`constructor`) | микросервис | HTTPS/REST, mTLS |
-| Simulation Engine (`sim`) | микросервис | gRPC (Model API), mTLS |
-| Assessment Engine (`assessment`) | микросервис | HTTPS/REST, mTLS |
-| Snapshot Service (`snapshot`) | микросервис | HTTPS/REST, mTLS |
-| AI Service (`ai`) | микросервис | HTTPS/gRPC + mTLS (fallback) |
-| Брокер сообщений (`broker`) | инфраструктура | NATS |
-| Picodata (`db`) | СУБД | SQL (PostgreSQL-wire) |
-| Radix (`cache`) | кэш | Redis-протокол (RESP), TCP |
-| Fluent Bit / Пульт | observability | логи, `/metrics` (tick-lag) |
+- Picodata: сессии, журналы действий/алармов/неисправностей, чекпоинт-метаданные.
+- Radix: горячее состояние сессии (телеметрия 1 Гц) для мгновенного доступа.
 
-## 7. Данные
+## 7. Метрики
 
-- Picodata: сессии, журналы действий/алармов, чекпоинт-метаданные.
-- Radix: горячее состояние сессии для мгновенного доступа.
-
-## 8. Объекты Kubernetes (namespace `ktc-app`)
-
-| Объект | Описание |
-|---|---|
-| Deployment `orchestrator` | N≥2 реплики (stateless диспетчер), HPA |
-| Service `orchestrator` | ClusterIP |
-| NetworkPolicy | egress к `sim`, `constructor`, `assessment`, `snapshot`, `ai`, `broker`, `db`, `cache` |
-| Pod + sidecar `istio-proxy` | mTLS |
-
-## 9. Метрики (в Пульт + Графиня)
-
-- **tick-lag** (главная метрика real-time), число активных сессий.
+- **tick-lag** (главная real-time-метрика), число активных сессий.
 - WS-нагрузка, latency телеметрии, время restore/чека.
 - Число подключённых инструкторов (read-only WS).
 
-## 10. Отказоустойчивость / масштабирование
+## 8. Деградация / отказоустойчивость
 
-- Диспетчер stateless (состояние сессии — в db/Radix) → перезапуск безопасен.
-- Падение `sim` → автоматический перезапуск + restore (≤15 с) без потери прогресса (≤3 мин).
-- Падение `ai` → деградация (rule-based).
-- HPA по числу сессий/нагрузке.
-
-## 11. Открытые вопросы
-
-1. «Владелец» финальной оценки — `orchestrator` или `assessment` (предлагаю: `assessment` считает, `orchestrator` финализирует).
-2. Опрос `sim` через step по одному на тик vs батч — влияние на 10× скорость.
-3. Размещение ленты телеметрии в Radix vs передача напрямую клиенту (буфер при обрыве).
+- Диспетчер stateless (состояние — в Picodata/Radix) → перезапуск безопасен.
+- `clients.use_mock = true` — работа без готовых sim/assessment/snapshot (для разработки).
+- Падение `ai` → деградация (rule-based), оценка не страдает.

@@ -12,6 +12,7 @@ import (
 type Config struct {
 	HTTP HTTPConfig `toml:"http"`
 	DB   DBConfig   `toml:"db"`
+	S3   S3Config   `toml:"s3"`
 	NATS NATSConfig `toml:"nats"`
 }
 
@@ -36,6 +37,15 @@ type NATSConfig struct {
 	QueueGroup      string `toml:"queue_group"`
 }
 
+type S3Config struct {
+	Endpoint  string `toml:"endpoint"`
+	Bucket    string `toml:"bucket"`
+	AccessKey string `toml:"access_key"`
+	SecretKey string `toml:"secret_key"`
+	UseSSL    bool   `toml:"use_ssl"`
+	Region    string `toml:"region"`
+}
+
 type Duration = sharedcfg.Duration
 
 func Load(path string) (Config, error) {
@@ -53,6 +63,15 @@ func Load(path string) (Config, error) {
 	}
 	if v := os.Getenv("REPORT_NATS_URL"); v != "" {
 		c.NATS.URL = v
+	}
+	if v := os.Getenv("REPORT_S3_ENDPOINT"); v != "" {
+		c.S3.Endpoint = v
+	}
+	if v := os.Getenv("REPORT_S3_ACCESS_KEY"); v != "" {
+		c.S3.AccessKey = v
+	}
+	if v := os.Getenv("REPORT_S3_SECRET_KEY"); v != "" {
+		c.S3.SecretKey = v
 	}
 	if c.NATS.ReportTasksSubj == "" {
 		c.NATS.ReportTasksSubj = "report.tasks"

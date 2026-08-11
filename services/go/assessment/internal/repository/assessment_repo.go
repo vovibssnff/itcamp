@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/itcamp/ktc/services/assessment/internal/domain"
+	"github.com/itcamp/ktc/shared/go/ktccatalog"
 )
 
 type AssessmentRepo struct {
@@ -112,7 +113,10 @@ func (r *AssessmentRepo) GetReplayData(ctx context.Context, sessionID string) (d
 			if err := rows2.Scan(&tagID, &priority, &mt); err != nil {
 				return domain.ReplayData{}, err
 			}
-			replay.Alarms = append(replay.Alarms, map[string]any{"tag_id": tagID, "priority": priority, "model_time": mt})
+			replay.Alarms = append(replay.Alarms, map[string]any{
+				"tag_id": tagID, "priority": priority, "model_time": mt,
+				"description": ktccatalog.TagDescriptionOf(tagID),
+			})
 		}
 	}
 
@@ -126,7 +130,10 @@ func (r *AssessmentRepo) GetReplayData(ctx context.Context, sessionID string) (d
 			if err := rows3.Scan(&faultID, &compID, &mt); err != nil {
 				return domain.ReplayData{}, err
 			}
-			replay.Faults = append(replay.Faults, map[string]any{"fault_id": faultID, "component": compID, "model_time": mt})
+			replay.Faults = append(replay.Faults, map[string]any{
+				"fault_id": faultID, "component": compID, "model_time": mt,
+				"description": ktccatalog.FaultDescription(faultID),
+			})
 		}
 	}
 

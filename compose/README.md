@@ -1,15 +1,15 @@
 # Локальный запуск стека КТК
 
-Стек разбит на три Docker Compose-слоя, эмулирующих Deckhouse-неймспейсы.
-Все три слоя разделяют сеть `ktc-data` (создаётся слоем `data`).
+Стек разбит на пять Docker Compose-слоёв, эмулирующих Deckhouse-неймспейсы.
+Все слои разделяют сеть `ktc-data` (создаётся слоем `data`).
 
 ```
 compose/
-  data/   ← ktc-local   : Postgres · Redis · MinIO · NATS · migrate
-  app/    ← ktc-dev     : auth · constructor · scenario · orchestrator
-                           assessment · snapshot · report · gw · frontend
-  sim/    ← ktc-sim     : sim-manager · sim-worker (телеметрия ЭЛОУ-АВТ)
-  ai/     ← ktk-ai      : ai-service · ollama (опционально)
+  data/        ← ktc-local : Picodata · Radix (Redis) · MinIO · NATS · migrate
+  app/         ← ktc-dev   : auth · constructor · scenario · orchestrator · assessment · snapshot · report · gw · frontend
+  sim/         ← ktk-sim   : sim-manager · sim-worker (телеметрия ЭЛОУ-АВТ)
+  ai/          ← ktk-ai    : ai-service · ollama (опционально)
+  monitoring/  ← ktk-mon   : prometheus · grafana · cadvisor (опционально)
 ```
 
 > Для живой телеметрии/неисправностей в операторской сессии поднимите
@@ -43,7 +43,7 @@ cp compose/ai/.env.example   compose/ai/.env
 |---|---|
 | `JWT_SIGNING_KEY` | Минимум 32 байта, HS256 |
 | `TOTP_ENCRYPTION_KEY` | Ровно 32 байта, AES-256 |
-| `DB_PASSWORD` | Пароль Postgres |
+| `DB_PASSWORD` | Пароль БД (Picodata/Postgres) |
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | MinIO credentials |
 
 ---
@@ -52,10 +52,10 @@ cp compose/ai/.env.example   compose/ai/.env
 
 ### Шаг 1 — Инфраструктурный слой (`ktc-local`)
 
-Создаёт сеть `ktc-data`, поднимает Postgres, Redis, MinIO, NATS и применяет DB-миграции.
+Создаёт сеть `ktc-data`, поднимает Picodata, Radix (Redis), MinIO, NATS и применяет DB-миграции.
 
 ```bash
-cd /home/vovi/Projects/itcamp
+cd /Users/shcherbakov.a.m/GolandProjects/opesource/itcamp
 
 docker compose --env-file compose/data/.env -f compose/data/compose.yaml up -d
 ```
@@ -77,7 +77,7 @@ docker compose --env-file compose/app/.env -f compose/app/compose.yaml up -d --b
 > При первом запуске включены seed-данные (`seed.enabled = true` в конфигах):
 > компоненты ЭЛОУ-АВТ, шаблон установки и 10 учебных/экзаменационных сценариев.
 
-### Шаг 2b — Симулятор (`ktc-sim`, для live HMI)
+### Шаг 2b — Симулятор (`ktk-sim`, для live HMI)
 
 Нужен для реальной телеметрии и каталога неисправностей `FLT-*` в тренировке/экзамене.
 
@@ -106,6 +106,20 @@ docker compose --env-file compose/ai/.env -f compose/ai/compose.yaml \
 > Чат базы знаний будет использовать детерминированные ответы по регламенту
 > вместо реального LLM.
 
+### Шаг 4 — Мониторинг (`ktk-mon`, опционально)
+
+Поднимает Prometheus + Grafana + cAdvisor для метрик платформы и контейнеров.
+
+```bash
+cp compose/monitoring/.env.example compose/monitoring/.env
+docker compose --env-file compose/monitoring/.env -f compose/monitoring/compose.yaml \
+  up -d --build
+```
+
+> Пока собран только core (prometheus + grafana + cadvisor). Пер-сервисные
+> `targets` в `prometheus.yml` уже заведены и «оживут», когда сервисы начнут
+> экспонировать `/metrics` в формате Prometheus.
+
 ---
 
 ## Проверка
@@ -130,8 +144,13 @@ ktc-dev-snapshot-1       Up ...
 ktc-dev-report-1         Up ...
 ktc-dev-gw-1             Up ...
 ktc-dev-frontend-1       Up ... (healthy)
+ktk-sim-sim-manager-1    Up ...
+ktk-sim-sim-worker-1     Up ... (healthy)
 ktk-ai-ollama-1          Up ...
 ktk-ai-ai-service-1      Up ... (healthy)
+ktk-mon-prometheus-1     Up ...
+ktk-mon-grafana-1        Up ...
+ktk-mon-cadvisor-1       Up ...
 ```
 
 ---
@@ -153,6 +172,9 @@ ktk-ai-ai-service-1      Up ... (healthy)
 | Ollama | http://localhost:11434 | |
 | MinIO Console | http://localhost:9001 | |
 | NATS Monitor | http://localhost:8222 | |
+| Prometheus | http://localhost:9090 | |
+| Grafana | http://localhost:3000 | admin/admin |
+| cAdvisor | http://localhost:18080 | |
 
 ---
 
@@ -160,14 +182,18 @@ ktk-ai-ai-service-1      Up ... (healthy)
 
 ```bash
 # Остановить все слои (данные сохраняются):
+docker compose --env-file compose/monitoring/.env -f compose/monitoring/compose.yaml down
 docker compose --env-file compose/ai/.env  -f compose/ai/compose.yaml  down
 docker compose --env-file compose/app/.env -f compose/app/compose.yaml down
 docker compose --env-file compose/data/.env -f compose/data/compose.yaml down
+docker compose --env-file compose/sim/.env  -f compose/sim/compose.yaml  down
 
 # Полный сброс включая volumes (БД, модели):
+docker compose --env-file compose/monitoring/.env -f compose/monitoring/compose.yaml down -v
 docker compose --env-file compose/ai/.env  -f compose/ai/compose.yaml  down -v
 docker compose --env-file compose/app/.env -f compose/app/compose.yaml down -v
 docker compose --env-file compose/data/.env -f compose/data/compose.yaml down -v
+docker compose --env-file compose/sim/.env  -f compose/sim/compose.yaml  down -v
 ```
 
 ---
@@ -189,21 +215,22 @@ docker compose --env-file compose/app/.env -f compose/app/compose.yaml \
 ## Архитектура сети
 
 ```
-                    ┌─────────────────────────────────────────────┐
-                    │              сеть: ktc-data                  │
-  ┌─────────────┐   │   ┌──────────┐  ┌──────┐  ┌──────────────┐ │
-  │  ktc-local  │   │   │  ktc-dev │  │      │  │   ktk-ai     │ │
-  │             │   │   │          │  │  gw  │  │              │ │
-  │ postgres    │───┤   │ auth     │  │:8088 │  │ ai-service   │ │
-  │ redis       │   │   │ construc.│──│──────│  │  alias: "ai" │ │
-  │ minio       │   │   │ scenario │  │      │  │              │ │
-  │ nats        │   │   │ orchestr.│  │      │  │ ollama       │ │
-  │ migrate     │   │   │ assessm. │  │      │  │ (optional)   │ │
-  └─────────────┘   │   │ snapshot │  │      │  └──────────────┘ │
-                    │   │ report   │  │      │                    │
-                    │   │ frontend │  │      │                    │
-                    │   └──────────┘  └──────┘                    │
-                    └─────────────────────────────────────────────┘
+                     ┌────────────────────────────────────────────────┐
+                     │                сеть: ktc-data                   │
+  ┌─────────────┐    │  ┌──────────┐  ┌──────┐ ┌───────────┐ ┌─────┐  │
+  │  ktc-local  │    │  │  ktc-dev │  │      │ │  ktk-sim  │ │ ktk-│  │
+  │             │    │  │          │  │  gw  │ │           │ │ ai  │  │
+  │ picodata    │────┤  │ auth     │  │:8088 │ │ sim-      │ │ ai- │  │
+  │ radix(redis)│    │  │ construc.│──│──────┤ │ manager   │ │srvce│  │
+  │ minio       │    │  │ scenario │  │      │ │ sim-      │ │ alias:│ │
+  │ nats        │    │  │ orchestr.│  │      │ │ worker    │ │ "ai"│  │
+  │ migrate     │    │  │ assessm. │  │      │ │           │ │     │  │
+  └─────────────┘    │  │ snapshot │  │      │ └───────────┘ │ollama│  │
+                     │  │ report   │  │      │               │     │  │
+                     │  │ frontend │  │      │               │     │  │
+                     │  └──────────┘  └──────┘               └─────┘  │
+                     │  ktk-mon (prometheus · grafana · cadvisor)     │
+                     └────────────────────────────────────────────────┘
 ```
 
 DNS-имя `ai` (network alias на `ktc-data`) позволяет `gw` обращаться к

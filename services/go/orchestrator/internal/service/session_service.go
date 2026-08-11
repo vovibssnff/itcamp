@@ -18,6 +18,7 @@ import (
 type TelemetryStore interface {
 	SaveTelemetry(ctx context.Context, sessionID string, t domain.Telemetry) error
 	GetTelemetry(ctx context.Context, sessionID string) (domain.Telemetry, error)
+	DeleteTelemetry(ctx context.Context, sessionID string) error
 }
 
 type SessionService struct {
@@ -152,7 +153,7 @@ func (s *SessionService) Start(ctx context.Context, id string) (domain.Session, 
 	}
 
 	// Preload assessment scoring session (criteria) before ticks/events.
-	if err := s.assessment.SendEvent(ctx, id, sess.ScenarioID, "session_start", map[string]any{"mode": sess.Mode}); err != nil {
+	if err := s.assessment.SendEvent(ctx, id, sess.ScenarioID, "session_start", map[string]any{"mode": sess.Mode, "model_time": sess.ModelTime}); err != nil {
 		s.log.WarnContext(ctx, "assessment preload failed", "session", id, "error", err)
 	}
 
@@ -239,6 +240,7 @@ func (s *SessionService) Stop(ctx context.Context, id string) (domain.Session, e
 	if err := s.assessment.Finalize(ctx, id); err != nil {
 		s.log.WarnContext(ctx, "assessment finalize failed", "session", id, "error", err)
 	}
+	_ = s.cache.DeleteTelemetry(ctx, id)
 
 	if err := s.repo.UpdateStatus(ctx, id, domain.StatusStopped, modelTime); err != nil {
 		return domain.Session{}, err
@@ -355,13 +357,14 @@ func (s *SessionService) AckAlarm(ctx context.Context, id, alarmID, userID strin
 		return err
 	}
 	mt := sess.ModelTime
-	// Prefer sim ACK by tag when alarmID looks like a tag; also accept opaque ids.
-	_ = s.sim.Command(ctx, id, "ACK_ALARM", alarmID, nil)
 	if err := s.repo.AckAlarm(ctx, alarmID, mt, userID); err != nil {
 		return err
 	}
+	_ = s.assessment.SendEvent(ctx, id, sess.ScenarioID, "alarm_ack", map[string]any{
+		"tag_id":     alarmID,
+		"model_time": mt,
+	})
 	s.hub.BroadcastAlarmClear(id, alarmID)
-	s.pushAfterCommand(ctx, id, 1)
 	return nil
 }
 
@@ -597,6 +600,10 @@ func (r *SessionRunner) tick(ctx context.Context) {
 	fired := r.engine.CheckTriggers(ctx, r.sessionID, state.ModelTime, state.Tags, r.svc.sim, r.svc.repo, r.svc.publisher)
 	for _, f := range fired {
 		r.svc.hub.BroadcastFault(r.sessionID, faultForWS(f))
+	}
+
+	if r.svc.assessment != nil {
+		_ = r.svc.assessment.CheckMissedSteps(ctx, r.sessionID, state.ModelTime)
 	}
 }
 

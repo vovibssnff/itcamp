@@ -89,3 +89,21 @@ func (c *HTTPAssessmentClient) Finalize(ctx context.Context, sessionID string) e
 	}
 	return nil
 }
+
+func (c *HTTPAssessmentClient) CheckMissedSteps(ctx context.Context, sessionID string, modelTime float64) error {
+	payload, _ := json.Marshal(map[string]any{"model_time": modelTime})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url+"/assessment/session/"+sessionID+"/check-missed", bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("assessment check missed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("assessment check missed: status %d", resp.StatusCode)
+	}
+	return nil
+}

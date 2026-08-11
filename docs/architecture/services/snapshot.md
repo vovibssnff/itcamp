@@ -1,78 +1,70 @@
 # Сервис: Snapshot Service — `snapshot`
 
-> Слой: Прикладной | Namespace: `ktc-app` | Под: `snapshot`
-> Смежно: `Реестр_сервисов...`, `Сценарии_экзамен...`, `Архитектура_КТК_K8s.drawio`, `Simulation_Engine...k8s.md`
+> Язык: Go | Слой: Прикладной | HTTP: `:8086` (за gw) | Сервис: `services/go/snapshot`
 
 ## 1. Назначение
 
-**«Сохранение игры»** — сохранение и восстановление полного состояния сессии (метаданные в БД + payload в S3). Работает с объектным хранилищем и тяжёлой сериализацией, выполняет barrier на границе тика.
+**«Сохранение игры»** — сохранение и восстановление полного состояния сессии:
+payload в объектное хранилище (S3/MinIO) + метаданные в Picodata + контроль целостности
+(SHA-256). Используется для чекпоинтов, restore после сбоя и presets стартовых состояний.
+
+Реализация: **Go + REST** + MinIO/S3 + Picodata.
 
 ## 2. Основные функции
 
-- **save**: полное состояние (модель, контуры, алармы, прогресс оценки, модельное время) → payload в S3 + метаданные в Picodata + **SHA-256**.
-- **restore**: восстановление сессии из снапшота (≤15 с), возврат к состоянию детерминированно (включая ГПСЧ).
-- Автосохранение (чекпоинт) для защиты от обрыва ≤3 мин.
-- Контроль целостности (SHA-256) и подписи (HMAC для приложений экзамена).
-- В **экзамене** restore ученику запрещён (антифрод, помечается в протоколе).
+- **save**: полное состояние (модель, регуляторы, алармы, оценка, модельное время, ГПСЧ) → gzip → MinIO + метаданные в Picodata + SHA-256 (FR-SNAP-01/04).
+- **restore**: загрузка из MinIO, проверка SHA-256, возврат состояния для `sim.set_state` (FR-SNAP-02).
+- **Presets**: immutable стартовые состояния (FR-SNAP-03).
+- Удаление: нельзя удалить preset (FR-SNAP-03).
+- Ёмкость: ≥10 000 состояний (NFR-SCL-03).
 
-## 3. Технологии
+## 3. Внутренняя структура
 
-Python, S3 SDK (MinIO — MVP, отечественное S3-совместимое — target), сериализация состояния (канонический JSON).
+```
+cmd/snapshot/main.go          — точка входа
+internal/
+  config/                     — конфиг TOML (HTTP, DB, S3)
+  domain/                     — SnapshotMeta, SaveRequest/Response, RestoreRequest/Response
+  repository/                 — Picodata (метаданные снапшотов)
+  storage/                    — MinIO/S3 (gzip + SHA-256)
+  service/                    — snapshot_service (save, restore, validate, delete)
+  transport/http/handler/     — REST handlers
+  server/                     — http.Server, маршруты, shutdown
+api/openapi.yaml              — REST-контракт
+deploy/config.example.toml    — пример конфигурации
+```
 
-## 4. Внутренняя структура
+## 4. Конфигурация
 
-- Сервисный контроллер (save/restore по команде `orchestrator`).
-- Модуль сериализации/десериализации состояния (get_state/set_state).
-- S3-клиент + метаданные в Picodata.
-- Проверка целостности (SHA-256/HMAC).
+Формат — **TOML** (`deploy/config.example.toml`). Путь через флаг `-config`.
+
+| Секция | Назначение |
+|---|---|
+| `[http]` | адрес/таймауты HTTP-сервера |
+| `[db]` | DSN и пул соединений Picodata |
+| `[s3]` | endpoint MinIO, bucket `snapshots`, credentials (access/secret), `use_ssl`, `region` |
 
 ## 5. API / контракты
 
-| Направление | Протокол | Методы |
+| Метод | Путь | Назначение |
 |---|---|---|
-| от `orchestrator` | HTTPS/REST | `POST /snapshot/save`, `POST /snapshot/restore`, `GET /snapshot/{id}` |
-| к `sim` (через orchestrator) | Model API | `get_state` / `set_state` |
-| к S3 | S3 API | PUT/GET object |
+| POST | /snapshots/save | Сохранить состояние (payload → S3, meta → DB) |
+| POST | /snapshots/restore | Восстановить (S3 → проверка SHA-256) |
+| GET | /snapshots | Список (фильтр: session_id, is_preset) |
+| GET | /snapshots/{id} | Метаданные |
+| DELETE | /snapshots/{id} | Удалить (не preset) |
 
-## 6. Зависимости и протоколы
+## 6. Данные
 
-| Взаимодействует с | Тип | Протокол |
-|---|---|---|
-| Session Orchestrator (`orchestrator`) | микросервис | HTTPS/REST, mTLS |
-| S3 (Object Storage) | хранилище | S3 API (HTTPS, AWS Signature V4) |
-| Picodata (`db`) | СУБД | SQL (метаданные снапшотов) |
-| Simulation Engine (через orchestrator) | микросервис | Model API |
-| Пульт | observability | `/metrics` (время restore) |
-| KUMA | SIEM | события аудита операций save/restore (антифрод) |
+- Picodata: метаданные снапшота (id, session_id, время, автор, schema_version, SHA-256, storage_key).
+- S3 (MinIO): сжатый immutable payload (gzip). Целостность — SHA-256.
+- Ёмкость: ≥10 000 сохранённых состояний (SCL-02).
 
-## 7. Данные
+## 7. Метрики
 
-- Пикодата: метаданные снапшота (id, session_id, время, автор, schema_version, SHA-256, storage_key).
-- S3: сжатый immutабельный payload. Целостность — SHA-256; для приложений экзамена — HMAC.
-- Объём: ≥10 000 сохранённых состояний (SCL-02).
+- Время save/restore (PERF-03 ≤15 с), число операций, размер payload, ошибки целостности.
 
-## 8. Объекты Kubernetes (namespace `ktc-app`)
+## 8. Отказоустойчивость / целостность
 
-| Объект | Описание |
-|---|---|
-| Deployment `snapshot` | N≥2, HPA (по нагрузке save/restore) |
-| Service `snapshot` | ClusterIP |
-| NetworkPolicy | accept от `orchestrator`; egress к `db`, `s3` |
-| Pod + sidecar `istio-proxy` | mTLS |
-
-## 9. Метрики (в Пульт + Графиня)
-
-- Время save/restore (PERF-03 ≤15 с).
-- Число операций, размер payload, ошибки целостности.
-
-## 10. Отказоустойчивость / согласованность
-
-- Barrier на границе тика — согласованность состояния.
-- Replicация S3 + резервы Picodata.
+- Barrier на границе тика — согласованность состояния (координация с `orchestrator`).
 - Restore валидируется (SHA-256) перед применением; при сбое — фолбэк на последний валидный.
-
-## 11. Открытые вопросы
-
-1. Частота чекпоинтов (автосохранение) для защиты от обрыва ≤3 мин.
-2. Хранение больших номерений: стратегия ротации/удаления старых снапшотов.
-3. Детерминированный restore: подтверждение включения ГПСЧ в снапшот.

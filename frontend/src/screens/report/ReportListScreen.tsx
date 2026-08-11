@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router'
 import { Input, Select, Empty, Spin, message } from 'antd'
-import { SearchOutlined, DownloadOutlined, PlusOutlined } from '@ant-design/icons'
+import { SearchOutlined, DownloadOutlined } from '@ant-design/icons'
 import { Pill, ListPagination } from '@/components/ui'
 import { reportsApi } from '@/api/reports'
 import type { ReportMeta } from '@/api/mappers'
@@ -18,7 +18,6 @@ export default function ReportListScreen() {
   const [search, setSearch] = useState('')
   const [modeFilter, setModeFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'date' | 'score'>('date')
-  const [generateSessionId, setGenerateSessionId] = useState('')
 
   const fetchReports = useCallback(async () => {
     setLoading(true)
@@ -62,19 +61,6 @@ export default function ReportListScreen() {
   useEffect(() => {
     setPage(1)
   }, [search, modeFilter, sortBy])
-
-  async function queueReport() {
-    if (!generateSessionId.trim()) return
-    try {
-      const report = await reportsApi.create(generateSessionId.trim(), 'session')
-      void message.success(`Отчёт создан (${report.status})`)
-      setGenerateSessionId('')
-      void fetchReports()
-      void navigate(`/reports/${report.id}`)
-    } catch {
-      void message.error('Не удалось поставить отчёт в очередь')
-    }
-  }
 
   return (
     <div className="wrap">
@@ -127,15 +113,6 @@ export default function ReportListScreen() {
             { value: 'score', label: 'По ID' },
           ]}
         />
-        <Input
-          placeholder="session_id для генерации"
-          value={generateSessionId}
-          onChange={(e) => setGenerateSessionId(e.target.value)}
-          style={{ width: 220 }}
-        />
-        <button className="btn btn-acc btn-sm" onClick={() => void queueReport()}>
-          <PlusOutlined /> Сформировать
-        </button>
       </div>
 
       <div className="cell rise d2" style={{ padding: 0, overflow: 'hidden', marginBottom: 18 }}>

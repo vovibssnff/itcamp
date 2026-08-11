@@ -28,13 +28,22 @@ export const scenariosApi = {
     if (import.meta.env.VITE_MOCK_API !== 'true') {
       delete q.status
     }
-    const raw = await unwrap<unknown[]>(
+    const raw = await unwrap<unknown>(
       apiClient.GET('/api/v1/scenarios', {
         params: { query: q as never },
       }),
     )
-    if (Array.isArray(raw)) return raw
     void qs
+    // Backend writes a bare JSON array (nil slice → null). OpenAPI documents
+    // `{ scenarios: [...] }` — accept both so the operator picker never crashes.
+    if (Array.isArray(raw)) return raw
+    if (
+      raw &&
+      typeof raw === 'object' &&
+      Array.isArray((raw as { scenarios?: unknown }).scenarios)
+    ) {
+      return (raw as { scenarios: unknown[] }).scenarios
+    }
     return []
   },
 

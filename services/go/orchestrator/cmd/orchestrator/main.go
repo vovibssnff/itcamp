@@ -82,6 +82,13 @@ func main() {
 	hub := service.NewWSHub()
 	sessionRepo := repository.NewSessionRepo(pg)
 
+	if n, err := sessionRepo.MarkOrphanedActiveStopped(ctx); err != nil {
+		log.Error("failed to close orphaned sessions", "error", err)
+		os.Exit(1)
+	} else if n > 0 {
+		log.Info("closed orphaned sessions left running after prior process exit", "count", n)
+	}
+
 	sessionSvc := service.NewSessionService(
 		sessionRepo, redisCache, publisher,
 		simClient, assessmentClient, snapshotClient,

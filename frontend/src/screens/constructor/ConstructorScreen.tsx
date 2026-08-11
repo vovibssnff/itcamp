@@ -19,6 +19,7 @@ import { type ComponentType } from '@/mocks/fixtures/components'
 import type { Template } from '@/mocks/fixtures/templates'
 import { templatesApi } from '@/api/templates'
 import { componentsApi } from '@/api/components'
+import { toErrorMessage } from '@/api/errors'
 import { tokens } from '@/theme/tokens'
 
 const CANVAS_PADDING = 240 // palette width
@@ -97,8 +98,8 @@ export default function ConstructorScreen() {
       await templatesApi.update(id, { ...template, nodes, edges })
       markClean()
       void message.success('Шаблон сохранён')
-    } catch {
-      void message.error('Ошибка сохранения')
+    } catch (err) {
+      void message.error(toErrorMessage(err, 'Ошибка сохранения'))
     }
   }, [id, template, nodes, edges, markClean])
 

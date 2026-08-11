@@ -210,7 +210,7 @@ export default function ExamScreen() {
       </div>
 
       <div ref={containerRef} style={{ flex: 1, overflow: 'hidden' }}>
-        {template.scheme === 'elou-avt' ? (
+        {template.id === 'tmpl-elou-avt' || template.scheme === 'elou-avt' ? (
           <EloudAvtScheme
             telemetry={telemetry}
             interactive

@@ -60,12 +60,25 @@ func canAccessSession(r *http.Request, sess domain.Session) bool {
 	return false
 }
 
-func requirePrivileged(w http.ResponseWriter, r *http.Request) bool {
-	if isPrivileged(rolesFromHeader(r)) {
+func canCreateSession(r *http.Request, mode string, operatorIDs []string) bool {
+	roles := rolesFromHeader(r)
+	if isPrivileged(roles) {
 		return true
 	}
-	writeError(w, domain.ErrForbidden)
-	return false
+	if !hasAnyRole(roles, "operator") {
+		return false
+	}
+	uid := userIDFromHeader(r)
+	if uid == "" {
+		return false
+	}
+	if mode == "" {
+		mode = string(domain.ModeTraining)
+	}
+	if mode != string(domain.ModeTraining) {
+		return false
+	}
+	return len(operatorIDs) == 1 && operatorIDs[0] == uid
 }
 
 func loadSessionOrDeny(h *SessionHandler, w http.ResponseWriter, r *http.Request, id string) (domain.Session, bool) {

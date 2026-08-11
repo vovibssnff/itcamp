@@ -71,10 +71,13 @@ func main() {
 	if cfg.Seed.Enabled {
 		log.Info("seeding component library")
 		if err := componentSvc.Seed(ctx, seeds.Library()); err != nil {
-			log.Error("seed failed", "error", err)
-		} else {
-			log.Info("seed completed")
+			log.Error("component seed failed", "error", err)
 		}
+		log.Info("seeding templates")
+		if err := templateSvc.Seed(ctx, seeds.DemoTemplates()); err != nil {
+			log.Error("template seed failed", "error", err)
+		}
+		log.Info("seed completed")
 	}
 
 	srv := server.New(server.Deps{

@@ -67,6 +67,11 @@ export default function TrainingScreen() {
     void (async () => {
       try {
         const session = await sessionsApi.get(sessionId)
+        // Self-service create+start already left the session running — enable
+        // WS + «Завершить» without forcing a second «Начать».
+        if (session.status === 'running' || session.status === 'paused') {
+          setStarted(true)
+        }
         try {
           const components = await componentsApi.list()
           if (components.length) setComponentTypes(components)
@@ -131,12 +136,14 @@ export default function TrainingScreen() {
     if (!sessionId) return
     try {
       await sessionsApi.action(sessionId, 'stop')
+      clearSession()
+      setStarted(false)
       try {
         await reportsApi.create(sessionId, 'session')
       } catch {
         /* report may already exist or queue later */
       }
-      void navigate(`/reports/${sessionId}`)
+      void navigate('/operator/sessions')
     } catch (err) {
       void message.error(toErrorMessage(err, 'Не удалось завершить сессию'))
     }
@@ -222,7 +229,7 @@ export default function TrainingScreen() {
         {/* HMI canvas */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div ref={containerRef} style={{ flex: 1, overflow: 'hidden' }}>
-            {template.scheme === 'elou-avt' ? (
+            {template.id === 'tmpl-elou-avt' || template.scheme === 'elou-avt' ? (
               <EloudAvtScheme
                 telemetry={telemetry}
                 interactive={started}

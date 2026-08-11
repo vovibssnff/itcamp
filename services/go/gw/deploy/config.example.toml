@@ -95,20 +95,20 @@ strip_prefix = "/api/v1"
 auth         = true
 roles        = ["instructor", "admin", "operator"]
 
-# --- Scenario (instructor/admin) ---
+# --- Scenario (instructor/admin write; operator can read for self-service training) ---
 [[routes]]
 prefix       = "/api/v1/scenarios"
 upstream     = "scenario"
 strip_prefix = "/api/v1"
 auth         = true
-roles        = ["instructor", "admin"]
+roles        = ["instructor", "admin", "operator"]
 
 [[routes]]
 prefix       = "/api/v1/faults"
 upstream     = "scenario"
 strip_prefix = "/api/v1"
 auth         = true
-roles        = ["instructor", "admin"]
+roles        = ["instructor", "admin", "operator"]
 
 # --- Sessions (instructor/operator) ---
 [[routes]]

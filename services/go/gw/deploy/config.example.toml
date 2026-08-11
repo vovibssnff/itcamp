@@ -39,6 +39,9 @@ url = "http://snapshot.ktc-app.svc.cluster.local:8080"
 [upstreams.report]
 url = "http://report.ktc-app.svc.cluster.local:8080"
 
+[upstreams.ai]
+url = "http://ai.ktc-app.svc.cluster.local:8080/v1"
+
 # === Маршруты (таблица маршрутизации /api/v1/* → upstream) ===
 # auth = true → проверка JWT через introspect + инъекция X-User-ID/X-Roles
 # roles = [...] → RBAC (только указанные роли)
@@ -77,20 +80,20 @@ strip_prefix = "/api/v1"
 auth         = true
 roles        = ["admin", "instructor"]
 
-# --- Constructor (instructor/admin) ---
+# --- Constructor (instructor/admin/operator) ---
 [[routes]]
 prefix       = "/api/v1/components"
 upstream     = "constructor"
 strip_prefix = "/api/v1"
 auth         = true
-roles        = ["instructor", "admin"]
+roles        = ["instructor", "admin", "operator"]
 
 [[routes]]
 prefix       = "/api/v1/templates"
 upstream     = "constructor"
 strip_prefix = "/api/v1"
 auth         = true
-roles        = ["instructor", "admin"]
+roles        = ["instructor", "admin", "operator"]
 
 # --- Scenario (instructor/admin) ---
 [[routes]]
@@ -114,13 +117,13 @@ upstream     = "orchestrator"
 strip_prefix = "/api/v1"
 auth         = true
 
-# --- Assessment (instructor/admin) ---
+# --- Assessment (instructor/admin/operator) ---
 [[routes]]
 prefix       = "/api/v1/assessment"
 upstream     = "assessment"
 strip_prefix = "/api/v1"
 auth         = true
-roles        = ["instructor", "admin"]
+roles        = ["instructor", "admin", "operator"]
 
 # --- Snapshots metadata (instructor/admin) ---
 [[routes]]
@@ -144,3 +147,10 @@ upstream     = "orchestrator"
 strip_prefix = "/api/v1"
 auth         = true
 websocket    = true
+
+# --- AI (any authenticated, proxy → ai /v1/*) ---
+[[routes]]
+prefix       = "/api/v1/ai"
+upstream     = "ai"
+strip_prefix = "/api/v1/ai"
+auth         = true

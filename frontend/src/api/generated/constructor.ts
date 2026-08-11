@@ -199,6 +199,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/components/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Пакетный импорт типов компонентов (upsert) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ImportComponentsRequest"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ImportResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/templates": {
         parameters: {
             query?: never;
@@ -527,7 +566,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Template"];
+                        "application/json": components["schemas"]["TemplateImportResult"];
                     };
                 };
             };
@@ -608,6 +647,22 @@ export interface components {
             }[];
         };
         Error: components["schemas"]["error"];
+        ImportComponentsRequest: {
+            components: components["schemas"]["component_type"][];
+        };
+        ImportResult: {
+            created?: number;
+            updated?: number;
+            errors?: {
+                id?: string;
+                index?: number;
+                message?: string;
+            }[];
+        };
+        TemplateImportResult: {
+            template?: components["schemas"]["Template"];
+            validation?: components["schemas"]["ValidationResult"];
+        };
         /**
          * Component Type
          * @description Тип компонента библиотеки КТС (SRD §3.2, Приложение A)

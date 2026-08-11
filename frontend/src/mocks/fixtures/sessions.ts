@@ -1,22 +1,5 @@
-import type { SessionStatus } from '@/store/session'
-
-export interface SessionRecord {
-  id: string
-  templateId: string
-  templateName: string
-  operatorId: string
-  operatorIds?: string[]
-  operatorName: string
-  instructorId: string
-  scenarioId?: string
-  scenarioName?: string
-  mode: 'training' | 'exam'
-  status: SessionStatus
-  startedAt: string | null
-  finishedAt: string | null
-  speed: number
-  reportId?: string
-}
+import type { SessionRecord } from '@/types'
+export type { SessionRecord } from '@/types'
 
 export const SESSIONS: SessionRecord[] = [
   {

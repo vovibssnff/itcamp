@@ -61,11 +61,7 @@ export async function ensureAccessToken(): Promise<string | null> {
 
 function isAuthEndpoint(url: string): boolean {
   const path = new URL(url, 'http://local').pathname
-  return (
-    path.includes('/api/v1/auth/login') ||
-    path.includes('/api/v1/auth/refresh') ||
-    path.includes('/api/v1/auth/mfa/enrollment')
-  )
+  return path.includes('/api/v1/auth/login') || path.includes('/api/v1/auth/refresh')
 }
 
 const authMiddleware: Middleware = {

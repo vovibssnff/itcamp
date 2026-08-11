@@ -13,34 +13,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Вход (public, прокси → auth /login) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        login?: string;
-                        /** Format: password */
-                        password?: string;
-                        mfa_code?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description JWT tokens или mfa_required */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Вход (public) */
+        post: operations["login"];
         delete?: never;
         options?: never;
         head?: never;
@@ -56,25 +30,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Ротация токенов (public, прокси → auth /refresh) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Новая пара токенов */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
+        /** Ротация токенов (public) */
+        post: operations["refreshToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/enrollment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        get?: never;
+        put?: never;
+        /** MFA enrollment — получить secret/otpauth_uri (public, по enrollment_token) */
+        post: operations["mfaEnrollment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -90,25 +64,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Отзыв (прокси → auth /logout) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Отзыв refresh-токена */
+        post: operations["logout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -122,25 +79,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Профиль (прокси → auth /me) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description User profile */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Профиль текущего пользователя */
+        get: operations["getMe"];
         put?: never;
         post?: never;
         delete?: never;
@@ -156,45 +96,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Список пользователей (admin) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Users list */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Список пользователей */
+        get: operations["listUsers"];
         put?: never;
-        /** Создать пользователя (admin) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -208,70 +113,79 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Карточка пользователя (admin) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description User */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        /** Изменить (admin) */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Updated */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Карточка пользователя */
+        get: operations["getUser"];
+        put?: never;
         post?: never;
-        /** Деактивировать (admin) */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        /** Статус MFA пользователя */
+        get: operations["getUserMFAStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/mfa/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Настроить TOTP для пользователя (вернуть secret) */
+        post: operations["setupUserMFA"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/mfa/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Активировать MFA (подтвердить кодом) */
+        post: operations["enableUserMFA"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/mfa/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Отключить MFA */
+        post: operations["disableUserMFA"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -284,45 +198,28 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Каталог компонентов (прокси → constructor /components) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Components list */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Каталог типов компонентов */
+        get: operations["listComponents"];
         put?: never;
-        /** Создать тип (instructor/admin) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
+        /** Создать тип компонента */
+        post: operations["createComponent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/components/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        get?: never;
+        put?: never;
+        /** Пакетный импорт типов компонентов (JSON-массив) */
+        post: operations["importComponents"];
         delete?: never;
         options?: never;
         head?: never;
@@ -336,67 +233,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Component */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Updated */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Тип компонента по ID */
+        get: operations["getComponent"];
+        /** Обновить тип компонента */
+        put: operations["updateComponent"];
         post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Удалить тип компонента */
+        delete: operations["deleteComponent"];
         options?: never;
         head?: never;
         patch?: never;
@@ -409,45 +252,28 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Каталог шаблонов (прокси → constructor /templates) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Templates list */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Каталог шаблонов */
+        get: operations["listTemplates"];
         put?: never;
-        /** Создать шаблон (instructor) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
+        /** Создать шаблон */
+        post: operations["createTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        get?: never;
+        put?: never;
+        /** Импорт шаблона из файла (прокси → constructor) */
+        post: operations["importTemplate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -461,67 +287,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Template */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Updated */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Шаблон по ID */
+        get: operations["getTemplate"];
+        /** Обновить шаблон */
+        put: operations["updateTemplate"];
         post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Удалить шаблон */
+        delete: operations["deleteTemplate"];
         options?: never;
         head?: never;
         patch?: never;
@@ -536,27 +308,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Deep clone (instructor) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Cloned */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Deep clone шаблона */
+        post: operations["copyTemplate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -572,27 +325,42 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Валидация графа (instructor) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description ValidationResult */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
+        /** Валидация графа шаблона */
+        post: operations["validateTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/{id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        /** Экспорт шаблона — JSON-тело с validation (programmatic) */
+        get: operations["exportTemplate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/{id}/export-file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Выгрузка графа JSON как файл (Content-Disposition attachment) */
+        get: operations["exportTemplateFile"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -606,45 +374,45 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Каталог сценариев (прокси → scenario /scenarios) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Scenarios list */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Каталог сценариев */
+        get: operations["listScenarios"];
         put?: never;
-        /** Создать сценарий (instructor) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
+        /** Создать сценарий */
+        post: operations["createScenario"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scenarios/exam": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        /** Случайный экзаменационный сценарий (для старта exam-сессии) */
+        get: operations["getExamScenario"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scenarios/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Пакетный импорт сценариев */
+        post: operations["importScenarios"];
         delete?: never;
         options?: never;
         head?: never;
@@ -658,67 +426,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Scenario */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Updated */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Сценарий по ID */
+        get: operations["getScenario"];
+        /** Обновить сценарий */
+        put: operations["updateScenario"];
         post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Удалить сценарий */
+        delete: operations["deleteScenario"];
         options?: never;
         head?: never;
         patch?: never;
@@ -733,27 +447,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Клон сценария (instructor) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Cloned */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
+        /** Клонировать сценарий */
+        post: operations["cloneScenario"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scenarios/{id}/full": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        /** Полный сценарий с триггерами, эталонными действиями и критериями */
+        get: operations["getScenarioFull"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -767,25 +479,42 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Каталог неисправностей (прокси → scenario /faults) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Faults catalog */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
+        /** Каталог неисправностей */
+        get: operations["listFaults"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/faults/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        get?: never;
+        put?: never;
+        /** Пакетный импорт неисправностей */
+        post: operations["importFaults"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/faults/{fault_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Неисправность по ID */
+        get: operations["getFault"];
         put?: never;
         post?: never;
         delete?: never;
@@ -801,45 +530,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Список сессий (прокси → orchestrator /sessions) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Sessions list */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Список сессий (операторы видят только свои) */
+        get: operations["listSessions"];
         put?: never;
-        /** Создать сессию (instructor) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Создать сессию (instructor/admin) */
+        post: operations["createSession"];
         delete?: never;
         options?: never;
         head?: never;
@@ -853,26 +548,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Session */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Сессия по ID */
+        get: operations["getSession"];
         put?: never;
         post?: never;
         delete?: never;
@@ -881,7 +558,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/sessions/{id}/{action}": {
+    "/api/v1/sessions/{id}/start": {
         parameters: {
             query?: never;
             header?: never;
@@ -890,28 +567,127 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** start | pause | resume | stop | checkpoint | restore | actuator */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                    action: "start" | "pause" | "resume" | "stop" | "checkpoint" | "restore" | "actuator";
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
+        /** Запустить сессию */
+        post: operations["startSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        get?: never;
+        put?: never;
+        /** Поставить на паузу */
+        post: operations["pauseSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Возобновить */
+        post: operations["resumeSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Остановить */
+        post: operations["stopSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{id}/checkpoint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Сохранить чекпоинт (снапшот) */
+        post: operations["checkpointSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Восстановить из снапшота */
+        post: operations["restoreSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{id}/actuator": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Команда актуатору (оператор) */
+        post: operations["sendActuator"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{id}/alarms/{alarm_id}/ack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Квитировать аварийный сигнал (REST, доступно для instructor через observe) */
+        post: operations["ackAlarm"];
         delete?: never;
         options?: never;
         head?: never;
@@ -926,27 +702,8 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Скорость модельного времени */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Updated */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Изменить скорость модельного времени */
+        put: operations["setSessionSpeed"];
         post?: never;
         delete?: never;
         options?: never;
@@ -961,27 +718,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Текущая оценка (прокси → assessment) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Score */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Текущая оценка сессии */
+        get: operations["getSessionScore"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1000,24 +738,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Переопределить оценку (instructor) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Overridden */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        post: operations["overrideScore"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1031,27 +752,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Данные replay */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Replay data */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Данные для replay-просмотра */
+        get: operations["getSessionReplay"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1067,25 +769,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Список снапшотов (прокси → snapshot /snapshots) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Snapshots list */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Список снапшотов (пресеты и чекпоинты) */
+        get: operations["listSnapshots"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1101,29 +786,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Snapshot meta */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Метаданные снапшота */
+        get: operations["getSnapshot"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Удалить снапшот (пресеты удалять нельзя) */
+        delete: operations["deleteSnapshot"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1137,44 +805,10 @@ export interface paths {
             cookie?: never;
         };
         /** Список отчётов */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Reports list */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        get: operations["listReports"];
         put?: never;
-        /** Запрос отчёта (прокси → report /reports) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Queued */
-                202: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Запрос генерации отчёта */
+        post: operations["createReport"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1188,26 +822,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Report */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Отчёт по ID */
+        get: operations["getReport"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1223,28 +839,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Redirect to S3 */
-                302: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** Скачать отчёт (redirect 302 → S3 presigned URL) */
+        get: operations["downloadReport"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Вопрос к базе знаний (Knowledge AI chat) */
+        post: operations["aiChat"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1258,27 +873,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** WS-канал оператора (RW) — телеметрия, команды */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Switching Protocols */
-                101: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        /** WS-канал оператора (RW) — телеметрия, команды, алармы */
+        get: operations["wsOperator"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1295,60 +891,7 @@ export interface paths {
             cookie?: never;
         };
         /** WS-канал наблюдения (read-only, instructor) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Switching Protocols */
-                101: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** React SPA (статика) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description HTML */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        get: operations["wsObserve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1364,24 +907,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
+        /** Liveness probe */
+        get: operations["healthz"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        /** Prometheus metrics (scraped by Prometheus; не для браузера) */
+        get: operations["metrics"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1394,23 +938,353 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        Error: components["schemas"]["error"];
-        /** Problem Details (RFC 7807) */
-        error: {
+        Error: {
+            error?: string;
+            code?: string;
+        };
+        LoginRequest: {
+            login: string;
+            /** Format: password */
+            password: string;
+            /** @description TOTP-код (только если MFA включён) */
+            mfa_code?: string;
+        };
+        TokenResponse: {
+            access_token?: string;
+            refresh_token?: string;
+            /** @description Время жизни access-токена, секунды */
+            expires_in?: number;
+            /** @example Bearer */
+            token_type?: string;
+        };
+        MFARequiredResponse: {
+            mfa_required?: boolean;
+            user_id?: string;
+            login?: string;
+            /** @description Обменять на secret/otpauth_uri через /auth/mfa/enrollment */
+            enrollment_token?: string;
+        };
+        MFAEnrollmentResponse: {
+            secret?: string;
+            otpauth_uri?: string;
+            login?: string;
+        };
+        RefreshRequest: {
+            refresh_token: string;
+        };
+        LogoutRequest: {
+            refresh_token: string;
+        };
+        User: {
+            /** Format: uuid */
+            id?: string;
+            login?: string;
+            full_name?: string;
+            ldap_dn?: string;
+            roles?: string[];
+            /** @enum {string} */
+            status?: "active" | "disabled";
+            mfa_enabled?: boolean;
+        };
+        MFAStatusResponse: {
+            enabled?: boolean;
+        };
+        MFAVerifyRequest: {
+            /** @description 6-значный TOTP-код */
+            code: string;
+        };
+        MFASetupResponse: {
+            secret?: string;
+        };
+        Port: {
+            id?: string;
+            name?: string;
+            /** @enum {string} */
+            type?: "liquid" | "gas" | "steam" | "electric" | "signal";
+            /** @enum {string} */
+            direction?: "in" | "out";
+            required?: boolean;
+        };
+        Parameter: {
+            id?: string;
+            name?: string;
+            unit?: string;
+            /** @enum {string} */
+            type?: "float" | "int" | "bool" | "string" | "select";
+            default?: unknown;
+            min?: number;
+            max?: number;
+            options?: string[];
+        };
+        ComponentType: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            category?: string;
+            description?: string;
+            ports?: components["schemas"]["Port"][];
+            parameters?: components["schemas"]["Parameter"][];
+            model_code?: string;
+            icon_s3_key?: string;
+            documentation?: string;
+        };
+        Position: {
+            x?: number;
+            y?: number;
+        };
+        Node: {
+            id?: string;
+            component_type_id?: string;
+            label?: string;
+            position?: components["schemas"]["Position"];
+            parameters?: {
+                [key: string]: unknown;
+            };
+            ports?: {
+                [key: string]: unknown;
+            };
+        };
+        Edge: {
+            id?: string;
+            /** @enum {string} */
+            type?: "liquid" | "gas" | "steam" | "electric" | "signal";
+            from?: {
+                node_id?: string;
+                port?: string;
+            };
+            to?: {
+                node_id?: string;
+                port?: string;
+            };
+        };
+        Graph: {
+            schema_version?: string;
+            nodes?: components["schemas"]["Node"][];
+            edges?: components["schemas"]["Edge"][];
+            layout?: {
+                mnemo_positions?: {
+                    [key: string]: unknown;
+                };
+                custom_labels?: {
+                    [key: string]: string;
+                };
+            };
+        };
+        Template: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            description?: string;
+            author_id?: string;
+            /** @enum {string} */
+            status?: "draft" | "published" | "archived";
+            graph?: components["schemas"]["Graph"];
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        TemplateExport: {
+            template?: components["schemas"]["Template"];
+            validation?: {
+                valid?: boolean;
+                errors?: string[];
+            };
+        };
+        FaultParams: {
+            severity_pct?: number;
+            ramp_seconds?: number;
+        };
+        Trigger: {
+            /** @enum {string} */
+            type?: "time" | "condition";
+            /** @description Модельное время срабатывания (type=time) */
+            at_model_time?: number;
+            condition?: {
+                tag?: string;
+                /** @enum {string} */
+                op?: ">=" | "<=" | ">" | "<" | "==";
+                value?: number;
+                for_seconds?: number;
+            };
+        };
+        ScenarioFault: {
+            id?: string;
+            fault_id?: string;
+            component_instance_id?: string;
+            params?: components["schemas"]["FaultParams"];
+            trigger?: components["schemas"]["Trigger"];
+            hidden?: boolean;
+        };
+        ExpectedAction: {
+            target?: string;
+            action?: string;
+            value?: unknown;
+        };
+        ReferenceAction: {
+            step?: number;
+            description?: string;
+            expected?: components["schemas"]["ExpectedAction"];
+            deadline_seconds?: number;
+            mandatory?: boolean;
+        };
+        Criteria: {
+            max_score?: number;
+            penalty_late?: number;
+            penalty_miss?: number;
+            penalty_forbidden?: number;
+            critical_actions?: string[];
+            pass_threshold?: number;
+        };
+        Scenario: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            template_id?: string;
+            name?: string;
+            description?: string;
+            /** @enum {string} */
+            type?: "training" | "exam";
+            start_preset_id?: string;
+            faults?: components["schemas"]["ScenarioFault"][];
+            reference_actions?: components["schemas"]["ReferenceAction"][];
+            criteria?: components["schemas"]["Criteria"];
+            author_id?: string;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        Fault: {
+            fault_id?: string;
+            name?: string;
+            applicable_component_types?: string[];
+            description?: string;
+            affected_tags?: string[];
+            /** @enum {string} */
+            severity?: "low" | "medium" | "high" | "critical";
+            damage_per_sec?: number;
+        };
+        Session: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            template_id?: string;
+            /** Format: uuid */
+            scenario_id?: string;
+            operator_ids?: string[];
+            instructor_id?: string;
+            /** @enum {string} */
+            mode?: "training" | "exam" | "demo";
+            speed?: number;
+            /** @enum {string} */
+            status?: "created" | "running" | "paused" | "stopped" | "finished";
+            /** @description Модельное время, секунды */
+            model_time?: number;
+            /** Format: date-time */
+            started_at?: string;
+            /** Format: date-time */
+            stopped_at?: string;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        CreateSessionRequest: {
+            /** Format: uuid */
+            template_id: string;
+            /** Format: uuid */
+            scenario_id: string;
+            operator_ids?: string[];
+            /** @enum {string} */
+            mode: "training" | "exam" | "demo";
+            /** @default 1 */
+            speed: number;
+        };
+        CheckpointResponse: {
+            snapshot_id?: string;
+        };
+        ReactionTime: {
+            alarm_id?: string;
+            seconds?: number;
+        };
+        Penalty: {
+            code?: string;
+            description?: string;
+            points?: number;
+            model_time?: number;
+        };
+        CriticalError: {
+            code?: string;
+            description?: string;
+            model_time?: number;
+        };
+        Score: {
+            session_id?: string;
+            reaction_times?: components["schemas"]["ReactionTime"][];
+            penalties?: components["schemas"]["Penalty"][];
+            critical_errors?: components["schemas"]["CriticalError"][];
+            total_score?: number;
+            /** @enum {string} */
+            verdict?: "pending" | "pass" | "fail";
+        };
+        OverrideRequest: {
+            session_id: string;
+            new_score: number;
+            /** @enum {string} */
+            verdict: "pass" | "fail";
+            comment?: string;
+            by_user_id?: string;
+        };
+        ReplayData: {
+            actions?: unknown[];
+            alarms?: unknown[];
+            faults?: unknown[];
+        };
+        SnapshotMeta: {
+            /** Format: uuid */
+            id?: string;
+            session_id?: string;
+            name?: string;
+            model_time?: number;
+            author_id?: string;
+            schema_version?: string;
+            sha256?: string;
+            storage_key?: string;
+            is_preset?: boolean;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        Report: {
+            /** Format: uuid */
+            id?: string;
+            session_id?: string;
+            /** @enum {string} */
+            type?: "session" | "exam";
+            /** @enum {string} */
+            status?: "queued" | "processing" | "ready" | "failed";
+            canonical_json?: string;
+            storage_key?: string;
+            download_url?: string;
+            error?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        CreateReportRequest: {
+            session_id: string;
+            /** @enum {string} */
+            type: "session" | "exam";
+        };
+        ChatRequest: {
+            question: string;
             /**
-             * Format: uri-reference
-             * @default about:blank
+             * @default training
+             * @enum {string}
              */
-            type: string;
-            title: string;
-            status: number;
-            detail?: string;
-            /** Format: uri-reference */
-            instance?: string;
-            errors?: {
-                field?: string;
-                code?: string;
-            }[];
+            session_mode: "training" | "exam" | "demo";
+            equipment_filter?: string;
+        };
+        ChatResponse: {
+            answer?: string;
+            sources?: string[];
         };
     };
     responses: never;
@@ -1420,4 +1294,1693 @@ export interface components {
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description JWT-токены или mfa_required */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"] | components["schemas"]["MFARequiredResponse"];
+                };
+            };
+            /** @description Неверные учётные данные */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    refreshToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description Новая пара токенов */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Невалидный refresh_token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    mfaEnrollment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enrollment_token: string;
+                    /** @description TOTP-код для подтверждения */
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Данные для настройки TOTP-приложения */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MFAEnrollmentResponse"];
+                };
+            };
+            /** @description Невалидный enrollment_token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogoutRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Профиль */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    listUsers: {
+        parameters: {
+            query?: {
+                query?: string;
+                role?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Список пользователей */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        users?: components["schemas"]["User"][];
+                    };
+                };
+            };
+        };
+    };
+    getUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Пользователь */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            /** @description Не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getUserMFAStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Статус MFA */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MFAStatusResponse"];
+                };
+            };
+        };
+    };
+    setupUserMFA: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description TOTP-secret */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MFASetupResponse"];
+                };
+            };
+        };
+    };
+    enableUserMFA: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MFAVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description MFA активирован */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    disableUserMFA: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MFA отключён */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listComponents: {
+        parameters: {
+            query?: {
+                category?: string;
+                query?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Список типов компонентов */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        components?: components["schemas"]["ComponentType"][];
+                    };
+                };
+            };
+        };
+    };
+    createComponent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComponentType"];
+            };
+        };
+        responses: {
+            /** @description Создан */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComponentType"];
+                };
+            };
+        };
+    };
+    importComponents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    components?: components["schemas"]["ComponentType"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Результат импорта */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        imported?: number;
+                        errors?: string[];
+                    };
+                };
+            };
+        };
+    };
+    getComponent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ComponentType */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComponentType"];
+                };
+            };
+            /** @description Не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateComponent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComponentType"];
+            };
+        };
+        responses: {
+            /** @description Обновлён */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComponentType"];
+                };
+            };
+        };
+    };
+    deleteComponent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Удалён */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listTemplates: {
+        parameters: {
+            query?: {
+                status?: string;
+                query?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Список шаблонов */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        templates?: components["schemas"]["Template"][];
+                    };
+                };
+            };
+        };
+    };
+    createTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    description?: string;
+                    graph?: components["schemas"]["Graph"];
+                };
+            };
+        };
+        responses: {
+            /** @description Создан */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Template"];
+                };
+            };
+        };
+    };
+    importTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateExport"];
+            };
+        };
+        responses: {
+            /** @description Импортирован */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Template"];
+                };
+            };
+        };
+    };
+    getTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Template */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Template"];
+                };
+            };
+            /** @description Не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    description?: string;
+                    graph?: components["schemas"]["Graph"];
+                };
+            };
+        };
+        responses: {
+            /** @description Обновлён */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Template"];
+                };
+            };
+        };
+    };
+    deleteTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Удалён */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    copyTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    new_name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Клон создан */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Template"];
+                };
+            };
+        };
+    };
+    validateTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Результат валидации */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        valid?: boolean;
+                        errors?: string[];
+                    };
+                };
+            };
+        };
+    };
+    exportTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Шаблон + результат валидации */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateExport"];
+                };
+            };
+        };
+    };
+    exportTemplateFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description JSON-файл шаблона */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+        };
+    };
+    listScenarios: {
+        parameters: {
+            query?: {
+                template_id?: string;
+                type?: "training" | "exam";
+                query?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Список сценариев */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        scenarios?: components["schemas"]["Scenario"][];
+                    };
+                };
+            };
+        };
+    };
+    createScenario: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Scenario"];
+            };
+        };
+        responses: {
+            /** @description Создан */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scenario"];
+                };
+            };
+        };
+    };
+    getExamScenario: {
+        parameters: {
+            query?: {
+                template_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Случайный сценарий типа exam */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scenario"];
+                };
+            };
+            /** @description Нет доступных экзаменационных сценариев */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    importScenarios: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    scenarios?: components["schemas"]["Scenario"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Результат импорта */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        imported?: number;
+                        errors?: string[];
+                    };
+                };
+            };
+        };
+    };
+    getScenario: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Сценарий */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scenario"];
+                };
+            };
+            /** @description Не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateScenario: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Scenario"];
+            };
+        };
+        responses: {
+            /** @description Обновлён */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scenario"];
+                };
+            };
+        };
+    };
+    deleteScenario: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Удалён */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cloneScenario: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description ID целевого шаблона для клона */
+                    template_id?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Клон создан */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scenario"];
+                };
+            };
+        };
+    };
+    getScenarioFull: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Полный сценарий (те же поля что GET, всегда включает faults/reference_actions/criteria) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scenario"];
+                };
+            };
+        };
+    };
+    listFaults: {
+        parameters: {
+            query?: {
+                query?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Список неисправностей */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        faults?: components["schemas"]["Fault"][];
+                    };
+                };
+            };
+        };
+    };
+    importFaults: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    faults?: components["schemas"]["Fault"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Результат импорта */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        imported?: number;
+                        errors?: string[];
+                    };
+                };
+            };
+        };
+    };
+    getFault: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Неисправность */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Fault"];
+                };
+            };
+            /** @description Не найдена */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listSessions: {
+        parameters: {
+            query?: {
+                status?: string;
+                operator_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Список сессий */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"][];
+                };
+            };
+        };
+    };
+    createSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Создана */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+        };
+    };
+    getSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Сессия */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Не найдена */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    startSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Сессия запущена */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+        };
+    };
+    pauseSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Пауза */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+        };
+    };
+    resumeSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Возобновлена */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+        };
+    };
+    stopSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Остановлена */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+        };
+    };
+    checkpointSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    name?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description snapshot_id созданного снапшота */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckpointResponse"];
+                };
+            };
+        };
+    };
+    restoreSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    snapshot_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Сессия восстановлена */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+        };
+    };
+    sendActuator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    tag: string;
+                    value: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Принято */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ackAlarm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                alarm_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Квитировано */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Сессия или аларм не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    setSessionSpeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    factor: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Скорость обновлена */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+        };
+    };
+    getSessionScore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Оценка */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Score"];
+                };
+            };
+        };
+    };
+    overrideScore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OverrideRequest"];
+            };
+        };
+        responses: {
+            /** @description Оценка переопределена */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getSessionReplay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Replay data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayData"];
+                };
+            };
+        };
+    };
+    listSnapshots: {
+        parameters: {
+            query?: {
+                session_id?: string;
+                is_preset?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Список снапшотов */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        snapshots?: components["schemas"]["SnapshotMeta"][];
+                    };
+                };
+            };
+        };
+    };
+    getSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Снапшот */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SnapshotMeta"];
+                };
+            };
+            /** @description Не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Удалён */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Нельзя удалить пресет */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listReports: {
+        parameters: {
+            query?: {
+                session_id?: string;
+                type?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Список отчётов */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        reports?: components["schemas"]["Report"][];
+                    };
+                };
+            };
+        };
+    };
+    createReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateReportRequest"];
+            };
+        };
+        responses: {
+            /** @description В очереди */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        report_id?: string;
+                    };
+                };
+            };
+        };
+    };
+    getReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Отчёт */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+            /** @description Не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    downloadReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to S3 */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Отчёт ещё не готов */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    aiChat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Ответ AI */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatResponse"];
+                };
+            };
+            /** @description PDN/невалидный запрос */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    wsOperator: {
+        parameters: {
+            query?: {
+                /** @description Bearer-токен для WS-upgrade (альтернатива Authorization header) */
+                token?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Switching Protocols */
+            101: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    wsObserve: {
+        parameters: {
+            query?: {
+                token?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Switching Protocols */
+            101: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    healthz: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example ok */
+                        status?: string;
+                    };
+                };
+            };
+        };
+    };
+    metrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Prometheus text format */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+}

@@ -1,82 +1,28 @@
-// ─── Canonical Scenario Model (aligned with services/scenario/api/openapi.yaml) ─
-// Frontend adds `status` for moderation lifecycle (draft → published → archived)
+// Re-export shared types from @/types.
+// ScenarioStatus is mock-only (backend doesn't have a status/moderation concept).
+import type {
+  FaultTrigger,
+  ScenarioFaultEntry,
+  ReferenceActionExpected,
+  ReferenceActionEntry,
+  ScenarioCriteria,
+  ScenarioType,
+  Scenario,
+  FaultCatalogItem,
+} from '@/types'
+export type {
+  FaultTrigger,
+  ScenarioFaultEntry,
+  ReferenceActionExpected,
+  ReferenceActionEntry,
+  ScenarioCriteria,
+  ScenarioType,
+  Scenario,
+  FaultCatalogItem,
+} from '@/types'
 
-export interface FaultTrigger {
-  type: 'time' | 'condition'
-  at_model_time?: number // seconds from sim start (type=time)
-  condition?: {
-    tag: string
-    op: '>' | '<' | '>=' | '<=' | '==' | '!='
-    value: number
-    for_seconds: number
-  }
-}
-
-export interface ScenarioFaultEntry {
-  id: string
-  fault_id: string
-  component_instance_id: string
-  params: {
-    severity_pct: number // 0-100
-    ramp_seconds: number // 0 = instant
-  }
-  trigger: FaultTrigger
-  hidden: boolean
-}
-
-export interface ReferenceActionExpected {
-  target: string // tag or node id
-  action: string // e.g. "set", "open", "close", "start", "stop"
-  value?: number
-}
-
-export interface ReferenceActionEntry {
-  step: number
-  description: string
-  expected: ReferenceActionExpected
-  deadline_seconds: number
-  mandatory: boolean
-}
-
-export interface ScenarioCriteria {
-  max_score: number
-  penalty_late: number // points per second late
-  penalty_miss: number // points per missed action
-  penalty_forbidden: number // points per forbidden action
-  critical_actions: string[] // step numbers that are mandatory and cause fail
-  pass_threshold: number // 0-100 %
-}
-
+/** Mock-only moderation lifecycle. Not present in real API responses. */
 export type ScenarioStatus = 'draft' | 'published' | 'archived'
-export type ScenarioType = 'training' | 'exam'
-
-export interface Scenario {
-  id: string
-  name: string
-  description: string
-  template_id: string
-  type: ScenarioType
-  start_preset_id?: string
-  author_id: string
-  status: ScenarioStatus
-  faults: ScenarioFaultEntry[]
-  reference_actions: ReferenceActionEntry[]
-  criteria: ScenarioCriteria
-  created_at: string
-  updated_at: string
-}
-
-// ─── Fault catalog item ───────────────────────────────────────────────────────
-
-export interface FaultCatalogItem {
-  fault_id: string
-  name: string
-  applicable_component_types: string[]
-  affected_tags: string[]
-  description: string
-  severity: 'low' | 'medium' | 'high' | 'critical'
-  damage_per_sec: number
-}
 
 // ─── Fault catalog fixtures ──────────────────────────────────────────────────
 

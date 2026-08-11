@@ -87,3 +87,33 @@ func TestProxyHandler_UpstreamUnavailable(t *testing.T) {
 		t.Errorf("code = %d, want 502", rec.Code)
 	}
 }
+
+// TestProxyHandler_BasePathJoining verifies that when an upstream URL contains
+// a base path (e.g. /v1), NewSingleHostReverseProxy joins it with the stripped
+// request path. This is the mechanism used for the ai upstream:
+//   /api/v1/ai/chat  --strip(/api/v1/ai)--> /chat  --join(/v1)--> /v1/chat
+func TestProxyHandler_BasePathJoining(t *testing.T) {
+	var gotPath string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		fmt.Fprint(w, "ok")
+	}))
+	defer upstream.Close()
+
+	r, err := NewRegistry(map[string]config.UpstreamConfig{
+		"ai": {URL: upstream.URL + "/v1"},
+	})
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	route := config.RouteConfig{Prefix: "/api/v1/ai", Upstream: "ai", StripPrefix: "/api/v1/ai"}
+	h := r.ProxyHandler(route)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/chat", nil)
+	h.ServeHTTP(rec, req)
+
+	if gotPath != "/v1/chat" {
+		t.Errorf("upstream received path %q, want %q", gotPath, "/v1/chat")
+	}
+}

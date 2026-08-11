@@ -4,10 +4,12 @@ info:
   version: 1.0.0
   description: |
     Единая точка входа для клиентов. Istio Ingress Gateway — сетевой вход (TLS).
-    Angie/BFF — прикладной слой: JWT-проверка через auth.introspect, RBAC, rate-limit, агрегация, WS-прокси.
-    Trust boundary (auth.md §6): gw — единственная точка проверки JWT; контекст передаётся downstream
-    заголовками X-User-ID / X-Roles. Внутренние сервисы токен не валидируют.
+    Angie/BFF — прикладной слой: JWT-проверка через auth.introspect, RBAC, rate-limit,
+    агрегация, WS-прокси. Trust boundary (auth.md §6): gw — единственная точка проверки JWT;
+    контекст передаётся downstream заголовками X-User-ID / X-Roles / X-Login.
+    Внутренние сервисы токен не валидируют.
     Сам gw не хранит бизнес-данные, не ходит в sim/db/s3 напрямую.
+    SPA (React) раздаётся Angie на том же origin (/), а не этим Go-процессом.
 servers:
   - url: https://ktc.example.ru
     description: Внешний вход (Istio Ingress, TLS 1.2+)
@@ -17,14 +19,515 @@ components:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
 
   schemas:
+    # --- Shared ---
     Error:
-      $ref: https://ktc.itcamp/schemas/error.json
+      type: object
+      properties:
+        error: { type: string }
+        code:  { type: string }
+
+    # --- Auth ---
+    LoginRequest:
+      type: object
+      required: [login, password]
+      properties:
+        login:    { type: string }
+        password: { type: string, format: password }
+        mfa_code: { type: string, description: "TOTP-код (только если MFA включён)" }
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:  { type: string }
+        refresh_token: { type: string }
+        expires_in:    { type: integer, description: "Время жизни access-токена, секунды" }
+        token_type:    { type: string, example: "Bearer" }
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
+
+    LogoutRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
+
+    User:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        login:       { type: string }
+        full_name:   { type: string }
+        ldap_dn:     { type: string }
+        roles:       { type: array, items: { type: string } }
+        status:      { type: string, enum: [active, disabled] }
+        mfa_enabled: { type: boolean }
+
+    # --- Constructor ---
+    Port:
+      type: object
+      properties:
+        id:        { type: string }
+        name:      { type: string }
+        type:      { type: string, enum: [liquid, gas, steam, electric, signal] }
+        direction: { type: string, enum: [in, out] }
+        required:  { type: boolean }
+
+    Parameter:
+      type: object
+      properties:
+        id:      { type: string }
+        name:    { type: string }
+        unit:    { type: string }
+        type:    { type: string, enum: [float, int, bool, string, select] }
+        default: {}
+        min:     { type: number }
+        max:     { type: number }
+        options: { type: array, items: { type: string } }
+
+    ComponentType:
+      type: object
+      properties:
+        id:            { type: string, format: uuid }
+        name:          { type: string }
+        category:      { type: string }
+        description:   { type: string }
+        ports:         { type: array, items: { $ref: '#/components/schemas/Port' } }
+        parameters:    { type: array, items: { $ref: '#/components/schemas/Parameter' } }
+        model_code:    { type: string }
+        icon_s3_key:   { type: string }
+        documentation: { type: string }
+
+    Position:
+      type: object
+      properties:
+        x: { type: number }
+        y: { type: number }
+
+    Node:
+      type: object
+      properties:
+        id:                { type: string }
+        component_type_id: { type: string }
+        label:             { type: string }
+        position:          { $ref: '#/components/schemas/Position' }
+        parameters:        { type: object, additionalProperties: true }
+        ports:             { type: object, additionalProperties: true }
+
+    Edge:
+      type: object
+      properties:
+        id:   { type: string }
+        type: { type: string, enum: [liquid, gas, steam, electric, signal] }
+        from:
+          type: object
+          properties:
+            node_id: { type: string }
+            port:    { type: string }
+        to:
+          type: object
+          properties:
+            node_id: { type: string }
+            port:    { type: string }
+
+    Graph:
+      type: object
+      properties:
+        schema_version: { type: string }
+        nodes:          { type: array, items: { $ref: '#/components/schemas/Node' } }
+        edges:          { type: array, items: { $ref: '#/components/schemas/Edge' } }
+        layout:
+          type: object
+          properties:
+            mnemo_positions: { type: object, additionalProperties: true }
+            custom_labels:   { type: object, additionalProperties: { type: string } }
+
+    Template:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        name:        { type: string }
+        description: { type: string }
+        author_id:   { type: string }
+        status:      { type: string, enum: [draft, published, archived] }
+        graph:       { $ref: '#/components/schemas/Graph' }
+        created_at:  { type: string, format: date-time }
+        updated_at:  { type: string, format: date-time }
+
+    TemplateExport:
+      type: object
+      properties:
+        template:   { $ref: '#/components/schemas/Template' }
+        validation:
+          type: object
+          properties:
+            valid:  { type: boolean }
+            errors: { type: array, items: { type: string } }
+
+    # --- Scenario ---
+    FaultParams:
+      type: object
+      properties:
+        severity_pct:  { type: number, minimum: 0, maximum: 100 }
+        ramp_seconds:  { type: number, minimum: 0 }
+
+    Trigger:
+      type: object
+      properties:
+        type:          { type: string, enum: [time, condition] }
+        at_model_time: { type: number, description: "Модельное время срабатывания (type=time)" }
+        condition:
+          type: object
+          properties:
+            tag:         { type: string }
+            op:          { type: string, enum: [">=", "<=", ">", "<", "=="] }
+            value:       { type: number }
+            for_seconds: { type: number }
+
+    ScenarioFault:
+      type: object
+      properties:
+        id:                    { type: string }
+        fault_id:              { type: string }
+        component_instance_id: { type: string }
+        params:                { $ref: '#/components/schemas/FaultParams' }
+        trigger:               { $ref: '#/components/schemas/Trigger' }
+        hidden:                { type: boolean }
+
+    ExpectedAction:
+      type: object
+      properties:
+        target: { type: string }
+        action: { type: string }
+        value:  {}
+
+    ReferenceAction:
+      type: object
+      properties:
+        step:             { type: integer }
+        description:      { type: string }
+        expected:         { $ref: '#/components/schemas/ExpectedAction' }
+        deadline_seconds: { type: integer }
+        mandatory:        { type: boolean }
+
+    Criteria:
+      type: object
+      properties:
+        max_score:         { type: integer }
+        penalty_late:      { type: integer }
+        penalty_miss:      { type: integer }
+        penalty_forbidden: { type: integer }
+        critical_actions:  { type: array, items: { type: string } }
+        pass_threshold:    { type: integer }
+
+    Scenario:
+      type: object
+      properties:
+        id:                { type: string, format: uuid }
+        template_id:       { type: string, format: uuid }
+        name:              { type: string }
+        description:       { type: string }
+        type:              { type: string, enum: [training, exam] }
+        start_preset_id:   { type: string }
+        faults:            { type: array, items: { $ref: '#/components/schemas/ScenarioFault' } }
+        reference_actions: { type: array, items: { $ref: '#/components/schemas/ReferenceAction' } }
+        criteria:          { $ref: '#/components/schemas/Criteria' }
+        author_id:         { type: string }
+        created_at:        { type: string, format: date-time }
+
+    Fault:
+      type: object
+      properties:
+        fault_id:                  { type: string }
+        name:                      { type: string }
+        applicable_component_types: { type: array, items: { type: string } }
+        description:               { type: string }
+        affected_tags:             { type: array, items: { type: string } }
+        severity:                  { type: string, enum: [low, medium, high, critical] }
+        damage_per_sec:            { type: number }
+
+    # --- Orchestrator / Sessions ---
+    Session:
+      type: object
+      properties:
+        id:            { type: string, format: uuid }
+        template_id:   { type: string, format: uuid }
+        scenario_id:   { type: string, format: uuid }
+        operator_ids:  { type: array, items: { type: string } }
+        instructor_id: { type: string }
+        mode:          { type: string, enum: [training, exam, demo] }
+        speed:         { type: number }
+        status:        { type: string, enum: [created, running, paused, stopped, finished] }
+        model_time:    { type: number, description: "Модельное время, секунды" }
+        started_at:    { type: string, format: date-time }
+        stopped_at:    { type: string, format: date-time }
+        created_at:    { type: string, format: date-time }
+
+    CreateSessionRequest:
+      type: object
+      required: [template_id, scenario_id, mode]
+      properties:
+        template_id:  { type: string, format: uuid }
+        scenario_id:  { type: string, format: uuid }
+        operator_ids: { type: array, items: { type: string } }
+        mode:         { type: string, enum: [training, exam, demo] }
+        speed:        { type: number, default: 1.0 }
+
+    CheckpointResponse:
+      type: object
+      properties:
+        snapshot_id: { type: string }
+
+    # --- Assessment ---
+    ReactionTime:
+      type: object
+      properties:
+        alarm_id: { type: string }
+        seconds:  { type: number }
+
+    Penalty:
+      type: object
+      properties:
+        code:        { type: string }
+        description: { type: string }
+        points:      { type: integer }
+        model_time:  { type: number }
+
+    CriticalError:
+      type: object
+      properties:
+        code:        { type: string }
+        description: { type: string }
+        model_time:  { type: number }
+
+    Score:
+      type: object
+      properties:
+        session_id:      { type: string }
+        reaction_times:  { type: array, items: { $ref: '#/components/schemas/ReactionTime' } }
+        penalties:       { type: array, items: { $ref: '#/components/schemas/Penalty' } }
+        critical_errors: { type: array, items: { $ref: '#/components/schemas/CriticalError' } }
+        total_score:     { type: integer }
+        verdict:         { type: string, enum: [pending, pass, fail] }
+
+    OverrideRequest:
+      type: object
+      required: [session_id, new_score, verdict]
+      properties:
+        session_id: { type: string }
+        new_score:  { type: integer }
+        verdict:    { type: string, enum: [pass, fail] }
+        comment:    { type: string }
+        by_user_id: { type: string }
+
+    ReplayData:
+      type: object
+      properties:
+        actions: { type: array, items: {} }
+        alarms:  { type: array, items: {} }
+        faults:  { type: array, items: {} }
+
+    # --- Snapshots ---
+    SnapshotMeta:
+      type: object
+      properties:
+        id:             { type: string, format: uuid }
+        session_id:     { type: string }
+        name:           { type: string }
+        model_time:     { type: number }
+        author_id:      { type: string }
+        schema_version: { type: string }
+        sha256:         { type: string }
+        storage_key:    { type: string }
+        is_preset:      { type: boolean }
+        created_at:     { type: string, format: date-time }
+
+    # --- Reports ---
+    Report:
+      type: object
+      properties:
+        id:             { type: string, format: uuid }
+        session_id:     { type: string }
+        type:           { type: string, enum: [session, exam] }
+        status:         { type: string, enum: [queued, processing, ready, failed] }
+        canonical_json: { type: string }
+        storage_key:    { type: string }
+        download_url:   { type: string }
+        error:          { type: string }
+        created_at:     { type: string, format: date-time }
+        updated_at:     { type: string, format: date-time }
+
+    CreateReportRequest:
+      type: object
+      required: [session_id, type]
+      properties:
+        session_id: { type: string }
+        type:       { type: string, enum: [session, exam] }
+
+    # --- AI ---
+    ChatRequest:
+      type: object
+      required: [question]
+      properties:
+        question:         { type: string }
+        session_mode:     { type: string, enum: [training, exam, demo], default: training }
+        equipment_filter: { type: string }
+
+    ChatResponse:
+      type: object
+      properties:
+        answer:    { type: string }
+        sources:   { type: array, items: { type: string } }
 
 paths:
-  # === Auth (прокси на auth-сервис) ===
+  # ============================================================
+  # Auth (public + any authenticated)
+  # ============================================================
   /api/v1/auth/login:
     post:
-      summary: Вход (public, прокси → auth /login)
+      summary: Вход (public)
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: JWT-токены
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { description: Неверные учётные данные }
+
+  /api/v1/auth/refresh:
+    post:
+      summary: Ротация токенов (public)
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '200':
+          description: Новая пара токенов
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { description: Невалидный refresh_token }
+
+  /api/v1/auth/logout:
+    post:
+      summary: Отзыв refresh-токена
+      operationId: logout
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LogoutRequest' }
+      responses:
+        '200': { description: OK }
+
+  /api/v1/auth/me:
+    get:
+      summary: Профиль текущего пользователя
+      operationId: getMe
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Профиль
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  # ============================================================
+  # Users (admin + instructor)
+  # ============================================================
+  /api/v1/users:
+    get:
+      summary: Список пользователей
+      operationId: listUsers
+      security: [{ bearerAuth: [] }]
+      x-roles: [admin, instructor]
+      parameters:
+        - { name: query, in: query, schema: { type: string } }
+        - { name: role,  in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+      responses:
+        '200':
+          description: Список пользователей
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users: { type: array, items: { $ref: '#/components/schemas/User' } }
+
+  /api/v1/users/{id}:
+    get:
+      summary: Карточка пользователя
+      operationId: getUser
+      security: [{ bearerAuth: [] }]
+      x-roles: [admin, instructor]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Пользователь
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '404': { description: Не найден }
+
+  # ============================================================
+  # Constructor — Components (instructor + admin + operator read)
+  # ============================================================
+  /api/v1/components:
+    get:
+      summary: Каталог типов компонентов
+      operationId: listComponents
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin, operator]
+      parameters:
+        - { name: category, in: query, schema: { type: string } }
+        - { name: query,    in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Список типов компонентов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  components: { type: array, items: { $ref: '#/components/schemas/ComponentType' } }
+    post:
+      summary: Создать тип компонента
+      operationId: createComponent
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ComponentType' }
+      responses:
+        '201':
+          description: Создан
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComponentType' }
+
+  /api/v1/components/import:
+    post:
+      summary: Пакетный импорт типов компонентов (JSON-массив)
+      operationId: importComponents
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
       requestBody:
         required: true
         content:
@@ -32,350 +535,902 @@ paths:
             schema:
               type: object
               properties:
-                login:    { type: string }
-                password: { type: string, format: password }
-                mfa_code: { type: string }
+                components: { type: array, items: { $ref: '#/components/schemas/ComponentType' } }
       responses:
-        '200': { description: JWT tokens или mfa_required }
-
-  /api/v1/auth/refresh:
-    post:
-      summary: Ротация токенов (public, прокси → auth /refresh)
-      responses:
-        '200': { description: Новая пара токенов }
-
-  /api/v1/auth/logout:
-    post:
-      summary: Отзыв (прокси → auth /logout)
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200': { description: OK }
-
-  /api/v1/auth/me:
-    get:
-      summary: Профиль (прокси → auth /me)
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200': { description: User profile }
-
-  # === Users (admin, прокси → auth /users) ===
-  /api/v1/users:
-    get:
-      summary: Список пользователей (admin)
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200': { description: Users list }
-    post:
-      summary: Создать пользователя (admin)
-      security: [{ bearerAuth: [] }]
-      responses:
-        '201': { description: Created }
-
-  /api/v1/users/{id}:
-    get:
-      summary: Карточка пользователя (admin)
-      security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses:
-        '200': { description: User }
-    put:
-      summary: Изменить (admin)
-      security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses:
-        '200': { description: Updated }
-    delete:
-      summary: Деактивировать (admin)
-      security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses:
-        '204': { description: OK }
-
-  # === Constructor (instructor/admin, прокси → constructor) ===
-  /api/v1/components:
-    get:
-      summary: Каталог компонентов (прокси → constructor /components)
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200': { description: Components list }
-    post:
-      summary: Создать тип (instructor/admin)
-      security: [{ bearerAuth: [] }]
-      responses:
-        '201': { description: Created }
+        '200':
+          description: Результат импорта
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imported: { type: integer }
+                  errors:   { type: array, items: { type: string } }
 
   /api/v1/components/{id}:
     get:
+      summary: Тип компонента по ID
+      operationId: getComponent
       security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      x-roles: [instructor, admin, operator]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
       responses:
-        '200': { description: Component }
+        '200':
+          description: ComponentType
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComponentType' }
+        '404': { description: Не найден }
     put:
+      summary: Обновить тип компонента
+      operationId: updateComponent
       security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ComponentType' }
       responses:
-        '200': { description: Updated }
+        '200':
+          description: Обновлён
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComponentType' }
     delete:
+      summary: Удалить тип компонента
+      operationId: deleteComponent
       security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
       responses:
-        '204': { description: OK }
+        '204': { description: Удалён }
 
-  /api/v1/components/import:
-    post:
-      summary: Пакетный импорт типов компонентов (прокси → constructor)
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200': { description: ImportResult }
-
+  # ============================================================
+  # Constructor — Templates (instructor + admin + operator read)
+  # ============================================================
   /api/v1/templates:
     get:
-      summary: Каталог шаблонов (прокси → constructor /templates)
+      summary: Каталог шаблонов
+      operationId: listTemplates
       security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin, operator]
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: query,  in: query, schema: { type: string } }
+        - { name: limit,  in: query, schema: { type: integer, default: 50 } }
       responses:
-        '200': { description: Templates list }
+        '200':
+          description: Список шаблонов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  templates: { type: array, items: { $ref: '#/components/schemas/Template' } }
     post:
-      summary: Создать шаблон (instructor)
+      summary: Создать шаблон
+      operationId: createTemplate
       security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:        { type: string }
+                description: { type: string }
+                graph:       { $ref: '#/components/schemas/Graph' }
       responses:
-        '201': { description: Created }
-
-  /api/v1/templates/{id}:
-    get:
-      security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses:
-        '200': { description: Template }
-    put:
-      security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses:
-        '200': { description: Updated }
-    delete:
-      security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses:
-        '204': { description: OK }
-
-  /api/v1/templates/{id}/copy:
-    post:
-      summary: Deep clone (instructor)
-      security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses:
-        '201': { description: Cloned }
-
-  /api/v1/templates/{id}/validate:
-    post:
-      summary: Валидация графа (instructor)
-      security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses:
-        '200': { description: ValidationResult }
+        '201':
+          description: Создан
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Template' }
 
   /api/v1/templates/import:
     post:
-      summary: Импорт шаблона установки (прокси → constructor)
+      summary: Импорт шаблона из файла (прокси → constructor)
+      operationId: importTemplate
       security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TemplateExport' }
       responses:
-        '201': { description: TemplateImportResult }
+        '201':
+          description: Импортирован
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Template' }
+
+  /api/v1/templates/{id}:
+    get:
+      summary: Шаблон по ID
+      operationId: getTemplate
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin, operator]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Template
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Template' }
+        '404': { description: Не найден }
+    put:
+      summary: Обновить шаблон
+      operationId: updateTemplate
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:        { type: string }
+                description: { type: string }
+                graph:       { $ref: '#/components/schemas/Graph' }
+      responses:
+        '200':
+          description: Обновлён
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Template' }
+    delete:
+      summary: Удалить шаблон
+      operationId: deleteTemplate
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Удалён }
+
+  /api/v1/templates/{id}/copy:
+    post:
+      summary: Deep clone шаблона
+      operationId: copyTemplate
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_name]
+              properties:
+                new_name: { type: string }
+      responses:
+        '201':
+          description: Клон создан
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Template' }
+
+  /api/v1/templates/{id}/validate:
+    post:
+      summary: Валидация графа шаблона
+      operationId: validateTemplate
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Результат валидации
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:  { type: boolean }
+                  errors: { type: array, items: { type: string } }
+
+  /api/v1/templates/{id}/export:
+    get:
+      summary: Экспорт шаблона — JSON-тело с validation (programmatic)
+      operationId: exportTemplate
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Шаблон + результат валидации
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TemplateExport' }
 
   /api/v1/templates/{id}/export-file:
     get:
-      summary: Выгрузка графа JSON (прокси → constructor)
+      summary: Выгрузка графа JSON как файл (Content-Disposition attachment)
+      operationId: exportTemplateFile
       security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
       responses:
-        '200': { description: Graph JSON attachment }
+        '200':
+          description: JSON-файл шаблона
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
 
-  # === Scenarios (instructor/admin, прокси → scenario) ===
+  # ============================================================
+  # Scenarios (instructor + admin)
+  # ============================================================
   /api/v1/scenarios:
     get:
-      summary: Каталог сценариев (прокси → scenario /scenarios)
+      summary: Каталог сценариев
+      operationId: listScenarios
       security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: template_id, in: query, schema: { type: string } }
+        - { name: type,        in: query, schema: { type: string, enum: [training, exam] } }
+        - { name: query,       in: query, schema: { type: string } }
+        - { name: limit,       in: query, schema: { type: integer, default: 50 } }
+        - { name: offset,      in: query, schema: { type: integer, default: 0 } }
       responses:
-        '200': { description: Scenarios list }
+        '200':
+          description: Список сценариев
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scenarios: { type: array, items: { $ref: '#/components/schemas/Scenario' } }
     post:
-      summary: Создать сценарий (instructor)
+      summary: Создать сценарий
+      operationId: createScenario
       security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Scenario' }
       responses:
-        '201': { description: Created }
+        '201':
+          description: Создан
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
 
-  /api/v1/scenarios/{id}:
+  /api/v1/scenarios/exam:
     get:
+      summary: Случайный экзаменационный сценарий (для старта exam-сессии)
+      operationId: getExamScenario
       security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: template_id, in: query, schema: { type: string } }
       responses:
-        '200': { description: Scenario }
-    put:
-      security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses:
-        '200': { description: Updated }
-    delete:
-      security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses:
-        '204': { description: OK }
-
-  /api/v1/scenarios/{id}/clone:
-    post:
-      summary: Клон сценария (instructor)
-      security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses:
-        '201': { description: Cloned }
-
-  /api/v1/faults:
-    get:
-      summary: Каталог неисправностей (прокси → scenario /faults)
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200': { description: Faults catalog }
-
-  /api/v1/faults/import:
-    post:
-      summary: Пакетный импорт неисправностей (прокси → scenario)
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200': { description: ImportResult }
+        '200':
+          description: Случайный сценарий типа exam
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+        '404': { description: Нет доступных экзаменационных сценариев }
 
   /api/v1/scenarios/import:
     post:
-      summary: Пакетный импорт сценариев (прокси → scenario)
+      summary: Пакетный импорт сценариев
+      operationId: importScenarios
       security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scenarios: { type: array, items: { $ref: '#/components/schemas/Scenario' } }
       responses:
-        '200': { description: ImportResult }
+        '200':
+          description: Результат импорта
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imported: { type: integer }
+                  errors:   { type: array, items: { type: string } }
 
-  # === Sessions (instructor/operator, прокси → orchestrator) ===
+  /api/v1/scenarios/{id}:
+    get:
+      summary: Сценарий по ID
+      operationId: getScenario
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Сценарий
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+        '404': { description: Не найден }
+    put:
+      summary: Обновить сценарий
+      operationId: updateScenario
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Scenario' }
+      responses:
+        '200':
+          description: Обновлён
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+    delete:
+      summary: Удалить сценарий
+      operationId: deleteScenario
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Удалён }
+
+  /api/v1/scenarios/{id}/clone:
+    post:
+      summary: Клонировать сценарий
+      operationId: cloneScenario
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                template_id: { type: string, description: "ID целевого шаблона для клона" }
+      responses:
+        '201':
+          description: Клон создан
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+
+  /api/v1/scenarios/{id}/full:
+    get:
+      summary: Полный сценарий с триггерами, эталонными действиями и критериями
+      operationId: getScenarioFull
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Полный сценарий (те же поля что GET, всегда включает faults/reference_actions/criteria)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+
+  # ============================================================
+  # Faults (instructor + admin)
+  # ============================================================
+  /api/v1/faults:
+    get:
+      summary: Каталог неисправностей
+      operationId: listFaults
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: query, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Список неисправностей
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  faults: { type: array, items: { $ref: '#/components/schemas/Fault' } }
+
+  /api/v1/faults/import:
+    post:
+      summary: Пакетный импорт неисправностей
+      operationId: importFaults
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                faults: { type: array, items: { $ref: '#/components/schemas/Fault' } }
+      responses:
+        '200':
+          description: Результат импорта
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imported: { type: integer }
+                  errors:   { type: array, items: { type: string } }
+
+  /api/v1/faults/{fault_id}:
+    get:
+      summary: Неисправность по ID
+      operationId: getFault
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: fault_id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Неисправность
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Fault' }
+        '404': { description: Не найдена }
+
+  # ============================================================
+  # Sessions (any authenticated role)
+  # ============================================================
   /api/v1/sessions:
     get:
-      summary: Список сессий (прокси → orchestrator /sessions)
+      summary: Список сессий (операторы видят только свои)
+      operationId: listSessions
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status,      in: query, schema: { type: string } }
+        - { name: operator_id, in: query, schema: { type: string } }
       responses:
-        '200': { description: Sessions list }
+        '200':
+          description: Список сессий
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Session' }
     post:
-      summary: Создать сессию (instructor)
+      summary: Создать сессию (instructor/admin)
+      operationId: createSession
       security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSessionRequest' }
       responses:
-        '201': { description: Created }
+        '201':
+          description: Создана
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
 
   /api/v1/sessions/{id}:
     get:
-      security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses:
-        '200': { description: Session }
-
-  /api/v1/sessions/{id}/{action}:
-    post:
-      summary: start | pause | resume | stop | checkpoint | restore | actuator
+      summary: Сессия по ID
+      operationId: getSession
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
-        - { name: action, in: path, required: true, schema: { type: string, enum: [start, pause, resume, stop, checkpoint, restore, actuator] } }
       responses:
-        '200': { description: OK }
+        '200':
+          description: Сессия
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '404': { description: Не найдена }
+
+  /api/v1/sessions/{id}/start:
+    post:
+      summary: Запустить сессию
+      operationId: startSession
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Сессия запущена
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
+  /api/v1/sessions/{id}/pause:
+    post:
+      summary: Поставить на паузу
+      operationId: pauseSession
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Пауза
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
+  /api/v1/sessions/{id}/resume:
+    post:
+      summary: Возобновить
+      operationId: resumeSession
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Возобновлена
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
+  /api/v1/sessions/{id}/stop:
+    post:
+      summary: Остановить
+      operationId: stopSession
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Остановлена
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
+  /api/v1/sessions/{id}/checkpoint:
+    post:
+      summary: Сохранить чекпоинт (снапшот)
+      operationId: checkpointSession
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+      responses:
+        '200':
+          description: snapshot_id созданного снапшота
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckpointResponse' }
+
+  /api/v1/sessions/{id}/restore:
+    post:
+      summary: Восстановить из снапшота
+      operationId: restoreSession
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [snapshot_id]
+              properties:
+                snapshot_id: { type: string }
+      responses:
+        '200':
+          description: Сессия восстановлена
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
+  /api/v1/sessions/{id}/actuator:
+    post:
+      summary: Команда актуатору (оператор)
+      operationId: sendActuator
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tag, value]
+              properties:
+                tag:   { type: string }
+                value: {}
+      responses:
+        '202': { description: Принято }
+
+  /api/v1/sessions/{id}/alarms/{alarm_id}/ack:
+    post:
+      summary: Квитировать аварийный сигнал (REST, доступно для instructor через observe)
+      operationId: ackAlarm
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id,       in: path, required: true, schema: { type: string } }
+        - { name: alarm_id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Квитировано }
+        '404': { description: Сессия или аларм не найден }
 
   /api/v1/sessions/{id}/speed:
     put:
-      summary: Скорость модельного времени
+      summary: Изменить скорость модельного времени
+      operationId: setSessionSpeed
       security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [factor]
+              properties:
+                factor: { type: number, minimum: 0.1, maximum: 10.0 }
       responses:
-        '200': { description: Updated }
+        '200':
+          description: Скорость обновлена
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
 
-  # === Assessment (instructor/admin, прокси → assessment) ===
+  # ============================================================
+  # Assessment (instructor + admin + operator read own)
+  # ============================================================
   /api/v1/assessment/session/{id}/score:
     get:
-      summary: Текущая оценка (прокси → assessment)
+      summary: Текущая оценка сессии
+      operationId: getSessionScore
       security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      x-roles: [instructor, admin, operator]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
       responses:
-        '200': { description: Score }
+        '200':
+          description: Оценка
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Score' }
 
   /api/v1/assessment/override:
     post:
       summary: Переопределить оценку (instructor)
+      operationId: overrideScore
       security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OverrideRequest' }
       responses:
-        '200': { description: Overridden }
+        '200': { description: Оценка переопределена }
 
   /api/v1/assessment/session/{id}/replay:
     get:
-      summary: Данные replay
+      summary: Данные для replay-просмотра
+      operationId: getSessionReplay
       security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
       responses:
-        '200': { description: Replay data }
+        '200':
+          description: Replay data
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReplayData' }
 
-  # === Snapshots metadata (instructor/admin, прокси → snapshot) ===
+  # ============================================================
+  # Snapshots (instructor + admin)
+  # ============================================================
   /api/v1/snapshots:
     get:
-      summary: Список снапшотов (прокси → snapshot /snapshots)
+      summary: Список снапшотов (пресеты и чекпоинты)
+      operationId: listSnapshots
       security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: session_id, in: query, schema: { type: string } }
+        - { name: is_preset,  in: query, schema: { type: boolean } }
       responses:
-        '200': { description: Snapshots list }
+        '200':
+          description: Список снапшотов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  snapshots: { type: array, items: { $ref: '#/components/schemas/SnapshotMeta' } }
 
   /api/v1/snapshots/{id}:
     get:
+      summary: Метаданные снапшота
+      operationId: getSnapshot
       security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
       responses:
-        '200': { description: Snapshot meta }
+        '200':
+          description: Снапшот
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SnapshotMeta' }
+        '404': { description: Не найден }
+    delete:
+      summary: Удалить снапшот (пресеты удалять нельзя)
+      operationId: deleteSnapshot
+      security: [{ bearerAuth: [] }]
+      x-roles: [instructor, admin]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Удалён }
+        '403': { description: Нельзя удалить пресет }
+        '404': { description: Не найден }
 
-  # === Reports (instructor/operator, прокси → report) ===
+  # ============================================================
+  # Reports (any authenticated role)
+  # ============================================================
   /api/v1/reports:
-    post:
-      summary: Запрос отчёта (прокси → report /reports)
-      security: [{ bearerAuth: [] }]
-      responses:
-        '202': { description: Queued }
     get:
       summary: Список отчётов
+      operationId: listReports
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: session_id, in: query, schema: { type: string } }
+        - { name: type,       in: query, schema: { type: string } }
       responses:
-        '200': { description: Reports list }
+        '200':
+          description: Список отчётов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports: { type: array, items: { $ref: '#/components/schemas/Report' } }
+    post:
+      summary: Запрос генерации отчёта
+      operationId: createReport
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateReportRequest' }
+      responses:
+        '202':
+          description: В очереди
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  report_id: { type: string }
 
   /api/v1/reports/{id}:
     get:
+      summary: Отчёт по ID
+      operationId: getReport
       security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
       responses:
-        '200': { description: Report }
+        '200':
+          description: Отчёт
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Report' }
+        '404': { description: Не найден }
 
   /api/v1/reports/{id}/download:
     get:
+      summary: Скачать отчёт (redirect 302 → S3 presigned URL)
+      operationId: downloadReport
       security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
       responses:
         '302': { description: Redirect to S3 }
+        '409': { description: Отчёт ещё не готов }
 
-  # === WebSocket (прокси → orchestrator WS) ===
+  # ============================================================
+  # AI (any authenticated role, proxy → ai /v1/*)
+  # ============================================================
+  /api/v1/ai/chat:
+    post:
+      summary: Вопрос к базе знаний (Knowledge AI chat)
+      operationId: aiChat
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChatRequest' }
+      responses:
+        '200':
+          description: Ответ AI
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChatResponse' }
+        '400': { description: PDN/невалидный запрос }
+
+  # ============================================================
+  # WebSocket
+  # ============================================================
   /api/v1/ws/sessions/{id}/operator:
     get:
-      summary: WS-канал оператора (RW) — телеметрия, команды
+      summary: WS-канал оператора (RW) — телеметрия, команды, алармы
+      operationId: wsOperator
       security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      parameters:
+        - { name: id,    in: path,  required: true, schema: { type: string } }
+        - { name: token, in: query, schema: { type: string }, description: "Bearer-токен для WS-upgrade (альтернатива Authorization header)" }
       responses:
         '101': { description: Switching Protocols }
 
   /api/v1/ws/sessions/{id}/observe:
     get:
       summary: WS-канал наблюдения (read-only, instructor)
+      operationId: wsObserve
       security: [{ bearerAuth: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      parameters:
+        - { name: id,    in: path,  required: true, schema: { type: string } }
+        - { name: token, in: query, schema: { type: string } }
       responses:
         '101': { description: Switching Protocols }
 
-  # === Static SPA ===
-  /:
-    get:
-      summary: React SPA (статика)
-      responses:
-        '200': { description: HTML }
-
+  # ============================================================
+  # Infrastructure
+  # ============================================================
   /healthz:
     get:
+      summary: Liveness probe
+      operationId: healthz
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+  /metrics:
+    get:
+      summary: Prometheus metrics (scraped by Prometheus; не для браузера)
+      operationId: metrics
+      responses:
+        '200': { description: Prometheus text format }

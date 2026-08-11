@@ -303,6 +303,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/faults/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Пакетный импорт неисправностей (upsert) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ImportFaultsRequest"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ImportResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scenarios/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Пакетный импорт сценариев (upsert) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ImportScenariosRequest"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ImportResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/faults/{fault_id}": {
         parameters: {
             query?: never;
@@ -402,6 +480,21 @@ export interface components {
             /** @enum {string} */
             severity?: "low" | "medium" | "high" | "critical";
             damage_per_sec?: number;
+        };
+        ImportFaultsRequest: {
+            faults: components["schemas"]["Fault"][];
+        };
+        ImportScenariosRequest: {
+            scenarios: components["schemas"]["scenario"][];
+        };
+        ImportResult: {
+            created?: number;
+            updated?: number;
+            errors?: {
+                id?: string;
+                index?: number;
+                message?: string;
+            }[];
         };
         Error: components["schemas"]["error"];
         /**

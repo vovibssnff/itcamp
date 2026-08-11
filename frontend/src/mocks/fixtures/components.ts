@@ -1,43 +1,5 @@
-export interface ComponentPort {
-  id: string
-  name: string
-  type: 'liquid' | 'gas' | 'signal' | 'electric'
-  direction: 'in' | 'out'
-}
-
-export interface ComponentParameter {
-  id: string
-  name: string
-  label: string
-  type: 'number' | 'string' | 'boolean' | 'enum'
-  unit?: string
-  defaultValue?: unknown
-  options?: string[]
-  min?: number
-  max?: number
-  required?: boolean
-}
-
-export interface ComponentType {
-  id: string
-  name: string
-  /** SPA key (elou/atm/…) or raw API category string for custom types. */
-  category: string
-  description: string
-  shape:
-    | 'pump'
-    | 'column'
-    | 'vessel'
-    | 'heatexchanger'
-    | 'valve'
-    | 'sensor'
-    | 'controller'
-    | 'separator'
-    | 'compressor'
-    | 'furnace'
-  ports: ComponentPort[]
-  parameters: ComponentParameter[]
-}
+import type { ComponentPort, ComponentParameter, ComponentType } from '@/types'
+export type { ComponentPort, ComponentParameter, ComponentType } from '@/types'
 
 export const COMPONENT_TYPES: ComponentType[] = [
   // ЭЛОУ

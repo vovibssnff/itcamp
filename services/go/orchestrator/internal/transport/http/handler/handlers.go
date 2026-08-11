@@ -17,6 +17,14 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+func mustJSON(v any) []byte {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return []byte(`{}`)
+	}
+	return b
+}
+
 func writeError(w http.ResponseWriter, err error) {
 	status, code := mapError(err)
 	w.Header().Set("Content-Type", "application/problem+json")
@@ -301,6 +309,12 @@ func (h *SessionHandler) handleWS(w http.ResponseWriter, r *http.Request, sessio
 			}
 		}
 	}()
+
+	// Сразу отдаём клиенту последний снимок телеметрии из Radix,
+	// чтобы экран «ожил» мгновенно, не дожидаясь следующего тика симулятора.
+	if t, err := h.svc.LatestTelemetry(ctx, sessionID); err == nil {
+		_ = conn.Write(ctx, websocket.MessageText, mustJSON(map[string]any{"type": "telemetry", "data": t}))
+	}
 
 	for {
 		select {

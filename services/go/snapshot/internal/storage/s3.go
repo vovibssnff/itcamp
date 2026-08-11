@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -113,5 +114,6 @@ func ComputeSHA256(data []byte) string {
 }
 
 func ValidateSHA256(data []byte, expected string) bool {
-	return ComputeSHA256(data) == expected
+	actual := ComputeSHA256(data)
+	return subtle.ConstantTimeCompare([]byte(actual), []byte(expected)) == 1
 }

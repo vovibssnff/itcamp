@@ -30,7 +30,7 @@ func (c *HTTPConstructorClient) ExportTemplate(ctx context.Context, templateID s
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("constructor export: status %d", resp.StatusCode)
 	}
-	data, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 	if err != nil {
 		return nil, fmt.Errorf("constructor export read: %w", err)
 	}

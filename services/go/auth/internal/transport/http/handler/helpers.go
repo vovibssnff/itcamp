@@ -15,10 +15,15 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+// maxRequestBody ограничивает размер JSON-тела запроса (1 МБ),
+// чтобы предотвратить DoS через огромные тела.
+const maxRequestBody = 1 << 20
+
 // decodeJSON декодирует тело запроса в v. Ошибка декодирования со стороны
 // клиента (битый/некорректный JSON) возвращается как 400 Bad Request,
 // а не как внутренняя ошибка сервера.
 func decodeJSON(w http.ResponseWriter, r *http.Request, v any) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
 	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
 		http.Error(w, `{"error":"invalid request body","code":"bad_request"}`, http.StatusBadRequest)
 		return false

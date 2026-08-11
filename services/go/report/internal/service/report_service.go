@@ -14,13 +14,18 @@ import (
 	"github.com/itcamp/ktc/services/report/internal/repository"
 )
 
-type ReportService struct {
-	repo *repository.ReportRepo
-	log  *slog.Logger
+type ReportStorage interface {
+	Save(ctx context.Context, key string, data []byte) error
 }
 
-func NewReportService(repo *repository.ReportRepo, log *slog.Logger) *ReportService {
-	return &ReportService{repo: repo, log: log}
+type ReportService struct {
+	repo    *repository.ReportRepo
+	storage ReportStorage
+	log     *slog.Logger
+}
+
+func NewReportService(repo *repository.ReportRepo, storage ReportStorage, log *slog.Logger) *ReportService {
+	return &ReportService{repo: repo, storage: storage, log: log}
 }
 
 func (s *ReportService) Create(ctx context.Context, sessionID string, reportType domain.ReportType) (domain.Report, error) {
@@ -69,8 +74,15 @@ func (s *ReportService) ProcessTask(ctx context.Context, task domain.ReportTask)
 	}
 
 	storageKey := fmt.Sprintf("reports/%s/%s.pdf", task.SessionID, task.ReportID)
-	_ = pdfBytes
-	_ = storageKey
+
+	if s.storage != nil {
+		if err := s.storage.Save(ctx, storageKey, pdfBytes); err != nil {
+			s.log.Error("pdf save failed", "error", err)
+			_ = s.repo.UpdateStatus(ctx, task.ReportID, domain.StatusFailed, err.Error())
+			IncReportFailed()
+			return err
+		}
+	}
 
 	if err := s.repo.SetReady(ctx, task.ReportID, string(canonicalJSON), storageKey); err != nil {
 		IncReportFailed()

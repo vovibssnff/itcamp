@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -34,14 +35,19 @@ func (c *Cache) Close() {
 	}
 }
 
+const telemetryTTL = 10 * time.Second
+
 func (c *Cache) SaveTelemetry(ctx context.Context, sessionID string, t domain.Telemetry) error {
 	data, _ := json.Marshal(t)
 	key := "telemetry:" + sessionID
-	return c.rdb.Set(ctx, key, data, 10*time.Second).Err()
+	return c.rdb.Set(ctx, key, data, telemetryTTL).Err()
 }
 
 func (c *Cache) GetTelemetry(ctx context.Context, sessionID string) (domain.Telemetry, error) {
 	data, err := c.rdb.Get(ctx, "telemetry:"+sessionID).Bytes()
+	if errors.Is(err, redis.Nil) {
+		return domain.Telemetry{}, domain.ErrTelemetryNotFound
+	}
 	if err != nil {
 		return domain.Telemetry{}, err
 	}
@@ -52,6 +58,10 @@ func (c *Cache) GetTelemetry(ctx context.Context, sessionID string) (domain.Tele
 	return t, nil
 }
 
+func (c *Cache) DeleteTelemetry(ctx context.Context, sessionID string) error {
+	return c.rdb.Del(ctx, "telemetry:"+sessionID).Err()
+}
+
 func (c *Cache) SaveSessionState(ctx context.Context, sessionID string, s domain.Session) error {
 	data, _ := json.Marshal(s)
 	key := "session:" + sessionID
@@ -60,6 +70,9 @@ func (c *Cache) SaveSessionState(ctx context.Context, sessionID string, s domain
 
 func (c *Cache) GetSessionState(ctx context.Context, sessionID string) (domain.Session, error) {
 	data, err := c.rdb.Get(ctx, "session:"+sessionID).Bytes()
+	if errors.Is(err, redis.Nil) {
+		return domain.Session{}, domain.ErrSessionNotFound
+	}
 	if err != nil {
 		return domain.Session{}, err
 	}

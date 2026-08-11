@@ -15,9 +15,14 @@ import (
 	"github.com/itcamp/ktc/shared/go/audit"
 )
 
+type TelemetryStore interface {
+	SaveTelemetry(ctx context.Context, sessionID string, t domain.Telemetry) error
+	GetTelemetry(ctx context.Context, sessionID string) (domain.Telemetry, error)
+}
+
 type SessionService struct {
 	repo        *repository.SessionRepo
-	cache       *cache.Cache
+	cache       TelemetryStore
 	publisher   *events.Publisher
 	sim         client.SimClient
 	assessment  client.AssessmentClient
@@ -90,6 +95,13 @@ func (s *SessionService) Get(ctx context.Context, id string) (domain.Session, er
 
 func (s *SessionService) List(ctx context.Context, status, operatorID string) ([]domain.Session, error) {
 	return s.repo.List(ctx, status, operatorID)
+}
+
+// LatestTelemetry возвращает последний снимок телеметрии сессии из Radix.
+// Используется, чтобы подключившийся WS-клиент мгновенно получил текущее
+// состояние процесса, не дожидаясь следующего тика симулятора.
+func (s *SessionService) LatestTelemetry(ctx context.Context, sessionID string) (domain.Telemetry, error) {
+	return s.cache.GetTelemetry(ctx, sessionID)
 }
 
 func (s *SessionService) Start(ctx context.Context, id string) (domain.Session, error) {

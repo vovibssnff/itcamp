@@ -18,7 +18,7 @@ interface TagConfig {
 // rather than invented numbers.
 export const TAG_CONFIG: TagConfig[] = [
   {
-    tag: 'FI-101',
+    tag: 'FI 101',
     label: 'Расход сырой нефти',
     unit: 'м³/ч',
     nominal: 400,
@@ -30,7 +30,7 @@ export const TAG_CONFIG: TagConfig[] = [
   },
   {
     // Регламент п.3.2: «нагревается до температуры не более 140°C».
-    tag: 'TI-101',
+    tag: 'TI 101',
     label: 'Темп. нефти перед ЭЛОУ',
     unit: '°C',
     nominal: 135,
@@ -42,7 +42,7 @@ export const TAG_CONFIG: TagConfig[] = [
   },
   {
     // Регламент п.3.3: сигнализация PRA 312 по минимальному давлению после ЭЛОУ.
-    tag: 'PI-101',
+    tag: 'PI 101',
     label: 'Давление нефти после ЭЛОУ',
     unit: 'кгс/см²',
     nominal: 7,
@@ -54,7 +54,7 @@ export const TAG_CONFIG: TagConfig[] = [
   },
   {
     // Регламент п.3.3: буферная ёмкость обессоленной нефти, уровнемер LRCA 605.
-    tag: 'LI-115',
+    tag: 'LI 115',
     label: 'Уровень Е-15',
     unit: '%',
     nominal: 50,
@@ -66,7 +66,7 @@ export const TAG_CONFIG: TagConfig[] = [
   },
   {
     // Регламент п.3.5: колонна К-1, LRCA 602, блокировка запуска Н-3/Н-2 <15%.
-    tag: 'LI-101',
+    tag: 'LI 101',
     label: 'Уровень К-1',
     unit: '%',
     nominal: 50,
@@ -78,7 +78,7 @@ export const TAG_CONFIG: TagConfig[] = [
   },
   {
     // Регламент п.3.5: давление К-1 — сигнализация 4,5, блокировка 4,8 кгс/см².
-    tag: 'PI-102',
+    tag: 'PI 102',
     label: 'Давление К-1',
     unit: 'кгс/см²',
     nominal: 2,
@@ -90,7 +90,7 @@ export const TAG_CONFIG: TagConfig[] = [
   },
   {
     // Регламент п.3.5: температура низа К-1 — не выше 280°C.
-    tag: 'TI-102',
+    tag: 'TI 102',
     label: 'Темп. низа К-1',
     unit: '°C',
     nominal: 270,
@@ -102,7 +102,7 @@ export const TAG_CONFIG: TagConfig[] = [
   },
   {
     // Регламент п.3.5: рефлюксная ёмкость Е-1, блокировка останова Н-6 <15%.
-    tag: 'LI-103',
+    tag: 'LI 103',
     label: 'Уровень Е-1',
     unit: '%',
     nominal: 50,
@@ -114,7 +114,7 @@ export const TAG_CONFIG: TagConfig[] = [
   },
   {
     // Регламент п.3.5: печь П-3 — температура на выходе не более 340°C.
-    tag: 'TI-103',
+    tag: 'TI 103',
     label: 'Темп. нефти на выходе П-3',
     unit: '°C',
     nominal: 330,
@@ -126,7 +126,7 @@ export const TAG_CONFIG: TagConfig[] = [
   },
   {
     // Регламент п.3.5: печь П-1 — температура на выходе не более 365°C.
-    tag: 'TI-104',
+    tag: 'TI 104',
     label: 'Темп. нефти на выходе П-1',
     unit: '°C',
     nominal: 355,
@@ -138,7 +138,7 @@ export const TAG_CONFIG: TagConfig[] = [
   },
   {
     // Регламент п.3.5: колонна К-2, LRCA 604, блокировка запуска Н-4/Н-32 <15%.
-    tag: 'LI-102',
+    tag: 'LI 102',
     label: 'Уровень К-2',
     unit: '%',
     nominal: 50,
@@ -150,7 +150,7 @@ export const TAG_CONFIG: TagConfig[] = [
   },
   {
     // Регламент п.3.5: давление К-2 — сигнализация 1,0, блокировка 1,5 кгс/см².
-    tag: 'PI-103',
+    tag: 'PI 103',
     label: 'Давление К-2',
     unit: 'кгс/см²',
     nominal: 0.6,
@@ -162,7 +162,7 @@ export const TAG_CONFIG: TagConfig[] = [
   },
   {
     // Регламент п.3.5: температура верха К-2 — до 148°C.
-    tag: 'TI-105',
+    tag: 'TI 105',
     label: 'Темп. верха К-2',
     unit: '°C',
     nominal: 140,
@@ -174,7 +174,7 @@ export const TAG_CONFIG: TagConfig[] = [
   },
   {
     // Регламент п.3.5: температура низа К-2 — до 350°C.
-    tag: 'TI-106',
+    tag: 'TI 106',
     label: 'Темп. низа К-2',
     unit: '°C',
     nominal: 340,
@@ -186,7 +186,7 @@ export const TAG_CONFIG: TagConfig[] = [
   },
   {
     // Регламент п.3.5: рефлюксная ёмкость Е-2, блокировка останова Н-7 <15%.
-    tag: 'LI-104',
+    tag: 'LI 104',
     label: 'Уровень Е-2',
     unit: '%',
     nominal: 50,

@@ -1,15 +1,14 @@
 /**
- * TrendPanel — sidebar telemetry display matching the ktk.html reference.
- * Shows one collapsible sparkline row per parameter:
- *   label  ·  current value (colored)
- *   ──────────────────── SVG polyline ────────────────────
+ * TrendPanel — sidebar telemetry display.
+ * Prefers process instruments that actually move (levels/pressures under fault)
+ * over flat helper setpoints (AVZ speeds, cooling water constants).
  */
-import { useEffect, useState } from 'react'
-import { useSessionStore } from '@/store/session'
-import { TAG_CONFIG } from '@/mocks/fixtures/telemetry'
+import { useEffect, useMemo, useState } from 'react'
+import { useSessionStore, normalizeTagId, type TagValue } from '@/store/session'
 import { useUIStore } from '@/store/ui'
 
 const MAX_POINTS = 120
+const MAX_SERIES = 8
 
 const ZONE_COLORS = [
   '#e9ff57',
@@ -33,7 +32,23 @@ const ZONE_COLORS_LIGHT = [
   '#5fa267',
 ]
 
-const INITIAL_TAGS = ['FI-101', 'TI-101', 'LI-101', 'PI-102', 'TI-105', 'LI-102']
+/** Higher = more interesting for operator trends. */
+function tagPriority(tag: string): number {
+  const t = tag.toUpperCase()
+  if (/^(LRCA|LRCSA|PRSA|PRCA|TRC|FRC)\b/.test(t)) return 100
+  if (/^(PRA|LRA|TR|FR|TI|PI|LI|FI)\b/.test(t)) return 80
+  if (/^PUMP-/.test(t) || /^FAN-/.test(t)) return 20
+  if (/^(AVZ|COOLING)/.test(t)) return 5
+  return 40
+}
+
+function seriesVariance(values: number[]): number {
+  const finite = values.filter((v) => Number.isFinite(v))
+  if (finite.length < 2) return 0
+  const min = Math.min(...finite)
+  const max = Math.max(...finite)
+  return max - min
+}
 
 interface SparklineRowProps {
   label: string
@@ -47,8 +62,8 @@ function SparklineRow({ label, unit, color, values, alarmState }: SparklineRowPr
   const finiteValues = values.filter((v) => Number.isFinite(v))
   const latest = finiteValues.at(-1) ?? NaN
   const hasData = finiteValues.length >= 2
+  const moving = seriesVariance(finiteValues) > 1e-6
 
-  // Normalize values to SVG viewport 200×34
   let points = ''
   if (hasData) {
     const min = Math.min(...finiteValues)
@@ -92,6 +107,7 @@ function SparklineRow({ label, unit, color, values, alarmState }: SparklineRowPr
           }}
         >
           {label}
+          {moving ? '' : ''}
         </span>
         <span
           className="mono"
@@ -123,9 +139,11 @@ function SparklineRow({ label, unit, color, values, alarmState }: SparklineRowPr
           <polyline
             points={points}
             fill="none"
-            stroke={valueColor}
+            stroke={color}
             strokeWidth="1.5"
-            vectorEffect="non-scaling-stroke"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            opacity={moving ? 1 : 0.45}
           />
         ) : (
           <line
@@ -146,8 +164,30 @@ function SparklineRow({ label, unit, color, values, alarmState }: SparklineRowPr
 
 interface TrendPanelProps {
   width?: number
-  /** @deprecated telemetry is now displayed in full without an inner scroll */
   height?: number
+}
+
+function pickLiveTags(
+  telemetry: Record<string, TagValue>,
+  seriesData: Record<string, number[]>,
+): string[] {
+  const keys = Object.keys(telemetry)
+    .map((k) => normalizeTagId(k) || k)
+    .filter(Boolean)
+
+  const scored = keys.map((tag) => {
+    const hist = seriesData[tag] ?? []
+    const variance = seriesVariance(hist)
+    const alarmBoost =
+      telemetry[tag]?.alarmState && telemetry[tag]!.alarmState !== 'normal' ? 50 : 0
+    return {
+      tag,
+      score: tagPriority(tag) + alarmBoost + Math.min(80, variance * 2),
+    }
+  })
+
+  scored.sort((a, b) => b.score - a.score || a.tag.localeCompare(b.tag))
+  return scored.slice(0, MAX_SERIES).map((s) => s.tag)
 }
 
 export function TrendPanel(_props: TrendPanelProps = {}) {
@@ -157,20 +197,25 @@ export function TrendPanel(_props: TrendPanelProps = {}) {
   const telemetry = useSessionStore((s) => s.telemetry)
   const [seriesData, setSeriesData] = useState<Record<string, number[]>>({})
 
+  // Keep history for all tags so variance ranking can promote movers.
   useEffect(() => {
+    const keys = Object.keys(telemetry)
+    if (keys.length === 0) return
     setSeriesData((prev) => {
       const next = { ...prev }
-      for (const tag of INITIAL_TAGS) {
-        const val = telemetry[tag]?.value ?? NaN
+      for (const raw of keys) {
+        const tag = normalizeTagId(raw) || raw
+        const val = telemetry[raw]?.value ?? telemetry[tag]?.value ?? NaN
         next[tag] = [...(prev[tag] ?? []), val].slice(-MAX_POINTS)
       }
       return next
     })
   }, [telemetry])
 
+  const liveTags = useMemo(() => pickLiveTags(telemetry, seriesData), [telemetry, seriesData])
+
   return (
     <div>
-      {/* Section header (matches "02 · Журнал аварий" styling below) */}
       <div className="side-hd" style={{ borderBottom: '1px solid var(--ln)', cursor: 'default' }}>
         <span className="sec">
           <span style={{ color: 'var(--tx4)' }}>01</span>&nbsp;&nbsp;Параметры
@@ -178,14 +223,18 @@ export function TrendPanel(_props: TrendPanelProps = {}) {
       </div>
 
       <div style={{ borderBottom: '1px solid var(--ln)', padding: '4px 16px 12px' }}>
-        {INITIAL_TAGS.map((tag, i) => {
-          const cfg = TAG_CONFIG.find((t) => t.tag === tag)
+        {liveTags.length === 0 && (
+          <div style={{ fontSize: 12, color: 'var(--tx4)', padding: '12px 0' }}>
+            Нет телеметрии — ожидаем данные сессии
+          </div>
+        )}
+        {liveTags.map((tag, i) => {
           const tv = telemetry[tag]
           return (
             <SparklineRow
               key={tag}
-              label={cfg?.label ?? tag}
-              unit={cfg?.unit ?? ''}
+              label={tag}
+              unit={tv?.unit ?? ''}
               color={colors[i % colors.length] ?? '#e9ff57'}
               values={seriesData[tag] ?? []}
               alarmState={tv?.alarmState}

@@ -27,6 +27,56 @@ export interface RegulatorState {
   out: number
 }
 
+export interface ActiveFault {
+  id: string
+  faultId: string
+  componentId?: string
+  message: string
+  timestamp: number
+}
+
+/**
+ * Canonical tag form is sim-engine space IDs ("PRSA 204").
+ * Accepts hyphen / underscore / ".PV" variants from scenarios and mocks.
+ */
+export function normalizeTagId(tag: string): string {
+  return tag
+    .replace(/\.PV$/i, '')
+    .replace(/\.SP$/i, '')
+    .replace(/\.OUT$/i, '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Lookup telemetry tolerating space/hyphen/.PV variants. */
+export function lookupTelemetry(
+  telemetry: Record<string, TagValue>,
+  tag: string,
+): TagValue | undefined {
+  if (telemetry[tag]) return telemetry[tag]
+  const want = normalizeTagId(tag)
+  if (telemetry[want]) return telemetry[want]
+  for (const [k, v] of Object.entries(telemetry)) {
+    if (normalizeTagId(k) === want) return v
+  }
+  return undefined
+}
+
+/** Lookup regulator by normalized tag. */
+export function lookupRegulator(
+  regulators: Record<string, RegulatorState>,
+  tag: string,
+): RegulatorState | undefined {
+  if (regulators[tag]) return regulators[tag]
+  const want = normalizeTagId(tag)
+  if (regulators[want]) return regulators[want]
+  for (const [k, v] of Object.entries(regulators)) {
+    if (normalizeTagId(k) === want) return v
+  }
+  return undefined
+}
+
 interface SessionState {
   sessionId: string | null
   status: SessionStatus
@@ -35,6 +85,7 @@ interface SessionState {
   telemetry: Record<string, TagValue>
   alarms: ActiveAlarm[]
   regulators: Record<string, RegulatorState>
+  faults: ActiveFault[]
 
   setSession: (id: string) => void
   setStatus: (status: SessionStatus) => void
@@ -44,6 +95,8 @@ interface SessionState {
   addAlarm: (alarm: ActiveAlarm) => void
   acknowledgeAlarm: (id: string) => void
   updateRegulator: (reg: RegulatorState) => void
+  addFault: (fault: ActiveFault) => void
+  clearFault: (id: string) => void
   clearSession: () => void
 }
 
@@ -55,6 +108,7 @@ export const useSessionStore = create<SessionState>()((set) => ({
   telemetry: {},
   alarms: [],
   regulators: {},
+  faults: [],
 
   setSession: (id) => set({ sessionId: id }),
   setStatus: (status) => set({ status }),
@@ -66,19 +120,19 @@ export const useSessionStore = create<SessionState>()((set) => ({
       const next = { ...s.telemetry }
       let alarms = s.alarms
       for (const t of tags) {
-        next[t.tag] = t
-        // Telemetry carries alarmState; keep AlarmBanner in sync even if a
-        // dedicated {type:'alarm'} frame is delayed or dropped.
+        const key = normalizeTagId(t.tag) || t.tag
+        const stored: TagValue = { ...t, tag: key }
+        next[key] = stored
         if (t.alarmState && t.alarmState !== 'normal') {
-          const id = `tag:${t.tag}:${t.alarmState}`
+          const id = `tag:${key}:${t.alarmState}`
           const existing = alarms.find((a) => a.id === id)
           if (!existing) {
             alarms = [
               {
                 id,
-                tag: t.tag,
+                tag: key,
                 level: t.alarmState,
-                message: `${t.tag} · ${t.alarmState}`,
+                message: `${key} · ${t.alarmState}`,
                 timestamp: t.timestamp,
                 acknowledged: false,
               },
@@ -91,9 +145,13 @@ export const useSessionStore = create<SessionState>()((set) => ({
     }),
 
   addAlarm: (alarm) =>
-    set((s) => ({
-      alarms: [alarm, ...s.alarms.filter((a) => a.id !== alarm.id)].slice(0, 200),
-    })),
+    set((s) => {
+      const tag = normalizeTagId(alarm.tag) || alarm.tag
+      const normalized = { ...alarm, tag }
+      return {
+        alarms: [normalized, ...s.alarms.filter((a) => a.id !== alarm.id)].slice(0, 200),
+      }
+    }),
 
   acknowledgeAlarm: (id) =>
     set((s) => ({
@@ -101,8 +159,21 @@ export const useSessionStore = create<SessionState>()((set) => ({
     })),
 
   updateRegulator: (reg) =>
+    set((s) => {
+      const key = normalizeTagId(reg.tag) || reg.tag
+      return {
+        regulators: { ...s.regulators, [key]: { ...reg, tag: key } },
+      }
+    }),
+
+  addFault: (fault) =>
     set((s) => ({
-      regulators: { ...s.regulators, [reg.tag]: reg },
+      faults: [fault, ...s.faults.filter((f) => f.id !== fault.id)].slice(0, 50),
+    })),
+
+  clearFault: (id) =>
+    set((s) => ({
+      faults: s.faults.filter((f) => f.id !== id),
     })),
 
   clearSession: () =>
@@ -113,5 +184,6 @@ export const useSessionStore = create<SessionState>()((set) => ({
       telemetry: {},
       alarms: [],
       regulators: {},
+      faults: [],
     }),
 }))

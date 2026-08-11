@@ -10,7 +10,7 @@
 export interface ComponentPort {
   id: string
   name: string
-  type: 'liquid' | 'gas' | 'signal' | 'electric'
+  type: 'liquid' | 'gas' | 'steam' | 'signal' | 'electric'
   direction: 'in' | 'out'
 }
 
@@ -61,12 +61,6 @@ export interface Template {
   nodes: CanvasNode[]
   edges: CanvasEdge[]
   isValid: boolean
-  /**
-   * Built-in hand-drawn mnemonic scheme identifier. Only present on the
-   * one pre-packaged installation template; constructor-built templates render
-   * through the generic HmiCanvas.
-   */
-  scheme?: 'elou-avt'
 }
 
 // ─── Sessions ────────────────────────────────────────────────────────────────

@@ -9,11 +9,16 @@ import (
 type SimClient interface {
 	CreateSession(ctx context.Context, sessionID string, initState []byte, seed int64) error
 	DestroySession(ctx context.Context, sessionID string) error
-	Step(ctx context.Context, sessionID string, ticks int32) (domain.SimState, error)
+	// Step advances the model by dtSec seconds of simulated time (≤0 → 1s).
+	Step(ctx context.Context, sessionID string, dtSec float64) (domain.SimState, error)
 	GetState(ctx context.Context, sessionID string) (domain.SimState, error)
 	SetState(ctx context.Context, sessionID string, state domain.SimState) error
 	InjectFault(ctx context.Context, req domain.InjectFaultReq) error
 	SetSpeed(ctx context.Context, sessionID string, factor float64) error
+	// SetActuator writes an operator setpoint/output to the process model (SET_SP).
+	SetActuator(ctx context.Context, sessionID, tag string, value any) error
+	// Command sends a typed Model API operator command (SET_SP, SET_OUT, SET_MODE, ACK_ALARM, ESD, …).
+	Command(ctx context.Context, sessionID, cmdType, target string, value any) error
 }
 
 type AssessmentClient interface {

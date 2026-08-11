@@ -69,6 +69,18 @@ func (s *SessionService) Create(ctx context.Context, instructorID string, in Cre
 	if in.Speed == 0 {
 		in.Speed = 1.0
 	}
+	// Resolve template from scenario when client omits template_id (operators often
+	// send only scenario_id; Start requires a template for constructor export).
+	if in.TemplateID == "" && in.ScenarioID != "" && s.scenario != nil {
+		if raw, err := s.scenario.GetFullScenario(ctx, in.ScenarioID); err == nil {
+			var meta struct {
+				TemplateID string `json:"template_id"`
+			}
+			if json.Unmarshal(raw, &meta) == nil && meta.TemplateID != "" {
+				in.TemplateID = meta.TemplateID
+			}
+		}
+	}
 	sess := domain.Session{
 		ID:           newUUID(),
 		TemplateID:   in.TemplateID,
@@ -294,6 +306,9 @@ func (s *SessionService) HandleActuator(ctx context.Context, id, userID, target 
 	if err != nil {
 		return err
 	}
+	if err := s.sim.SetActuator(ctx, id, target, value); err != nil {
+		return err
+	}
 	action := domain.OperatorAction{
 		ID: newUUID(), SessionID: id, UserID: userID,
 		Type: "actuator", Target: target, Action: "set", Value: value,
@@ -306,6 +321,33 @@ func (s *SessionService) HandleActuator(ctx context.Context, id, userID, target 
 	s.hub.BroadcastOperatorAction(id, action)
 	_ = s.assessment.SendEvent(ctx, id, sess.ScenarioID, "action", action)
 	_ = s.publisher.PublishSessionEvent(ctx, id, "operator_action", action)
+	// Push immediately — don't wait for the next runner tick.
+	s.pushAfterCommand(ctx, id, 4)
+	return nil
+}
+
+// HandleOperatorCommand records and forwards a typed sim command (regulator_*, esd).
+func (s *SessionService) HandleOperatorCommand(ctx context.Context, id, userID, cmdType, target string, value any) error {
+	sess, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := s.sim.Command(ctx, id, cmdType, target, value); err != nil {
+		return err
+	}
+	action := domain.OperatorAction{
+		ID: newUUID(), SessionID: id, UserID: userID,
+		Type: cmdType, Target: target, Action: "command", Value: value,
+		ModelTime: sess.ModelTime, ServerTime: time.Now().UTC(),
+	}
+	if err := s.repo.RecordAction(ctx, action); err != nil {
+		return err
+	}
+	IncOperatorAction()
+	s.hub.BroadcastOperatorAction(id, action)
+	_ = s.assessment.SendEvent(ctx, id, sess.ScenarioID, "action", action)
+	_ = s.publisher.PublishSessionEvent(ctx, id, "operator_action", action)
+	s.pushAfterCommand(ctx, id, 2)
 	return nil
 }
 
@@ -315,28 +357,156 @@ func (s *SessionService) AckAlarm(ctx context.Context, id, alarmID, userID strin
 		return err
 	}
 	mt := sess.ModelTime
-	return s.repo.AckAlarm(ctx, alarmID, mt, userID)
+	// Prefer sim ACK by tag when alarmID looks like a tag; also accept opaque ids.
+	_ = s.sim.Command(ctx, id, "ACK_ALARM", alarmID, nil)
+	if err := s.repo.AckAlarm(ctx, alarmID, mt, userID); err != nil {
+		return err
+	}
+	s.hub.BroadcastAlarmClear(id, alarmID)
+	s.pushAfterCommand(ctx, id, 1)
+	return nil
+}
+
+// pushAfterCommand advances the model a few seconds and broadcasts the live snapshot
+// so faceplates/alarms update without waiting for the 250ms runner tick.
+func (s *SessionService) pushAfterCommand(ctx context.Context, sessionID string, catchUpSteps int) {
+	if catchUpSteps < 1 {
+		catchUpSteps = 1
+	}
+	var state domain.SimState
+	var err error
+	for i := 0; i < catchUpSteps; i++ {
+		state, err = s.lockedStep(ctx, sessionID, 1)
+		if err != nil {
+			s.log.Warn("post-command sim step failed", "session", sessionID, "error", err)
+			return
+		}
+	}
+	s.broadcastSimSnapshot(ctx, sessionID, state)
+}
+
+func (s *SessionService) lockedStep(ctx context.Context, sessionID string, dtSec float64) (domain.SimState, error) {
+	s.mu.Lock()
+	runner := s.runners[sessionID]
+	s.mu.Unlock()
+	if runner != nil {
+		runner.stepMu.Lock()
+		defer runner.stepMu.Unlock()
+	}
+	return s.sim.Step(ctx, sessionID, dtSec)
+}
+
+func (s *SessionService) broadcastSimSnapshot(ctx context.Context, sessionID string, state domain.SimState) {
+	telemetry := domain.Telemetry{
+		ModelTime:  state.ModelTime,
+		Tags:       state.Tags,
+		Regulators: state.Regulators,
+		Alarms:     state.Alarms,
+	}
+	if s.cache != nil {
+		_ = s.cache.SaveTelemetry(ctx, sessionID, telemetry)
+	}
+	if s.hub == nil {
+		return
+	}
+	s.hub.BroadcastTelemetry(sessionID, tagsForWS(state.Tags, state.ModelTime, state.Alarms))
+	for _, reg := range RegulatorsForWS(state.Regulators) {
+		s.hub.BroadcastRegulator(sessionID, reg)
+	}
+
+	speed := 1.0
+	status := string(domain.StatusRunning)
+	scenarioID := ""
+	if s.repo != nil {
+		if sess, err := s.repo.GetByID(ctx, sessionID); err == nil {
+			if sess.Speed > 0 {
+				speed = sess.Speed
+			}
+			if sess.Status != "" {
+				status = string(sess.Status)
+			}
+			scenarioID = sess.ScenarioID
+		}
+		_ = s.repo.UpdateStatus(ctx, sessionID, domain.SessionStatus(status), state.ModelTime)
+	}
+	s.hub.BroadcastSessionStatus(sessionID, status, state.ModelTime, speed)
+
+	s.mu.Lock()
+	runner := s.runners[sessionID]
+	s.mu.Unlock()
+
+	announce := state.NewAlarms
+	if len(announce) == 0 {
+		for _, alarm := range state.Alarms {
+			if alarm.AckModelTime == nil {
+				announce = append(announce, alarm)
+			}
+		}
+	}
+	for _, alarm := range announce {
+		if alarm.AckModelTime != nil || alarm.ID == "" {
+			continue
+		}
+		if runner != nil && !runner.markAlarmNew(alarm.ID) {
+			continue
+		}
+		if s.repo != nil {
+			_ = s.repo.RecordAlarm(ctx, alarm)
+		}
+		if s.assessment != nil {
+			_ = s.assessment.SendEvent(ctx, sessionID, scenarioID, "alarm", alarm)
+		}
+		s.hub.BroadcastAlarm(sessionID, alarmForWS(alarm))
+	}
+	for _, alarm := range state.ClearedAlarms {
+		if runner != nil {
+			runner.clearKnownAlarm(alarm.ID)
+		}
+		if alarm.ID != "" {
+			s.hub.BroadcastAlarmClear(sessionID, alarm.ID)
+		}
+	}
 }
 
 type SessionRunner struct {
-	sessionID  string
-	scenarioID string
-	svc        *SessionService
-	log        *slog.Logger
-	engine     *TriggerEngine
-	paused     bool
-	stopped    bool
-	mu         sync.Mutex
+	sessionID   string
+	scenarioID  string
+	svc         *SessionService
+	log         *slog.Logger
+	engine      *TriggerEngine
+	paused      bool
+	stopped     bool
+	failCount   int
+	knownAlarms map[string]bool
+	mu          sync.Mutex
+	stepMu      sync.Mutex
 }
 
 func newSessionRunner(sessionID, scenarioID string, svc *SessionService, log *slog.Logger) *SessionRunner {
 	return &SessionRunner{
-		sessionID:  sessionID,
-		scenarioID: scenarioID,
-		svc:        svc,
-		log:        log,
-		engine:     NewTriggerEngine(log),
+		sessionID:   sessionID,
+		scenarioID:  scenarioID,
+		svc:         svc,
+		log:         log,
+		engine:      NewTriggerEngine(log),
+		knownAlarms: make(map[string]bool),
 	}
+}
+
+func (r *SessionRunner) markAlarmNew(id string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.knownAlarms[id] {
+		return false
+	}
+	r.knownAlarms[id] = true
+	return true
+}
+
+func (r *SessionRunner) clearKnownAlarm(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.knownAlarms, id)
 }
 
 func (r *SessionRunner) loadScenario(ctx context.Context) error {
@@ -386,7 +556,8 @@ func (r *SessionRunner) isStopped() bool {
 }
 
 func (r *SessionRunner) run(ctx context.Context) {
-	ticker := time.NewTicker(time.Second)
+	// 250ms wall clock × 0.25s model dt keeps realtime pacing with snappier HMI.
+	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
 
 	for !r.isStopped() {
@@ -403,31 +574,32 @@ func (r *SessionRunner) run(ctx context.Context) {
 }
 
 func (r *SessionRunner) tick(ctx context.Context) {
-	state, err := r.svc.sim.Step(ctx, r.sessionID, 1)
+	state, err := r.svc.lockedStep(ctx, r.sessionID, 0.25)
 	if err != nil {
-		r.log.Error("sim step failed", "session", r.sessionID, "error", err)
+		r.failCount++
+		r.log.Error("sim step failed", "session", r.sessionID, "error", err, "fail_count", r.failCount)
+		if r.failCount >= 5 {
+			r.log.Error("stopping orphaned session runner after repeated sim failures", "session", r.sessionID)
+			r.stop()
+			mt := 0.0
+			if sess, err := r.svc.repo.GetByID(ctx, r.sessionID); err == nil {
+				mt = sess.ModelTime
+			}
+			_ = r.svc.repo.UpdateStatus(ctx, r.sessionID, domain.StatusStopped, mt)
+			r.svc.mu.Lock()
+			delete(r.svc.runners, r.sessionID)
+			r.svc.mu.Unlock()
+		}
 		return
 	}
+	r.failCount = 0
 
-	telemetry := domain.Telemetry{
-		ModelTime:  state.ModelTime,
-		Tags:       state.Tags,
-		Regulators: state.Regulators,
-		Alarms:     state.Alarms,
+	r.svc.broadcastSimSnapshot(ctx, r.sessionID, state)
+
+	fired := r.engine.CheckTriggers(ctx, r.sessionID, state.ModelTime, state.Tags, r.svc.sim, r.svc.repo, r.svc.publisher)
+	for _, f := range fired {
+		r.svc.hub.BroadcastFault(r.sessionID, faultForWS(f))
 	}
-
-	_ = r.svc.cache.SaveTelemetry(ctx, r.sessionID, telemetry)
-	r.svc.hub.BroadcastTelemetry(r.sessionID, tagsForWS(state.Tags, state.ModelTime, state.Alarms))
-
-	for _, alarm := range state.Alarms {
-		if alarm.AckModelTime == nil {
-			_ = r.svc.repo.RecordAlarm(ctx, alarm)
-			_ = r.svc.assessment.SendEvent(ctx, r.sessionID, r.scenarioID, "alarm", alarm)
-			r.svc.hub.BroadcastAlarm(r.sessionID, alarmForWS(alarm))
-		}
-	}
-
-	r.engine.CheckTriggers(ctx, r.sessionID, state.ModelTime, state.Tags, r.svc.sim, r.svc.repo, r.svc.publisher)
 }
 
 var _ = json.Marshal

@@ -86,3 +86,93 @@ func TestAlarmForWS_MapsFields(t *testing.T) {
 		t.Fatal("expected unacked")
 	}
 }
+
+func TestBroadcastSessionStatus(t *testing.T) {
+	hub := NewWSHub()
+	client := NewWSClient("operator", "u1")
+	hub.Register("sess-1", client)
+	defer hub.Unregister("sess-1", client)
+
+	hub.BroadcastSessionStatus("sess-1", "running", 42.5, 2)
+
+	select {
+	case raw := <-client.SendChan():
+		var msg map[string]any
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatal(err)
+		}
+		if msg["type"] != "session_status" || msg["status"] != "running" {
+			t.Fatalf("%v", msg)
+		}
+		if msg["modelTime"] != 42.5 || msg["speed"] != float64(2) {
+			t.Fatalf("%v", msg)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("no message")
+	}
+}
+
+func TestTagsForWS_AttachesAlarmByNormalizedTag(t *testing.T) {
+	tags := tagsForWS(
+		[]domain.Tag{{TagID: "FRCA-428", Value: 10, Unit: "m3/h"}},
+		3,
+		[]domain.AlarmEvent{{ID: "a1", TagID: "FRCA 428", Priority: "L"}},
+	)
+	if len(tags) != 1 {
+		t.Fatalf("len=%d", len(tags))
+	}
+	if tags[0]["alarmState"] != "L" {
+		t.Fatalf("alarmState=%v", tags[0]["alarmState"])
+	}
+}
+
+func TestBroadcastAlarmClear(t *testing.T) {
+	hub := NewWSHub()
+	client := NewWSClient("operator", "u1")
+	hub.Register("sess-1", client)
+	defer hub.Unregister("sess-1", client)
+
+	hub.BroadcastAlarmClear("sess-1", "AL-1")
+
+	select {
+	case raw := <-client.SendChan():
+		var msg map[string]any
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatal(err)
+		}
+		if msg["type"] != "alarm_clear" || msg["id"] != "AL-1" {
+			t.Fatalf("%v", msg)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("no message")
+	}
+}
+
+func TestBroadcastFault(t *testing.T) {
+	hub := NewWSHub()
+	client := NewWSClient("operator", "u1")
+	hub.Register("sess-1", client)
+	defer hub.Unregister("sess-1", client)
+
+	hub.BroadcastFault("sess-1", faultForWS(domain.FaultEvent{
+		ID: "fe1", FaultID: "FLT-K1-PRESSURE-HIGH", ComponentID: "column-k1",
+		TriggerType: "time", FiredModelTime: 120,
+	}))
+
+	select {
+	case raw := <-client.SendChan():
+		var msg map[string]any
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatal(err)
+		}
+		if msg["type"] != "fault" {
+			t.Fatalf("%v", msg)
+		}
+		fault, ok := msg["fault"].(map[string]any)
+		if !ok || fault["fault_id"] != "FLT-K1-PRESSURE-HIGH" {
+			t.Fatalf("%v", msg)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("no message")
+	}
+}

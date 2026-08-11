@@ -8,8 +8,14 @@ compose/
   data/   ← ktc-local   : Postgres · Redis · MinIO · NATS · migrate
   app/    ← ktc-dev     : auth · constructor · scenario · orchestrator
                            assessment · snapshot · report · gw · frontend
+  sim/    ← ktc-sim     : sim-manager · sim-worker (телеметрия ЭЛОУ-АВТ)
   ai/     ← ktk-ai      : ai-service · ollama (опционально)
 ```
+
+> Для живой телеметрии/неисправностей в операторской сессии поднимите
+> `compose/sim` вместе с `compose/app` (DNS `sim-worker:8081` совпадает с
+> `orchestrator.toml`). Без sim orchestrator использует MockSim с теми же
+> tag ID (`"PRSA 204"`, …), но без полной физики.
 
 ---
 
@@ -70,6 +76,15 @@ docker compose --env-file compose/app/.env -f compose/app/compose.yaml up -d --b
 
 > При первом запуске включены seed-данные (`seed.enabled = true` в конфигах):
 > компоненты ЭЛОУ-АВТ, шаблон установки и 10 учебных/экзаменационных сценариев.
+
+### Шаг 2b — Симулятор (`ktc-sim`, для live HMI)
+
+Нужен для реальной телеметрии и каталога неисправностей `FLT-*` в тренировке/экзамене.
+
+```bash
+cp compose/sim/.env.example compose/sim/.env
+docker compose --env-file compose/sim/.env -f compose/sim/compose.yaml up -d --build
+```
 
 ### Шаг 3 — ИИ-слой (`ktk-ai`)
 

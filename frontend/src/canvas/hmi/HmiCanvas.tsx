@@ -1,10 +1,18 @@
-import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
-import { Stage, Layer, Rect, Text, Line, Circle, Arrow } from 'react-konva'
+import { useRef, useState, useCallback, useMemo, useEffect } from 'react'
+import { Stage, Layer, Rect, Circle, Arrow, Line, Group } from 'react-konva'
 import Konva from 'konva'
 import type { CanvasNode, CanvasEdge } from '@/store/constructor'
 import type { TagValue } from '@/store/session'
-import { NodeWidget, ValveWidget } from './NodeWidget'
-import { getNodeSize, getInAnchor, getOutAnchor } from './nodeGeometry'
+import { EquipmentWidget } from '@/canvas/shared/EquipmentWidget'
+import {
+  getPortAnchor,
+  orthogonalEdgePoints,
+  mediaStrokeColor,
+  mediaDash,
+  mediaStrokeWidth,
+  resolveEdgeMediaType,
+} from '@/canvas/shared/equipmentGeometry'
+import { edgeFlowKey, isEdgeFlowing } from '@/canvas/shared/edgeFlow'
 import { useCanvasTokens } from '@/theme/useCanvasTokens'
 import type { ComponentType } from '@/mocks/fixtures/components'
 
@@ -16,12 +24,16 @@ interface HmiCanvasProps {
   width: number
   height: number
   interactive?: boolean
-  /** Animate a marching-dash flow indicator along pipe runs (session running). */
+  /**
+   * Session-level gate: when false, no wires animate.
+   * When true, each wire animates only if its endpoint pumps/flows are active.
+   */
   flowing?: boolean
   onNodeClick?: (node: CanvasNode) => void
 }
 
-const DOT_SPACING = 26
+const DOT_SPACING = 32
+const FLOW_DASH: number[] = [10, 8]
 
 export function HmiCanvas({
   nodes,
@@ -36,18 +48,6 @@ export function HmiCanvas({
 }: HmiCanvasProps) {
   const canvasTokens = useCanvasTokens()
   const edgesLayerRef = useRef<Konva.Layer>(null)
-
-  const ZONE_AREAS = [
-    {
-      id: 'elou',
-      label: 'ПАРК И ПОДГОТОВКА СЫРЬЯ / ЭЛОУ',
-      color: canvasTokens.zone.elou,
-      x1: 0,
-      x2: 0.3,
-    },
-    { id: 'atm', label: 'АТМОСФЕРНЫЙ БЛОК', color: canvasTokens.zone.atm, x1: 0.3, x2: 0.65 },
-    { id: 'gdm', label: 'БЛОК ГДМ', color: canvasTokens.zone.gdm, x1: 0.65, x2: 1.0 },
-  ]
 
   const stageRef = useRef<Konva.Stage>(null)
   const [zoom, setZoom] = useState(1)
@@ -76,7 +76,6 @@ export function HmiCanvas({
 
   const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     if (e.target !== e.target.getStage()) return
-    // Left button, middle button, or Alt+drag all pan the canvas
     if (e.evt.button === 0 || e.evt.button === 1 || e.evt.altKey) {
       isDragging.current = true
       lastPos.current = { x: e.evt.clientX, y: e.evt.clientY }
@@ -109,11 +108,27 @@ export function HmiCanvas({
     return componentTypes.find((c) => c.id === node.typeId)?.shape
   }
 
-  // Marching-dash flow indicator on active pipe runs (reference idea: animated
-  // flow direction on live pipes, reimplemented here as a Konva.Animation
-  // ticking each pipe's dashOffset rather than mutating React state per frame).
+  const mediaOf = useCallback(
+    (edge: CanvasEdge) => {
+      const src = nodes.find((n) => n.id === edge.sourceNodeId)
+      if (!src) return resolveEdgeMediaType(edge.type, undefined)
+      const srcPort = getPortAnchor(src, edge.sourcePortId, componentTypes)
+      return resolveEdgeMediaType(edge.type, srcPort.type)
+    },
+    [nodes, componentTypes],
+  )
+
+  // Bitmask of which edges are actively flowing — only changes when pumps/rates change,
+  // so 1 Hz telemetry does not remount arrows and kill dashOffset.
+  const flowKey = useMemo(
+    () => edgeFlowKey(edges, nodes, componentTypes, telemetry, flowing, mediaOf),
+    [edges, nodes, componentTypes, telemetry, flowing, mediaOf],
+  )
+
+  const anyEdgeFlowing = flowing && flowKey.includes('1')
+
   useEffect(() => {
-    if (!flowing) return
+    if (!anyEdgeFlowing) return
     const layer = edgesLayerRef.current
     if (!layer) return
     const anim = new Konva.Animation((frame) => {
@@ -121,16 +136,15 @@ export function HmiCanvas({
       const shapes = layer.find('.pipe-flow')
       shapes.forEach((shape) => {
         const arrow = shape as Konva.Arrow
-        arrow.dashOffset(arrow.dashOffset() - frame.timeDiff * 0.03)
+        arrow.dashOffset(arrow.dashOffset() - frame.timeDiff * 0.12)
       })
     }, layer)
     anim.start()
     return () => {
       anim.stop()
     }
-  }, [flowing])
+  }, [anyEdgeFlowing, flowKey])
 
-  // Dot grid background (reference: ktk.html `.bg-grid` / `hmiGrid` pattern)
   const dots = useMemo(() => {
     const pts: { x: number; y: number }[] = []
     const cols = Math.ceil(width / zoom / DOT_SPACING) + 2
@@ -144,6 +158,53 @@ export function HmiCanvas({
     }
     return pts
   }, [width, height, zoom, pan.x, pan.y])
+
+  const edgeElements = useMemo(
+    () =>
+      edges.map((edge) => {
+        const src = nodes.find((n) => n.id === edge.sourceNodeId)
+        const dst = nodes.find((n) => n.id === edge.targetNodeId)
+        if (!src || !dst) return null
+        const srcPort = getPortAnchor(src, edge.sourcePortId, componentTypes)
+        const dstPort = getPortAnchor(dst, edge.targetPortId, componentTypes)
+        const media = resolveEdgeMediaType(edge.type, srcPort.type)
+        const stroke = mediaStrokeColor(media, canvasTokens)
+        const baseDash = mediaDash(media)
+        const edgeActive = isEdgeFlowing(edge, nodes, componentTypes, telemetry, flowing, media)
+        const dash = edgeActive ? (baseDash ?? FLOW_DASH) : baseDash
+        const points = orthogonalEdgePoints(srcPort.x, srcPort.y, dstPort.x, dstPort.y)
+        const widthPx = mediaStrokeWidth(media)
+        return (
+          <Group key={edge.id}>
+            <Line
+              points={points}
+              stroke={canvasTokens.bg.canvas}
+              strokeWidth={widthPx + 3}
+              lineCap="round"
+              lineJoin="round"
+              listening={false}
+            />
+            <Arrow
+              name={edgeActive ? 'pipe-flow' : undefined}
+              points={points}
+              stroke={stroke}
+              fill={stroke}
+              strokeWidth={widthPx}
+              pointerLength={7}
+              pointerWidth={6}
+              tension={0}
+              dash={dash}
+              lineCap="round"
+              lineJoin="round"
+              opacity={edgeActive ? 0.95 : 0.35}
+            />
+          </Group>
+        )
+      }),
+    // telemetry is represented by flowKey so idle ticks don't remount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nodes, edges, componentTypes, flowing, canvasTokens, flowKey],
+  )
 
   return (
     <Stage
@@ -160,7 +221,6 @@ export function HmiCanvas({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
-      {/* Background */}
       <Layer listening={false}>
         <Rect
           x={-pan.x}
@@ -171,109 +231,34 @@ export function HmiCanvas({
         />
 
         {dots.map((d, i) => (
-          <Circle key={i} x={d.x} y={d.y} radius={1} fill={canvasTokens.gridDot} />
+          <Circle
+            key={i}
+            x={d.x}
+            y={d.y}
+            radius={0.85}
+            fill={canvasTokens.gridDot}
+            opacity={0.55}
+          />
         ))}
-
-        {/* Zone panels — full-height tinted area with a border box and eyebrow label */}
-        {ZONE_AREAS.map((zone, i) => {
-          const x = zone.x1 * (width / zoom) - pan.x
-          const zoneWidth = (zone.x2 - zone.x1) * (width / zoom)
-          const y = -pan.y
-          const h = height / zoom
-          return (
-            <React.Fragment key={zone.id}>
-              <Rect x={x} y={y} width={zoneWidth} height={h} fill={zone.color + '0d'} />
-              <Rect
-                x={x}
-                y={y}
-                width={zoneWidth}
-                height={h}
-                stroke={zone.color + '59'}
-                strokeWidth={1}
-                listening={false}
-              />
-              <Rect x={x + 10} y={y + 10} width={6} height={6} fill={zone.color} />
-              <Text
-                x={x + 22}
-                y={y + 8}
-                text={zone.label}
-                fontSize={9}
-                fill={zone.color}
-                fontFamily={canvasTokens.font.mono}
-                letterSpacing={1}
-              />
-              <Line
-                points={[x + 10, y + 22, x + zoneWidth - 10, y + 22]}
-                stroke={zone.color + '4d'}
-                strokeWidth={1}
-              />
-              {i > 0 && (
-                <Line
-                  points={[x, y, x, y + h]}
-                  stroke={zone.color + '40'}
-                  strokeWidth={1}
-                  dash={[4, 4]}
-                />
-              )}
-            </React.Fragment>
-          )
-        })}
       </Layer>
 
-      {/* Edges — orthogonal pipe runs with a flow-direction arrowhead */}
       <Layer listening={false} ref={edgesLayerRef}>
-        {edges.map((edge) => {
-          const src = nodes.find((n) => n.id === edge.sourceNodeId)
-          const dst = nodes.find((n) => n.id === edge.targetNodeId)
-          if (!src || !dst) return null
-          const srcSize = getNodeSize(shapeOf(src))
-          const dstSize = getNodeSize(shapeOf(dst))
-          const { x: x1, y: y1 } = getOutAnchor(src.x, src.y, srcSize)
-          const { x: x2, y: y2 } = getInAnchor(dst.x, dst.y, dstSize)
-          const cpx = (x1 + x2) / 2
-          return (
-            <Arrow
-              key={edge.id}
-              name={flowing ? 'pipe-flow' : undefined}
-              points={[x1, y1, cpx, y1, cpx, y2, x2, y2]}
-              stroke={canvasTokens.line}
-              fill={canvasTokens.line}
-              strokeWidth={1.5}
-              pointerLength={7}
-              pointerWidth={6}
-              tension={0}
-              dash={flowing ? [8, 6] : undefined}
-            />
-          )
-        })}
+        {edgeElements}
       </Layer>
 
-      {/* Nodes */}
       <Layer>
-        {nodes.map((node) => {
-          const shape = shapeOf(node)
-          return shape === 'valve' ? (
-            <ValveWidget
-              key={node.id}
-              node={node}
-              shape="valve"
-              telemetry={telemetry}
-              isSelected={selectedNodeId === node.id}
-              onClick={() => handleNodeClick(node)}
-              interactive={interactive}
-            />
-          ) : (
-            <NodeWidget
-              key={node.id}
-              node={node}
-              shape={shape}
-              telemetry={telemetry}
-              isSelected={selectedNodeId === node.id}
-              onClick={() => handleNodeClick(node)}
-              interactive={interactive}
-            />
-          )
-        })}
+        {nodes.map((node) => (
+          <EquipmentWidget
+            key={node.id}
+            node={node}
+            shape={shapeOf(node)}
+            mode="runtime"
+            telemetry={telemetry}
+            isSelected={selectedNodeId === node.id}
+            onClick={() => handleNodeClick(node)}
+            interactive={interactive}
+          />
+        ))}
       </Layer>
     </Stage>
   )

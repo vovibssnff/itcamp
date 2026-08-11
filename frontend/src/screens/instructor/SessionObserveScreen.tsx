@@ -2,7 +2,6 @@ import { useParams } from 'react-router'
 import { useRef, useEffect, useState } from 'react'
 import { message } from 'antd'
 import { HmiCanvas } from '@/canvas/hmi/HmiCanvas'
-import { EloudAvtScheme } from '@/canvas/hmi/EloudAvtScheme'
 import { AlarmBanner } from '@/components/alarms/AlarmBanner'
 import { TrendPanel } from '@/components/trends/TrendPanel'
 import { useWebSocket } from '@/hooks/useWebSocket'
@@ -21,13 +20,19 @@ export default function SessionObserveScreen() {
   const [componentTypes, setComponentTypes] = useState<ComponentType[]>([])
   const [loadError, setLoadError] = useState(false)
 
-  useWebSocket({ sessionId: sessionId ?? null, channel: 'observe', enabled: !!sessionId })
+  const { send } = useWebSocket({
+    sessionId: sessionId ?? null,
+    channel: 'observe',
+    enabled: !!sessionId,
+  })
 
   const telemetry = useSessionStore((s) => s.telemetry)
   const alarms = useSessionStore((s) => s.alarms)
+  const faults = useSessionStore((s) => s.faults)
   const status = useSessionStore((s) => s.status)
   const modelTime = useSessionStore((s) => s.modelTime)
   const speed = useSessionStore((s) => s.speed)
+  const acknowledgeAlarm = useSessionStore((s) => s.acknowledgeAlarm)
 
   useEffect(() => {
     if (!sessionId) return
@@ -71,10 +76,18 @@ export default function SessionObserveScreen() {
   async function ackAlarm(alarmId: string) {
     if (!sessionId) return
     try {
+      send({ type: 'ack_alarm', id: alarmId })
       await sessionsApi.ackAlarm(sessionId, alarmId)
+      acknowledgeAlarm(alarmId)
       void message.success('Аварийный сигнал квитирован')
     } catch {
       void message.error('Не удалось квитировать аларм')
+    }
+  }
+
+  async function handleAckAll(ids: string[]) {
+    for (const id of ids) {
+      await ackAlarm(id)
     }
   }
 
@@ -96,7 +109,27 @@ export default function SessionObserveScreen() {
       data-testid="session-observe"
       style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}
     >
-      <AlarmBanner />
+      <AlarmBanner onAcknowledge={(ids) => void handleAckAll(ids)} />
+      {faults.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            padding: '4px 16px',
+            background: 'rgba(224,164,88,0.1)',
+            borderBottom: '1px solid var(--ln)',
+            fontSize: 11,
+            color: 'var(--warn)',
+          }}
+        >
+          <b>ИНЦИДЕНТЫ</b>
+          {faults.slice(0, 4).map((f) => (
+            <span key={f.id} className="mono">
+              {f.message || f.faultId}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div className="mark">
@@ -117,33 +150,17 @@ export default function SessionObserveScreen() {
       </div>
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <div ref={containerRef} style={{ flex: 1, overflow: 'hidden' }}>
-          {template?.id === 'tmpl-elou-avt' || template?.scheme === 'elou-avt' ? (
-            <EloudAvtScheme
-              telemetry={telemetry}
-              interactive={false}
-              flowing={status === 'running'}
-            />
-          ) : template ? (
-            <HmiCanvas
-              nodes={template.nodes}
-              edges={template.edges}
-              componentTypes={componentTypes}
-              telemetry={telemetry}
-              width={canvasSize.w}
-              height={canvasSize.h}
-              interactive={false}
-              flowing={status === 'running'}
-            />
-          ) : (
-            <div className="loading-spinner" style={{ margin: 'auto', marginTop: 80 }} />
-          )}
-        </div>
-
-        <div className="side" style={{ width: 320, overflowY: 'auto' }}>
+        <div
+          className="side"
+          style={{
+            width: 320,
+            borderLeft: 'none',
+            borderRight: '1px solid var(--ln)',
+            overflowY: 'auto',
+          }}
+        >
           <TrendPanel width={300} height={160} />
 
-          {/* Instructor alarm panel with REST ack */}
           {alarms.length > 0 && (
             <div style={{ padding: '12px 14px' }}>
               <div className="sec" style={{ marginBottom: 8, fontSize: 11, color: 'var(--alarm)' }}>
@@ -187,6 +204,23 @@ export default function SessionObserveScreen() {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+
+        <div ref={containerRef} style={{ flex: 1, overflow: 'hidden' }}>
+          {template ? (
+            <HmiCanvas
+              nodes={template.nodes}
+              edges={template.edges}
+              componentTypes={componentTypes}
+              telemetry={telemetry}
+              width={canvasSize.w}
+              height={canvasSize.h}
+              interactive={false}
+              flowing={status === 'running'}
+            />
+          ) : (
+            <div className="loading-spinner" style={{ margin: 'auto', marginTop: 80 }} />
           )}
         </div>
       </div>

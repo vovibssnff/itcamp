@@ -16,16 +16,22 @@ import (
 
 type ReportStorage interface {
 	Save(ctx context.Context, key string, data []byte) error
+	Load(ctx context.Context, key string) ([]byte, error)
+}
+
+type TaskPublisher interface {
+	PublishReportTask(ctx context.Context, task domain.ReportTask) error
 }
 
 type ReportService struct {
-	repo    *repository.ReportRepo
-	storage ReportStorage
-	log     *slog.Logger
+	repo     *repository.ReportRepo
+	storage  ReportStorage
+	publisher TaskPublisher
+	log      *slog.Logger
 }
 
-func NewReportService(repo *repository.ReportRepo, storage ReportStorage, log *slog.Logger) *ReportService {
-	return &ReportService{repo: repo, storage: storage, log: log}
+func NewReportService(repo *repository.ReportRepo, storage ReportStorage, publisher TaskPublisher, log *slog.Logger) *ReportService {
+	return &ReportService{repo: repo, storage: storage, publisher: publisher, log: log}
 }
 
 func (s *ReportService) Create(ctx context.Context, sessionID string, reportType domain.ReportType) (domain.Report, error) {
@@ -39,6 +45,14 @@ func (s *ReportService) Create(ctx context.Context, sessionID string, reportType
 		return domain.Report{}, err
 	}
 	IncReportCreated(string(rep.Type))
+
+	if s.publisher != nil {
+		task := domain.ReportTask{ReportID: rep.ID, SessionID: sessionID, Type: string(reportType)}
+		if err := s.publisher.PublishReportTask(ctx, task); err != nil {
+			s.log.Error("failed to publish report task", "report_id", rep.ID, "error", err)
+		}
+	}
+
 	return rep, nil
 }
 
@@ -48,6 +62,21 @@ func (s *ReportService) Get(ctx context.Context, id string) (domain.Report, erro
 
 func (s *ReportService) ListBySession(ctx context.Context, sessionID string) ([]domain.Report, error) {
 	return s.repo.ListBySession(ctx, sessionID)
+}
+
+// Download возвращает PDF-байты готового отчёта из хранилища.
+func (s *ReportService) Download(ctx context.Context, id string) ([]byte, error) {
+	rep, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if rep.Status != domain.StatusReady {
+		return nil, domain.ErrReportNotReady
+	}
+	if s.storage == nil || rep.StorageKey == "" {
+		return nil, domain.ErrReportNotReady
+	}
+	return s.storage.Load(ctx, rep.StorageKey)
 }
 
 func (s *ReportService) ProcessTask(ctx context.Context, task domain.ReportTask) error {
@@ -90,13 +119,18 @@ func (s *ReportService) ProcessTask(ctx context.Context, task domain.ReportTask)
 	}
 	IncReportGenerated()
 
+	downloadURL := fmt.Sprintf("/reports/%s/file", task.ReportID)
+	_ = s.repo.SetDownloadURL(ctx, task.ReportID, downloadURL)
+
 	s.log.Info("report generated", "report_id", task.ReportID, "session", task.SessionID)
 	return nil
 }
 
 func (s *ReportService) collectSessionData(ctx context.Context, sessionID string) (domain.SessionData, error) {
-	data := domain.SessionData{
-		SessionID: sessionID,
+	data, err := s.repo.GetSessionMeta(ctx, sessionID)
+	if err != nil {
+		s.log.Warn("failed to load session metadata", "session", sessionID, "error", err)
+		data = domain.SessionData{SessionID: sessionID}
 	}
 
 	score, err := s.repo.GetScore(ctx, sessionID)

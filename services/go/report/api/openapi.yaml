@@ -75,11 +75,24 @@ paths:
 
   /reports/{id}/download:
     get:
-      summary: Скачать PDF (302 на presigned S3)
+      summary: Скачать PDF (302 на /reports/{id}/file)
       security: [{ bearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses:
-        '302': { description: Redirect to S3 }
+        '302': { description: Redirect to file endpoint }
+        '409': { description: Report is not ready }
+
+  /reports/{id}/file:
+    get:
+      summary: Скачать PDF-файл напрямую
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '409': { description: Report is not ready }
 
   /healthz:
     get:

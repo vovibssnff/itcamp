@@ -45,6 +45,7 @@ func registerRoutes(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /reports", h.List)
 	mux.HandleFunc("GET /reports/{id}", h.Get)
 	mux.HandleFunc("GET /reports/{id}/download", h.Download)
+	mux.HandleFunc("GET /reports/{id}/file", h.File)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))

@@ -18,6 +18,7 @@ import (
 	"github.com/itcamp/ktc/services/report/internal/repository"
 	"github.com/itcamp/ktc/services/report/internal/server"
 	"github.com/itcamp/ktc/services/report/internal/service"
+	"github.com/itcamp/ktc/services/report/internal/storage"
 )
 
 func main() {
@@ -49,7 +50,19 @@ func main() {
 	}
 	defer nc.Close()
 
-	reportSvc := service.NewReportService(repository.NewReportRepo(pg), nil, log)
+	var reportStorage service.ReportStorage
+	if cfg.S3.Endpoint != "" {
+		s3, err := storage.New(ctx, cfg.S3)
+		if err != nil {
+			log.Error("s3 init failed, pdf storage disabled", "error", err)
+		} else {
+			reportStorage = s3
+			log.Info("s3 storage connected", "endpoint", cfg.S3.Endpoint, "bucket", cfg.S3.Bucket)
+		}
+	}
+
+	publisher := newNATSPublisher(nc, cfg.NATS.ReportTasksSubj, log)
+	reportSvc := service.NewReportService(repository.NewReportRepo(pg), reportStorage, publisher, log)
 
 	go startNATSConsumer(nc, cfg.NATS, reportSvc, log)
 
@@ -100,4 +113,22 @@ func startNATSConsumer(nc *nats.Conn, cfg config.NATSConfig, svc *service.Report
 		os.Exit(1)
 	}
 	log.Info("nats consumer started", "subject", cfg.ReportTasksSubj, "queue", cfg.QueueGroup)
+}
+
+type natsPublisher struct {
+	nc   *nats.Conn
+	subj string
+	log  *slog.Logger
+}
+
+func newNATSPublisher(nc *nats.Conn, subj string, log *slog.Logger) *natsPublisher {
+	return &natsPublisher{nc: nc, subj: subj, log: log}
+}
+
+func (p *natsPublisher) PublishReportTask(_ context.Context, task domain.ReportTask) error {
+	data, err := json.Marshal(task)
+	if err != nil {
+		return err
+	}
+	return p.nc.Publish(p.subj, data)
 }

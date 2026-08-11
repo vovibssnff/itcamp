@@ -1,137 +1,195 @@
-# Docker Compose — слои платформы КТК
+# Локальный запуск стека КТК
 
-Единое место для всех docker-compose платформы, разбитых по слоям/плоскостям
-архитектуры (соответствует namespace'ам из ARCHITECTURE.md и SRD §7.9):
-
-| Каталог | Слой | Что поднимает | Сеть |
-|---------|------|---------------|------|
-| `compose/data/` | **ktc-data** | PostgreSQL (род. Picodata CE), Redis (род. Radix), MinIO (S3), NATS JetStream, миграции | `ktc-data` |
-| `compose/app/` | **ktc-app** | Сервисы приложения: auth, constructor, scenario, orchestrator, assessment, snapshot, report, gw | `ktc-data` + `dev-app` |
-| `compose/ai/`  | **ktk-ai**   | ai-service + Ollama (LLM) | `ktc-data` |
-| `compose/sim/` | **ktk-sim**  | sim-manager (диспетчер Simulation Engine) + sim-worker (Model API) | `ktc-data` |
-| `compose/monitoring/` | **ktk-mon** | Prometheus + Grafana + cAdvisor (метрики всех контейнеров) | `ktc-data` |
-
-Все слои делят общую сеть `ktc-data` (создаётся слоем `data`), поэтому сервисы
-приложения и ИИ видят data-plane и друг друга по DNS-именам контейнеров.
-
-## Структура
+Стек разбит на три Docker Compose-слоя, эмулирующих Deckhouse-неймспейсы.
+Все три слоя разделяют сеть `ktc-data` (создаётся слоем `data`).
 
 ```
 compose/
-├── README.md
-├── data/                  # ktc-data (data-plane)
-│   ├── compose.yaml        # основные сервисы (postgres/redis/minio/nats/migrate)
-│   ├── compose.swarm.yaml  # overrides для Docker Swarm (опционально)
-│   ├── .env.example        # секреты и образы (копировать в .env)
-│   ├── Makefile            # make up / down / smoke / config / reset-data
-│   ├── data/               # конфиги minio (buckets) и nats
-│   ├── init/               # инициализация nats/sql, wait-for
-│   ├── migrator/           # Dockerfile для tools/migrator
-│   └── scripts/            # smoke.sh — проверка живости data-plane
-├── app/                   # ktc-app (прикладной слой)
-│   ├── compose.yaml        # auth..gw
-│   ├── .env.example
-│   └── config/*.toml       # конфиги сервисов для локального запуска
-└── ai/                    # ktk-ai (ИИ-слой)
-    ├── compose.yaml        # ai-service + ollama
-    └── .env.example
-└── sim/                   # ktk-sim (вычислительный слой)
-    ├── compose.yaml        # sim-manager + sim-worker
-    ├── .env.example
-    └── config/sim-manager.toml
-└── monitoring/            # ktk-mon (мониторинг)
-    ├── compose.yaml        # prometheus + grafana + cadvisor
-    ├── .env.example
-    ├── prometheus/prometheus.yml
-    └── grafana/
-        ├── provisioning/   # datasource (prometheus) + dashboard provider
-        └── dashboards/     # готовые дашборды (.json)
+  data/   ← ktc-local   : Postgres · Redis · MinIO · NATS · migrate
+  app/    ← ktc-dev     : auth · constructor · scenario · orchestrator
+                           assessment · snapshot · report · gw · frontend
+  ai/     ← ktk-ai      : ai-service · ollama (опционально)
 ```
+
+---
+
+## Требования
+
+| | |
+|---|---|
+| Docker Engine | ≥ 26 |
+| Docker Compose | v2 (`docker compose version`) |
+| Свободный диск | ~20 ГБ (модель Ollama) |
+
+---
+
+## Первичная настройка (один раз)
+
+```bash
+cp compose/data/.env.example compose/data/.env
+cp compose/app/.env.example  compose/app/.env
+cp compose/ai/.env.example   compose/ai/.env
+```
+
+При необходимости отредактируйте секреты в `compose/app/.env`:
+
+| Переменная | Описание |
+|---|---|
+| `JWT_SIGNING_KEY` | Минимум 32 байта, HS256 |
+| `TOTP_ENCRYPTION_KEY` | Ровно 32 байта, AES-256 |
+| `DB_PASSWORD` | Пароль Postgres |
+| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | MinIO credentials |
+
+---
 
 ## Запуск
 
-Порядок запуска по слоям (сначала data, потом app; ai можно в любое время):
+### Шаг 1 — Инфраструктурный слой (`ktc-local`)
+
+Создаёт сеть `ktc-data`, поднимает Postgres, Redis, MinIO, NATS и применяет DB-миграции.
 
 ```bash
-# 1) data-plane (PostgreSQL, Redis, MinIO, NATS + миграции)
-cd compose/data
-cp .env.example .env
-docker compose up -d --build
+cd /home/vovi/Projects/itcamp
 
-# 2) прикладной слой (+ frontend SPA на :8090)
-cd ../app
-cp .env.example .env
-docker compose up -d --build
-
-# 3) ИИ-слой (отдельный проект, не зависит от остальных)
-cd ../ai
-cp .env.example .env
-docker compose up -d --build
-
-# 4) Вычислительный слой (Simulation Engine: sim-manager + sim-worker)
-#    лучше поднять до/вместе с app — orchestrator ходит в sim-worker
-cd ../sim
-cp .env.example .env
-docker compose up -d --build
-
-# 5) Мониторинг (Prometheus + Grafana + cAdvisor) — после data (нужна сеть ktc-data)
-cd ../monitoring
-cp .env.example .env
-docker compose up -d --build
+docker compose --env-file compose/data/.env -f compose/data/compose.yaml up -d
 ```
 
-Или через Makefile data-plane:
+Дождитесь healthy-статуса (~10 с):
 
 ```bash
-cd compose/data
-make up
-make smoke      # проверка живости postgres/redis/minio/nats
+docker compose --env-file compose/data/.env -f compose/data/compose.yaml ps
 ```
 
-## Порты наружу (host)
+### Шаг 2 — Прикладной слой (`ktc-dev`)
 
-| Сервис | Хост-порт | Переменная | Слой |
-|--------|-----------|------------|------|
-| assessment | 8081 | `HTTP_ASSESSMENT` | app |
-| auth | 8082 | `HTTP_AUTH` | app |
-| constructor | 8083 | `HTTP_CONSTRUCTOR` | app |
-| scenario | 8084 | `HTTP_SCENARIO` | app |
-| orchestrator | 8085 | `HTTP_ORCHESTRATOR` | app |
-| snapshot | 8086 | `HTTP_SNAPSHOT` | app |
-| report | 8087 | `HTTP_REPORT` | app |
-| gw (вход) | 8088 | `HTTP_GW` | app |
-| frontend (SPA) | 8090 | `HTTP_FRONTEND` | app |
-| ai-service (REST) | 8080 | `AI_HTTP_HOST_PORT` | ai |
-| ai-service (gRPC) | 50051 | `AI_GRPC_HOST_PORT` | ai |
-| ollama | 11434 | `OLLAMA_HOST_PORT` | ai |
-| sim-manager (REST) | 8091 | `SIM_MANAGER_HOST_PORT` | sim |
-| sim-worker (REST) | 8092 | `SIM_WORKER_REST_HOST_PORT` | sim |
-| sim-worker (gRPC) | 50062 | `SIM_WORKER_GRPC_HOST_PORT` | sim |
-| postgres (PG-wire) | 5432 | `PICODATA_HOST_PORT` | data |
-| redis (Radix) | 7379 | `RADIX_HOST_PORT` | data |
-| minio S3 | 9000 | `MINIO_API_HOST_PORT` | data |
-| minio console | 9001 | `MINIO_CONSOLE_HOST_PORT` | data |
-| nats | 4222 | `NATS_CLIENT_HOST_PORT` | data |
-| nats monitor | 8222 | `NATS_MONITOR_HOST_PORT` | data |
-| prometheus | 9090 | `PROMETHEUS_HOST_PORT` | monitoring |
-| grafana | 3000 | `GRAFANA_HOST_PORT` | monitoring |
-| cadvisor | 18080 | `CADVISOR_HOST_PORT` | monitoring |
-
-## Миграции
-
-Миграции БД прогоняются слоем `data` (одиноразовая задача `migrate` на основе
-`tools/migrator`) сразу после поднятия data-plane:
+Собирает и запускает все Go-микросервисы и фронтенд-SPA.
 
 ```bash
-cd compose/data
-docker compose run --rm migrate
+docker compose --env-file compose/app/.env -f compose/app/compose.yaml up -d --build
 ```
 
-## Замечания
+> При первом запуске включены seed-данные (`seed.enabled = true` в конфигах):
+> компоненты ЭЛОУ-АВТ, шаблон установки и 10 учебных/экзаменационных сценариев.
 
-- `.env` каждого слоя — локальные секреты, **не коммитятся** (см. `.gitignore`
-  в корне и `compose/app/.gitignore`). Копируются из `.env.example`.
-- Слой `ai` (ktk-ai) — отдельный compose-проект; при необходимости подключает
-  GPU (см. закомментированный блок `deploy.resources` в `compose/ai/compose.yaml`).
-- `compose/data/compose.swarm.yaml` — optional overrides для `docker stack deploy`
-  (без Kubernetes); по умолчанию не используется.
+### Шаг 3 — ИИ-слой (`ktk-ai`)
+
+Запускает Ollama и ai-service.
+
+```bash
+docker compose --env-file compose/ai/.env -f compose/ai/compose.yaml up -d --build
+```
+
+**Первый запуск — загрузка модели** (~8 ГБ, занимает 5–15 мин в зависимости от канала):
+
+```bash
+docker compose --env-file compose/ai/.env -f compose/ai/compose.yaml \
+  exec ollama ollama pull qwen2.5:14b-instruct
+```
+
+> **Нет GPU / мало RAM?**
+> Перед шагом 3 установите `KTK_LLM_PROVIDER=stub` в `compose/ai/.env`.
+> Чат базы знаний будет использовать детерминированные ответы по регламенту
+> вместо реального LLM.
+
+---
+
+## Проверка
+
+```bash
+docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "ktc-|ktk-"
+```
+
+Ожидаемый вывод:
+
+```
+ktc-local-picodata-1     Up ... (healthy)
+ktc-local-radix-1        Up ... (healthy)
+ktc-local-minio-1        Up ... (healthy)
+ktc-local-nats-1         Up ... (healthy)
+ktc-dev-auth-1           Up ...
+ktc-dev-constructor-1    Up ...
+ktc-dev-scenario-1       Up ...
+ktc-dev-orchestrator-1   Up ...
+ktc-dev-assessment-1     Up ...
+ktc-dev-snapshot-1       Up ...
+ktc-dev-report-1         Up ...
+ktc-dev-gw-1             Up ...
+ktc-dev-frontend-1       Up ... (healthy)
+ktk-ai-ollama-1          Up ...
+ktk-ai-ai-service-1      Up ... (healthy)
+```
+
+---
+
+## Эндпоинты
+
+| Сервис | URL | Описание |
+|---|---|---|
+| **Frontend (SPA)** | http://localhost:8090 | Основная точка входа |
+| API Gateway | http://localhost:8088 | `/api/v1/*` |
+| AI service | http://localhost:8089 | `/v1/chat`, `/v1/explain` |
+| Auth | http://localhost:8082 | |
+| Constructor | http://localhost:8083 | |
+| Scenario | http://localhost:8084 | |
+| Orchestrator | http://localhost:8085 | |
+| Assessment | http://localhost:8081 | |
+| Snapshot | http://localhost:8086 | |
+| Report | http://localhost:8087 | |
+| Ollama | http://localhost:11434 | |
+| MinIO Console | http://localhost:9001 | |
+| NATS Monitor | http://localhost:8222 | |
+
+---
+
+## Остановка
+
+```bash
+# Остановить все слои (данные сохраняются):
+docker compose --env-file compose/ai/.env  -f compose/ai/compose.yaml  down
+docker compose --env-file compose/app/.env -f compose/app/compose.yaml down
+docker compose --env-file compose/data/.env -f compose/data/compose.yaml down
+
+# Полный сброс включая volumes (БД, модели):
+docker compose --env-file compose/ai/.env  -f compose/ai/compose.yaml  down -v
+docker compose --env-file compose/app/.env -f compose/app/compose.yaml down -v
+docker compose --env-file compose/data/.env -f compose/data/compose.yaml down -v
+```
+
+---
+
+## Пересборка после изменений в коде
+
+```bash
+# Пересобрать только изменённые сервисы:
+docker compose --env-file compose/app/.env -f compose/app/compose.yaml \
+  up -d --build <service-name>
+
+# Например, после изменений в gw и frontend:
+docker compose --env-file compose/app/.env -f compose/app/compose.yaml \
+  up -d --build gw frontend
+```
+
+---
+
+## Архитектура сети
+
+```
+                    ┌─────────────────────────────────────────────┐
+                    │              сеть: ktc-data                  │
+  ┌─────────────┐   │   ┌──────────┐  ┌──────┐  ┌──────────────┐ │
+  │  ktc-local  │   │   │  ktc-dev │  │      │  │   ktk-ai     │ │
+  │             │   │   │          │  │  gw  │  │              │ │
+  │ postgres    │───┤   │ auth     │  │:8088 │  │ ai-service   │ │
+  │ redis       │   │   │ construc.│──│──────│  │  alias: "ai" │ │
+  │ minio       │   │   │ scenario │  │      │  │              │ │
+  │ nats        │   │   │ orchestr.│  │      │  │ ollama       │ │
+  │ migrate     │   │   │ assessm. │  │      │  │ (optional)   │ │
+  └─────────────┘   │   │ snapshot │  │      │  └──────────────┘ │
+                    │   │ report   │  │      │                    │
+                    │   │ frontend │  │      │                    │
+                    │   └──────────┘  └──────┘                    │
+                    └─────────────────────────────────────────────┘
+```
+
+DNS-имя `ai` (network alias на `ktc-data`) позволяет `gw` обращаться к
+ai-service из другого Compose-проекта по `http://ai:8080/v1`.

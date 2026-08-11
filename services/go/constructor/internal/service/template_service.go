@@ -156,6 +156,19 @@ func (s *TemplateService) Import(ctx context.Context, t domain.Template) (Templa
 }
 
 // ExportFile возвращает граф шаблона для скачивания (не sim init-state).
+// Seed upserts templates that don't yet exist (skip if id already present).
+func (s *TemplateService) Seed(ctx context.Context, templates []domain.Template) error {
+	for _, t := range templates {
+		if _, err := s.repo.GetByID(ctx, t.ID); err == nil {
+			continue // already exists
+		}
+		if _, err := s.Create(ctx, t); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *TemplateService) ExportFile(ctx context.Context, id string) (domain.Graph, error) {
 	t, err := s.repo.GetByID(ctx, id)
 	if err != nil {

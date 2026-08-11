@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -50,6 +51,8 @@ func mapError(err error) (int, string) {
 		return http.StatusForbidden, "forbidden"
 	case errors.Is(err, domain.ErrSimUnavailable):
 		return http.StatusServiceUnavailable, "sim_unavailable"
+	case errors.Is(err, domain.ErrInvalidCommand):
+		return http.StatusBadRequest, "invalid_command"
 	default:
 		return http.StatusInternalServerError, "internal"
 	}
@@ -304,17 +307,32 @@ func (h *SessionHandler) handleWS(w http.ResponseWriter, r *http.Request, sessio
 
 	go func() {
 		for {
-			_, _, err := conn.Read(ctx)
+			_, data, err := conn.Read(ctx)
 			if err != nil {
 				return
+			}
+			if err := h.dispatchWSMessage(ctx, sessionID, userID, role, data); err != nil {
+				if errors.Is(err, domain.ErrForbidden) {
+					_ = conn.Close(websocket.StatusCode(4403), "observe is read-only")
+					return
+				}
 			}
 		}
 	}()
 
 	// Сразу отдаём клиенту последний снимок телеметрии из Radix,
-	// чтобы экран «ожил» мгновенно, не дожидаясь следующего тика симулятора.
+	// в том же shape, что и тики: {type:"telemetry", tags:[...]}.
 	if t, err := h.svc.LatestTelemetry(ctx, sessionID); err == nil {
-		_ = conn.Write(ctx, websocket.MessageText, mustJSON(map[string]any{"type": "telemetry", "data": t}))
+		_ = conn.Write(ctx, websocket.MessageText, mustJSON(map[string]any{
+			"type": "telemetry",
+			"tags": service.TelemetryTagsForWS(t),
+		}))
+		for _, reg := range service.RegulatorsForWS(t.Regulators) {
+			_ = conn.Write(ctx, websocket.MessageText, mustJSON(map[string]any{
+				"type":      "regulator_state",
+				"regulator": reg,
+			}))
+		}
 	}
 
 	for {
@@ -330,5 +348,79 @@ func (h *SessionHandler) handleWS(w http.ResponseWriter, r *http.Request, sessio
 				return
 			}
 		}
+	}
+}
+
+// wsClientMessage is the JSON envelope for operator → orchestrator WS frames.
+type wsClientMessage struct {
+	Type  string  `json:"type"`
+	Tag   string  `json:"tag"`
+	Value any     `json:"value"`
+	ID    string  `json:"id"`
+	SP    float64 `json:"sp"`
+	Out   float64 `json:"out"`
+	Mode  string  `json:"mode"`
+}
+
+// wsRoute is the resolved operator command from an inbound WS frame.
+type wsRoute struct {
+	Ignore  bool
+	Kind    string // actuator | ack_alarm | command
+	CmdType string // SET_SP | SET_OUT | SET_MODE | ESD (when Kind=command)
+	Tag     string
+	Value   any
+	AlarmID string
+}
+
+func parseWSClientMessage(role string, data []byte) (wsRoute, error) {
+	var msg wsClientMessage
+	if err := json.Unmarshal(data, &msg); err != nil {
+		return wsRoute{}, err
+	}
+	if msg.Type == "" || msg.Type == "ping" || msg.Type == "subscribe" {
+		return wsRoute{Ignore: true}, nil
+	}
+	if role == "observer" {
+		return wsRoute{}, domain.ErrForbidden
+	}
+	switch msg.Type {
+	case "actuator":
+		return wsRoute{Kind: "actuator", Tag: msg.Tag, Value: msg.Value}, nil
+	case "ack_alarm":
+		return wsRoute{Kind: "ack_alarm", AlarmID: msg.ID}, nil
+	case "regulator_sp":
+		return wsRoute{Kind: "command", CmdType: "SET_SP", Tag: msg.Tag, Value: msg.SP}, nil
+	case "regulator_out":
+		return wsRoute{Kind: "command", CmdType: "SET_OUT", Tag: msg.Tag, Value: msg.Out}, nil
+	case "regulator_mode":
+		modeVal := 0.0
+		if msg.Mode == "manual" {
+			modeVal = 1.0
+		}
+		return wsRoute{Kind: "command", CmdType: "SET_MODE", Tag: msg.Tag, Value: modeVal}, nil
+	case "esd":
+		return wsRoute{Kind: "command", CmdType: "ESD", Tag: msg.Tag, Value: msg.Value}, nil
+	default:
+		return wsRoute{Ignore: true}, nil
+	}
+}
+
+func (h *SessionHandler) dispatchWSMessage(ctx context.Context, sessionID, userID, role string, data []byte) error {
+	route, err := parseWSClientMessage(role, data)
+	if err != nil {
+		return err
+	}
+	if route.Ignore {
+		return nil
+	}
+	switch route.Kind {
+	case "actuator":
+		return h.svc.HandleActuator(ctx, sessionID, userID, route.Tag, route.Value)
+	case "ack_alarm":
+		return h.svc.AckAlarm(ctx, sessionID, route.AlarmID, userID)
+	case "command":
+		return h.svc.HandleOperatorCommand(ctx, sessionID, userID, route.CmdType, route.Tag, route.Value)
+	default:
+		return nil
 	}
 }

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { Modal, message } from 'antd'
 import { HmiCanvas } from '@/canvas/hmi/HmiCanvas'
-import { EloudAvtScheme } from '@/canvas/hmi/EloudAvtScheme'
 import { Faceplate } from '@/canvas/hmi/Faceplate'
 import { AlarmBanner } from '@/components/alarms/AlarmBanner'
 import { FloatingAiChat } from '@/components/ai/FloatingAiChat'
@@ -210,32 +209,20 @@ export default function ExamScreen() {
       </div>
 
       <div ref={containerRef} style={{ flex: 1, overflow: 'hidden' }}>
-        {template.id === 'tmpl-elou-avt' || template.scheme === 'elou-avt' ? (
-          <EloudAvtScheme
-            telemetry={telemetry}
-            interactive
-            flowing
-            onNodeClick={(node) => {
-              setSelectedNode(node)
-              setFaceplateOpen(true)
-            }}
-          />
-        ) : (
-          <HmiCanvas
-            nodes={template.nodes}
-            edges={template.edges}
-            componentTypes={componentTypes}
-            telemetry={telemetry}
-            width={canvasSize.w}
-            height={canvasSize.h}
-            interactive={true}
-            flowing
-            onNodeClick={(node) => {
-              setSelectedNode(node)
-              setFaceplateOpen(true)
-            }}
-          />
-        )}
+        <HmiCanvas
+          nodes={template.nodes}
+          edges={template.edges}
+          componentTypes={componentTypes}
+          telemetry={telemetry}
+          width={canvasSize.w}
+          height={canvasSize.h}
+          interactive={true}
+          flowing
+          onNodeClick={(node) => {
+            setSelectedNode(node)
+            setFaceplateOpen(true)
+          }}
+        />
       </div>
 
       <Faceplate
@@ -245,7 +232,20 @@ export default function ExamScreen() {
         onClose={() => setFaceplateOpen(false)}
         telemetry={telemetry}
         regulators={regulators}
-        onSendCommand={(type, tag, value) => send({ type: 'actuator', tag, value })}
+        onSendCommand={(type, tag, value) => {
+          if (type === 'regulator_sp') {
+            send({ type: 'regulator_sp', tag, sp: value })
+          } else if (type === 'regulator_out') {
+            send({ type: 'regulator_out', tag, out: value })
+          } else if (type === 'regulator_mode') {
+            send({ type: 'regulator_mode', tag, mode: value === 1 ? 'auto' : 'manual' })
+          } else {
+            send({ type: 'actuator', tag, value })
+          }
+          if (sessionId) {
+            void sessionsApi.actuator(sessionId, tag, value).catch(() => {})
+          }
+        }}
       />
 
       {/* AI hints are disabled during the qualification exam (reference behaviour) */}

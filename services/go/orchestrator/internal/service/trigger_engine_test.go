@@ -35,12 +35,15 @@ func TestTriggerEngine_TimeTrigger_FiresAtCorrectTime(t *testing.T) {
 		t.Fatal("should not fire before time")
 	}
 
-	engine.CheckTriggers(context.Background(), "sess-1", 120, nil, sim, nil, nil)
+	fired := engine.CheckTriggers(context.Background(), "sess-1", 120, nil, sim, nil, nil)
 	if len(sim.Faults) != 1 {
 		t.Fatalf("expected 1 fault, got %d", len(sim.Faults))
 	}
-	if sim.Faults[0].FaultID != "pressure_rise_K1" {
-		t.Errorf("expected pressure_rise_K1, got %s", sim.Faults[0].FaultID)
+	if sim.Faults[0].FaultID != "FLT-K1-PRESSURE-HIGH" {
+		t.Errorf("expected FLT-K1-PRESSURE-HIGH (mapped), got %s", sim.Faults[0].FaultID)
+	}
+	if len(fired) != 1 || fired[0].FaultID != "FLT-K1-PRESSURE-HIGH" {
+		t.Fatalf("fired=%+v", fired)
 	}
 
 	engine.CheckTriggers(context.Background(), "sess-1", 130, nil, sim, nil, nil)
@@ -158,6 +161,34 @@ func TestTriggerEngine_Reset(t *testing.T) {
 	engine.mu.Unlock()
 	if exists {
 		t.Fatal("scenario should be removed after reset")
+	}
+}
+
+func TestMapSimFaultID(t *testing.T) {
+	if got := MapSimFaultID("pressure_rise_K1"); got != "FLT-K1-PRESSURE-HIGH" {
+		t.Fatalf("got %s", got)
+	}
+	if got := MapSimFaultID("FLT-K1-PRESSURE-HIGH"); got != "FLT-K1-PRESSURE-HIGH" {
+		t.Fatalf("passthrough got %s", got)
+	}
+}
+
+func TestTriggerEngine_ConditionTagHyphenOrSpace(t *testing.T) {
+	engine := testTriggerEngine()
+	sim := client.NewMockSimClient()
+	_ = sim.CreateSession(context.Background(), "sess-1", nil, 0)
+	engine.LoadScenario("sess-1", ScenarioData{
+		Faults: []ScenarioFaultData{
+			{ID: "f1", FaultID: "FLT-K1-LEVEL-LOW", ComponentInstanceID: "column-k1",
+				Trigger: TriggerData{Type: "condition", Condition: &ConditionData{
+					Tag: "LRCA-602", Op: "<", Value: 30,
+				}}},
+		},
+	})
+	tags := []domain.Tag{{TagID: "LRCA 602", Value: 25}}
+	fired := engine.CheckTriggers(context.Background(), "sess-1", 10, tags, sim, nil, nil)
+	if len(fired) != 1 {
+		t.Fatalf("expected hyphen condition to match space tag, fired=%d", len(fired))
 	}
 }
 

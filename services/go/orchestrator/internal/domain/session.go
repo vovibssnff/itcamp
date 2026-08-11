@@ -89,12 +89,15 @@ type Telemetry struct {
 }
 
 type SimState struct {
-	SessionID       string       `json:"session_id"`
-	ModelTime       float64      `json:"model_time"`
-	Seed            int64        `json:"seed"`
-	Tags            []Tag        `json:"tags"`
-	Regulators      []Regulator  `json:"regulators"`
-	Alarms          []AlarmEvent `json:"alarms"`
+	SessionID  string       `json:"session_id"`
+	ModelTime  float64      `json:"model_time"`
+	Seed       int64        `json:"seed"`
+	Tags       []Tag        `json:"tags"`
+	Regulators []Regulator  `json:"regulators"`
+	Alarms     []AlarmEvent `json:"alarms"`
+	// NewAlarms / ClearedAlarms are step deltas from sim-worker (not persisted).
+	NewAlarms       []AlarmEvent `json:"-"`
+	ClearedAlarms   []AlarmEvent `json:"-"`
 	ComponentsState string       `json:"components_state_json"`
 	SchemaVersion   string       `json:"schema_version"`
 }

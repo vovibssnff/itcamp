@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"github.com/itcamp/ktc/services/orchestrator/internal/client"
@@ -40,6 +41,32 @@ type ConditionData struct {
 	Value float64 `json:"value"`
 }
 
+// legacyScenarioFaultIDs maps old scenario-catalog IDs → sim-engine FLT-* catalog.
+// Prefer seeds that already use FLT-*; this keeps older DB rows injectable.
+var legacyScenarioFaultIDs = map[string]string{
+	"level_drop_dehydrator":    "FLT-ELOU-INTERFACE-LOW",
+	"pressure_rise_dehydrator": "FLT-ELOU-PRESSURE-HIGH",
+	"feed_flow_drop":           "FLT-FEED-FLOW-LOW",
+	"cot_rise_furnace":         "FLT-P3-COT-HIGH",
+	"pressure_rise_K1":         "FLT-K1-PRESSURE-HIGH",
+	"level_drop_K1":            "FLT-K1-LEVEL-LOW",
+	"vacuum_loss_K2":           "FLT-K2-VACUUM-LOSS",
+	"level_drop_K3_1":          "FLT-K31-LEVEL-LOW",
+	"pressure_rise_K4":         "FLT-K4-PRESSURE-HIGH",
+	"instrument_air_loss":      "FLT-IA-PRESSURE-LOW",
+}
+
+func MapSimFaultID(faultID string) string {
+	if mapped, ok := legacyScenarioFaultIDs[faultID]; ok {
+		return mapped
+	}
+	return faultID
+}
+
+func normalizeTagID(tag string) string {
+	return strings.ReplaceAll(strings.TrimSpace(tag), "-", " ")
+}
+
 type TriggerEngine struct {
 	log       *slog.Logger
 	mu        sync.Mutex
@@ -61,6 +88,8 @@ func (e *TriggerEngine) LoadScenario(sessionID string, data ScenarioData) {
 	e.scenarios[sessionID] = data
 }
 
+// CheckTriggers evaluates scenario faults and injects those that fire.
+// Returns successfully injected fault events (for WS broadcast).
 func (e *TriggerEngine) CheckTriggers(
 	ctx context.Context,
 	sessionID string,
@@ -69,18 +98,21 @@ func (e *TriggerEngine) CheckTriggers(
 	sim client.SimClient,
 	repo *repository.SessionRepo,
 	publisher *events.Publisher,
-) {
+) []domain.FaultEvent {
 	e.mu.Lock()
 	scenario, ok := e.scenarios[sessionID]
 	e.mu.Unlock()
 	if !ok {
-		return
+		return nil
 	}
 
-	tagMap := make(map[string]float64, len(tags))
+	tagMap := make(map[string]float64, len(tags)*2)
 	for _, t := range tags {
 		tagMap[t.TagID] = t.Value
+		tagMap[normalizeTagID(t.TagID)] = t.Value
 	}
+
+	var fired []domain.FaultEvent
 
 	for _, fault := range scenario.Faults {
 		key := sessionID + ":" + fault.ID
@@ -102,7 +134,11 @@ func (e *TriggerEngine) CheckTriggers(
 			}
 		case "condition":
 			if fault.Trigger.Condition != nil {
-				val, exists := tagMap[fault.Trigger.Condition.Tag]
+				condTag := fault.Trigger.Condition.Tag
+				val, exists := tagMap[condTag]
+				if !exists {
+					val, exists = tagMap[normalizeTagID(condTag)]
+				}
 				if exists && checkCondition(val, fault.Trigger.Condition.Op, fault.Trigger.Condition.Value) {
 					shouldFire = true
 					triggerType = "condition"
@@ -118,23 +154,24 @@ func (e *TriggerEngine) CheckTriggers(
 		e.firedMap[key] = true
 		e.mu.Unlock()
 
+		simFaultID := MapSimFaultID(fault.FaultID)
 		req := domain.InjectFaultReq{
 			SessionID:           sessionID,
-			FaultID:             fault.FaultID,
+			FaultID:             simFaultID,
 			ComponentInstanceID: fault.ComponentInstanceID,
 			SeverityPct:         fault.Params.SeverityPct,
 			RampSeconds:         fault.Params.RampSeconds,
 		}
 
 		if err := sim.InjectFault(ctx, req); err != nil {
-			e.log.Error("inject fault failed", "session", sessionID, "fault", fault.FaultID, "error", err)
+			e.log.Error("inject fault failed", "session", sessionID, "fault", simFaultID, "error", err)
 			continue
 		}
 
 		faultEvent := domain.FaultEvent{
 			ID:             newUUID(),
 			SessionID:      sessionID,
-			FaultID:        fault.FaultID,
+			FaultID:        simFaultID,
 			ComponentID:    fault.ComponentInstanceID,
 			TriggerType:    triggerType,
 			FiredModelTime: modelTime,
@@ -146,9 +183,11 @@ func (e *TriggerEngine) CheckTriggers(
 			_ = publisher.PublishSessionEvent(ctx, sessionID, "fault_fired", faultEvent)
 		}
 		IncFaultInjected()
+		fired = append(fired, faultEvent)
 
-		e.log.Info("fault injected", "session", sessionID, "fault", fault.FaultID, "trigger", triggerType, "model_time", modelTime)
+		e.log.Info("fault injected", "session", sessionID, "fault", simFaultID, "trigger", triggerType, "model_time", modelTime)
 	}
+	return fired
 }
 
 func (e *TriggerEngine) Reset(sessionID string) {

@@ -1,7 +1,12 @@
 import { useSessionStore } from '@/store/session'
 import { useTranslation } from 'react-i18next'
 
-export function AlarmBanner() {
+interface AlarmBannerProps {
+  /** When provided, ack goes through this callback (REST/WS); else local store only. */
+  onAcknowledge?: (ids: string[]) => void
+}
+
+export function AlarmBanner({ onAcknowledge }: AlarmBannerProps = {}) {
   const alarms = useSessionStore((s) => s.alarms)
   const acknowledgeAlarm = useSessionStore((s) => s.acknowledgeAlarm)
   const { t } = useTranslation()
@@ -11,6 +16,14 @@ export function AlarmBanner() {
   const hasAlarms = activeAlarms.length > 0
 
   if (!hasAlarms) return null
+
+  function handleAckAll() {
+    const ids = activeAlarms.map((a) => a.id)
+    if (onAcknowledge) {
+      onAcknowledge(ids)
+    }
+    ids.forEach((id) => acknowledgeAlarm(id))
+  }
 
   return (
     <div className="alarmbar" data-testid="alarm-banner">
@@ -49,7 +62,7 @@ export function AlarmBanner() {
       <button
         className="btn btn-ghost btn-sm"
         style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em' }}
-        onClick={() => activeAlarms.forEach((a) => acknowledgeAlarm(a.id))}
+        onClick={handleAckAll}
       >
         {t('alarm.acknowledgeAll')}
       </button>

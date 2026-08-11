@@ -466,7 +466,7 @@ export const COMPONENT_TYPES: ComponentType[] = [
         unit: 'м³/ч',
         defaultValue: 200,
       },
-      { id: 'p-tag', name: 'tag', label: 'Тег', type: 'string', defaultValue: 'FI-001' },
+      { id: 'p-tag', name: 'tag', label: 'Тег', type: 'string', defaultValue: 'FI 001' },
     ],
   },
   {
@@ -493,7 +493,7 @@ export const COMPONENT_TYPES: ComponentType[] = [
         unit: '°C',
         defaultValue: 500,
       },
-      { id: 'p-tag', name: 'tag', label: 'Тег', type: 'string', defaultValue: 'TI-001' },
+      { id: 'p-tag', name: 'tag', label: 'Тег', type: 'string', defaultValue: 'TI 001' },
     ],
   },
   {
@@ -512,7 +512,7 @@ export const COMPONENT_TYPES: ComponentType[] = [
         unit: 'МПа',
         defaultValue: 2.0,
       },
-      { id: 'p-tag', name: 'tag', label: 'Тег', type: 'string', defaultValue: 'PI-001' },
+      { id: 'p-tag', name: 'tag', label: 'Тег', type: 'string', defaultValue: 'PI 001' },
     ],
   },
   {
@@ -531,7 +531,7 @@ export const COMPONENT_TYPES: ComponentType[] = [
         unit: 'м',
         defaultValue: 3.0,
       },
-      { id: 'p-tag', name: 'tag', label: 'Тег', type: 'string', defaultValue: 'LI-001' },
+      { id: 'p-tag', name: 'tag', label: 'Тег', type: 'string', defaultValue: 'LI 001' },
     ],
   },
   {

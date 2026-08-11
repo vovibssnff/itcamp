@@ -1280,7 +1280,7 @@ function ScenarioEditor({ id }: { id: string }) {
                     p ? { ...p, expected: { ...p.expected!, target: e.target.value } } : p,
                   )
                 }
-                placeholder="FV-101"
+                placeholder="FV 101"
               />
               <Field
                 label="Действие"

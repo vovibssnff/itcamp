@@ -11,7 +11,6 @@ import {
 import { ConstructorCanvas } from '@/canvas/constructor/ConstructorCanvas'
 import { ComponentPalette } from '@/canvas/constructor/ComponentPalette'
 import { PropertiesPanel } from '@/canvas/constructor/PropertiesPanel'
-import { EloudAvtScheme } from '@/canvas/hmi/EloudAvtScheme'
 import { useConstructorStore } from '@/store/constructor'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { useUndo } from '@/hooks/useUndo'
@@ -21,6 +20,7 @@ import { templatesApi } from '@/api/templates'
 import { componentsApi } from '@/api/components'
 import { toErrorMessage } from '@/api/errors'
 import { tokens } from '@/theme/tokens'
+import { getDefaultNodeSize } from '@/canvas/shared/equipmentGeometry'
 
 const CANVAS_PADDING = 240 // palette width
 
@@ -30,6 +30,7 @@ export default function ConstructorScreen() {
   const [template, setTemplate] = useState<Template | null>(null)
   const [componentTypes, setComponentTypes] = useState<ComponentType[]>([])
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 })
+  const [previewFlow, setPreviewFlow] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const {
@@ -144,54 +145,20 @@ export default function ConstructorScreen() {
     for (const p of ct.parameters) {
       defaults[p.name] = p.defaultValue
     }
+    const size = getDefaultNodeSize(ct.shape)
     addNode({
       id: `n-${Date.now()}`,
       typeId,
       x,
       y,
-      width: 88,
-      height: 66,
+      width: size.w,
+      height: size.h,
       label: ct.name.substring(0, 8),
       parameters: defaults,
     })
   }
 
   if (loading) return <div className="loading-spinner" />
-
-  // The default ЭЛОУ-АВТ template renders its fixed hand-drawn mnemonic at
-  // runtime (see EloudAvtScheme) instead of this generic node/edge graph —
-  // editing the graph here would silently have no effect on what operators
-  // actually see, so show the same mnemonic (read-only) instead of the editor.
-  const isFixedMnemonic = template?.scheme === 'elou-avt'
-
-  if (isFixedMnemonic) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '6px 12px',
-            borderBottom: `1px solid ${tokens.border.subtle}`,
-            background: tokens.bg.elevated,
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ fontFamily: tokens.font.mono, fontSize: 12, color: tokens.accent.cyan }}>
-            {template?.name}
-          </span>
-          <span style={{ fontSize: 11, color: tokens.text.muted }}>
-            Эталонная мнемосхема установки — та же, что видит оператор. Редактирование графа узлов
-            недоступно для этого шаблона.
-          </span>
-        </div>
-        <div style={{ flex: 1, minHeight: 0 }}>
-          <EloudAvtScheme telemetry={{}} interactive={false} flowing />
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -223,6 +190,15 @@ export default function ConstructorScreen() {
           </Tooltip>
           <Tooltip title="Повторить (Ctrl+Y)">
             <Button size="small" icon={<RedoOutlined />} disabled={!canRedo} onClick={redo} />
+          </Tooltip>
+          <Tooltip title="Предпросмотр потока">
+            <Button
+              size="small"
+              type={previewFlow ? 'primary' : 'default'}
+              onClick={() => setPreviewFlow((v) => !v)}
+            >
+              Поток
+            </Button>
           </Tooltip>
           <Tooltip title="Валидировать граф">
             <Button
@@ -295,6 +271,7 @@ export default function ConstructorScreen() {
             width={canvasSize.w}
             height={canvasSize.h}
             onDropComponent={handleDropComponent}
+            previewFlow={previewFlow}
           />
         </div>
 

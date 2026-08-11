@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { HmiCanvas } from '@/canvas/hmi/HmiCanvas'
-import { EloudAvtScheme } from '@/canvas/hmi/EloudAvtScheme'
 import { Faceplate } from '@/canvas/hmi/Faceplate'
 import { AlarmBanner } from '@/components/alarms/AlarmBanner'
 import { TrendPanel } from '@/components/trends/TrendPanel'
 import { AiAlarmChat } from '@/components/ai/AiAlarmChat'
 import { useWebSocket } from '@/hooks/useWebSocket'
-import { useSessionStore } from '@/store/session'
+import { useSessionStore, lookupTelemetry, lookupRegulator } from '@/store/session'
 import { useUIStore } from '@/store/ui'
 import type { CanvasNode } from '@/store/constructor'
 import { COMPONENT_TYPES, type ComponentType } from '@/mocks/fixtures/components'
@@ -41,16 +40,16 @@ export default function TrainingScreen() {
   const { connected, send } = useWebSocket({
     sessionId: sessionId ?? null,
     channel: 'operator',
-    // Alarms/telemetry only start flowing once the operator explicitly
-    // starts the lesson — before that it's a view-only mnemonic (reference:
-    // ktk.html "Режим просмотра — тревоги не поступают").
     enabled: started && !!sessionId,
   })
 
   const telemetry = useSessionStore((s) => s.telemetry)
   const regulators = useSessionStore((s) => s.regulators)
+  const faults = useSessionStore((s) => s.faults)
   const status = useSessionStore((s) => s.status)
+  const modelTime = useSessionStore((s) => s.modelTime)
   const clearSession = useSessionStore((s) => s.clearSession)
+  const setStatus = useSessionStore((s) => s.setStatus)
   const theme = useUIStore((s) => s.theme)
   const setTheme = useUIStore((s) => s.setTheme)
 
@@ -71,6 +70,9 @@ export default function TrainingScreen() {
         // WS + «Завершить» without forcing a second «Начать».
         if (session.status === 'running' || session.status === 'paused') {
           setStarted(true)
+          setStatus(session.status)
+        } else if (session.status === 'idle') {
+          setStatus('idle')
         }
         try {
           const components = await componentsApi.list()
@@ -114,8 +116,77 @@ export default function TrainingScreen() {
     setFaceplateOpen(true)
   }
 
-  function handleSendCommand(_type: string, tag: string, value: number) {
-    send({ type: 'actuator', tag, value })
+  function handleSendCommand(type: string, tag: string, value: number) {
+    if (!tag) {
+      void message.warning('Нет тега для команды — проверьте привязку узла')
+      return
+    }
+    // Optimistic local update — don't wait for the next telemetry tick.
+    const store = useSessionStore.getState()
+    const now = Date.now()
+    const key = tag
+    if (type === 'actuator') {
+      const prev = lookupTelemetry(store.telemetry, key)
+      store.updateTelemetry([
+        {
+          tag: key,
+          value,
+          unit: prev?.unit ?? '',
+          alarmState: prev?.alarmState ?? 'normal',
+          timestamp: now,
+        },
+      ])
+    } else if (type === 'regulator_sp') {
+      const reg = lookupRegulator(store.regulators, key)
+      store.updateRegulator({
+        tag: key,
+        mode: reg?.mode ?? 'auto',
+        pv: reg?.pv ?? 0,
+        sp: value,
+        out: reg?.out ?? 0,
+      })
+    } else if (type === 'regulator_out') {
+      const reg = lookupRegulator(store.regulators, key)
+      store.updateRegulator({
+        tag: key,
+        mode: reg?.mode ?? 'manual',
+        pv: reg?.pv ?? 0,
+        sp: reg?.sp ?? 0,
+        out: value,
+      })
+    } else if (type === 'regulator_mode') {
+      const reg = lookupRegulator(store.regulators, key)
+      store.updateRegulator({
+        tag: key,
+        mode: value === 1 ? 'auto' : 'manual',
+        pv: reg?.pv ?? 0,
+        sp: reg?.sp ?? 0,
+        out: reg?.out ?? 0,
+      })
+    }
+    if (type === 'regulator_sp') {
+      send({ type: 'regulator_sp', tag, sp: value })
+    } else if (type === 'regulator_out') {
+      send({ type: 'regulator_out', tag, out: value })
+    } else if (type === 'regulator_mode') {
+      send({ type: 'regulator_mode', tag, mode: value === 1 ? 'auto' : 'manual' })
+    } else {
+      send({ type: 'actuator', tag, value })
+    }
+    if (sessionId) {
+      void sessionsApi.actuator(sessionId, tag, value).catch((err) => {
+        void message.error(toErrorMessage(err, `Команда ${tag} не принята симулятором`))
+      })
+    }
+  }
+
+  async function handleAckAlarms(ids: string[]) {
+    for (const id of ids) {
+      send({ type: 'ack_alarm', id })
+      if (sessionId) {
+        void sessionsApi.ackAlarm(sessionId, id).catch(() => {})
+      }
+    }
   }
 
   async function handleStart() {
@@ -127,6 +198,7 @@ export default function TrainingScreen() {
         await sessionsApi.action(sessionId, 'start')
       }
       setStarted(true)
+      setStatus('running')
     } catch (err) {
       void message.error(toErrorMessage(err, 'Не удалось начать тренировку'))
     }
@@ -151,8 +223,30 @@ export default function TrainingScreen() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Alarm banner */}
-      <AlarmBanner />
+      <AlarmBanner onAcknowledge={handleAckAlarms} />
+
+      {faults.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '6px 16px',
+            background: 'rgba(224,164,88,0.12)',
+            borderBottom: '1px solid var(--ln)',
+            fontSize: 12,
+            color: 'var(--warn)',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ fontWeight: 700, letterSpacing: '0.06em' }}>ИНЦИДЕНТЫ</span>
+          {faults.slice(0, 3).map((f) => (
+            <span key={f.id} className="mono" style={{ fontSize: 11 }}>
+              {f.message || f.faultId}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Top bar (matches ktk.html reference `.topbar`) */}
       <div className="topbar">
@@ -185,12 +279,17 @@ export default function TrainingScreen() {
             </span>
           )}
           {started && (
-            <span
-              className="chip"
-              style={{ color: status === 'running' ? 'var(--acc-txt)' : 'var(--warn)' }}
-            >
-              {STATUS_LABELS[status] ?? status}
-            </span>
+            <>
+              <span
+                className="chip"
+                style={{ color: status === 'running' ? 'var(--acc-txt)' : 'var(--warn)' }}
+              >
+                {STATUS_LABELS[status] ?? status}
+              </span>
+              <span className="mono" style={{ fontSize: 12, color: 'var(--tx2)' }}>
+                t={modelTime.toFixed(0)} с
+              </span>
+            </>
           )}
           <div className="seg seg-mono">
             <div
@@ -224,31 +323,76 @@ export default function TrainingScreen() {
         </div>
       </div>
 
-      {/* Main split */}
+      {/* Main split: left ops | canvas | right component */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* Left sidebar — telemetry + AI */}
+        {sidebarCollapsed ? (
+          <div
+            className="rail"
+            onClick={() => setSidebarCollapsed(false)}
+            style={{ borderLeft: 'none', borderRight: '1px solid var(--ln)' }}
+          >
+            <span>Панель ▸</span>
+          </div>
+        ) : (
+          <div
+            className="side"
+            style={{
+              width: 320,
+              borderRight: '1px solid var(--ln)',
+              borderLeft: 'none',
+              order: 0,
+            }}
+          >
+            <div
+              className="side-hd"
+              onClick={() => setSidebarCollapsed(true)}
+              style={{ borderBottom: '1px solid var(--ln)' }}
+            >
+              <span className="sec">Телеметрия / ИИ</span>
+              <span className="sec">◂ Свернуть</span>
+            </div>
+
+            <TrendPanel />
+
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <div
+                className="side-hd"
+                style={{ borderBottom: '1px solid var(--ln)', cursor: 'default' }}
+              >
+                <span className="sec">
+                  <span style={{ color: 'var(--tx4)' }}>02</span>&nbsp;&nbsp;ИИ-ассистент
+                </span>
+              </div>
+              <div style={{ flex: 1, minHeight: 0 }}>
+                <AiAlarmChat />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* HMI canvas */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div ref={containerRef} style={{ flex: 1, overflow: 'hidden' }}>
-            {template.id === 'tmpl-elou-avt' || template.scheme === 'elou-avt' ? (
-              <EloudAvtScheme
-                telemetry={telemetry}
-                interactive={started}
-                flowing={started && status === 'running'}
-                onNodeClick={handleNodeClick}
-              />
-            ) : (
-              <HmiCanvas
-                nodes={nodes}
-                edges={edges}
-                componentTypes={componentTypes}
-                telemetry={telemetry}
-                width={canvasSize.w}
-                height={canvasSize.h}
-                interactive={started}
-                flowing={started && status === 'running'}
-                onNodeClick={handleNodeClick}
-              />
-            )}
+            <HmiCanvas
+              nodes={nodes}
+              edges={edges}
+              componentTypes={componentTypes}
+              telemetry={telemetry}
+              width={canvasSize.w}
+              height={canvasSize.h}
+              interactive={started}
+              flowing={started && status === 'running'}
+              onNodeClick={handleNodeClick}
+            />
           </div>
 
           <div
@@ -273,64 +417,40 @@ export default function TrainingScreen() {
           </div>
         </div>
 
-        {/* Collapsed rail */}
-        {sidebarCollapsed && (
-          <div className="rail" onClick={() => setSidebarCollapsed(false)}>
-            <span>◂ Панель</span>
+        {/* Right sidebar — component parameters / description */}
+        <div
+          className="side"
+          style={{
+            width: 340,
+            borderLeft: '1px solid var(--ln)',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+          }}
+        >
+          <div
+            className="side-hd"
+            style={{ borderBottom: '1px solid var(--ln)', cursor: 'default' }}
+          >
+            <span className="sec">Компонент</span>
           </div>
-        )}
-
-        {/* Right sidebar — matches reference `.side` layout */}
-        {!sidebarCollapsed && (
-          <div className="side" style={{ width: 340 }}>
-            {/* Sidebar header */}
-            <div
-              className="side-hd"
-              onClick={() => setSidebarCollapsed(true)}
-              style={{ borderBottom: '1px solid var(--ln)' }}
-            >
-              <span className="sec">Панель оператора</span>
-              <span className="sec">Свернуть ▸</span>
-            </div>
-
-            {/* 01 · Trends with sparklines */}
-            <TrendPanel />
-
-            {/* 02 · Merged AI assistant — proactive alarm hints + free-form Q&A */}
-            <div
-              style={{
-                flex: 1,
-                minHeight: 0,
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
+          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            <Faceplate
+              variant="dock"
+              node={selectedNode}
+              componentTypes={componentTypes}
+              open={faceplateOpen}
+              onClose={() => {
+                setFaceplateOpen(false)
+                setSelectedNode(null)
               }}
-            >
-              <div
-                className="side-hd"
-                style={{ borderBottom: '1px solid var(--ln)', cursor: 'default' }}
-              >
-                <span className="sec">
-                  <span style={{ color: 'var(--tx4)' }}>02</span>&nbsp;&nbsp;ИИ-ассистент
-                </span>
-              </div>
-              <div style={{ flex: 1, minHeight: 0 }}>
-                <AiAlarmChat />
-              </div>
-            </div>
+              telemetry={telemetry}
+              regulators={regulators}
+              onSendCommand={handleSendCommand}
+            />
           </div>
-        )}
+        </div>
       </div>
-
-      <Faceplate
-        node={selectedNode}
-        componentTypes={componentTypes}
-        open={faceplateOpen}
-        onClose={() => setFaceplateOpen(false)}
-        telemetry={telemetry}
-        regulators={regulators}
-        onSendCommand={handleSendCommand}
-      />
     </div>
   )
 }

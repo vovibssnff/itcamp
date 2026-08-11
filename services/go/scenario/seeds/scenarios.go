@@ -33,7 +33,7 @@ func scenarioLevelDropDehydrator() domain.Scenario {
 		Description: "Снижение уровня в электродегидраторе Э-1 → блокировка HV при <3500 мм",
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
-			{ID: "f1", FaultID: "level_drop_dehydrator", ComponentInstanceID: "elec-dehydrator-1",
+			{ID: "f1", FaultID: "FLT-ELOU-INTERFACE-LOW", ComponentInstanceID: "elec-dehydrator-1",
 				Params:  domain.FaultParams{SeverityPct: 100, RampSeconds: 60},
 				Trigger: domain.Trigger{Type: domain.TriggerTime, AtModelTime: pFloat(120)}},
 		},
@@ -55,10 +55,10 @@ func scenarioPressureRiseDehydrator() domain.Scenario {
 		Description: "Рост давления на выкиде Н-1 и в Е-15",
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
-			{ID: "f1", FaultID: "pressure_rise_dehydrator", ComponentInstanceID: "vessel-e15",
+			{ID: "f1", FaultID: "FLT-ELOU-PRESSURE-HIGH", ComponentInstanceID: "vessel-e15",
 				Params: domain.FaultParams{SeverityPct: 80, RampSeconds: 120},
 				Trigger: domain.Trigger{Type: domain.TriggerCondition, Condition: &domain.ConditionSpec{
-					Tag: "PRA-312", Op: domain.OpGTE, Value: 5.0,
+					Tag: "PRA 312", Op: domain.OpGTE, Value: 5.0,
 				}}},
 		},
 		ReferenceActions: []domain.ReferenceAction{
@@ -79,7 +79,7 @@ func scenarioFeedFlowDrop() domain.Scenario {
 		Description: "Снижение расхода нефти → риск перегрева печей",
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
-			{ID: "f1", FaultID: "feed_flow_drop", ComponentInstanceID: "pump-n1",
+			{ID: "f1", FaultID: "FLT-FEED-FLOW-LOW", ComponentInstanceID: "pump-n1",
 				Params:  domain.FaultParams{SeverityPct: 100, RampSeconds: 0},
 				Trigger: domain.Trigger{Type: domain.TriggerTime, AtModelTime: pFloat(60)}},
 		},
@@ -103,10 +103,10 @@ func scenarioCOTRiseFurnace() domain.Scenario {
 		Description: "Рост температуры змеевика П-3 выше 340°C",
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
-			{ID: "f1", FaultID: "cot_rise_furnace", ComponentInstanceID: "furnace-p3",
+			{ID: "f1", FaultID: "FLT-P3-COT-HIGH", ComponentInstanceID: "furnace-p3",
 				Params: domain.FaultParams{SeverityPct: 90, RampSeconds: 90},
 				Trigger: domain.Trigger{Type: domain.TriggerCondition, Condition: &domain.ConditionSpec{
-					Tag: "TR-55-9", Op: domain.OpGT, Value: 335,
+					Tag: "TR 55-9", Op: domain.OpGT, Value: 335,
 				}}},
 		},
 		ReferenceActions: []domain.ReferenceAction{
@@ -129,7 +129,7 @@ func scenarioPressureRiseK1() domain.Scenario {
 		Description: "Рост давления верха К-1 → блокировка при 4,8 кгс/см² (FR-AV-05)",
 		Type:        domain.ScenarioExam,
 		Faults: []domain.ScenarioFault{
-			{ID: "f1", FaultID: "pressure_rise_K1", ComponentInstanceID: "column-k1",
+			{ID: "f1", FaultID: "FLT-K1-PRESSURE-HIGH", ComponentInstanceID: "column-k1",
 				Params:  domain.FaultParams{SeverityPct: 100, RampSeconds: 120},
 				Trigger: domain.Trigger{Type: domain.TriggerTime, AtModelTime: pFloat(180)}},
 		},
@@ -155,10 +155,10 @@ func scenarioLevelDropK1() domain.Scenario {
 		Description: "Падение уровня LRCA-602 → риск сухого хода насосов Н-2/Н-3",
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
-			{ID: "f1", FaultID: "level_drop_K1", ComponentInstanceID: "column-k1",
+			{ID: "f1", FaultID: "FLT-K1-LEVEL-LOW", ComponentInstanceID: "column-k1",
 				Params: domain.FaultParams{SeverityPct: 80, RampSeconds: 90},
 				Trigger: domain.Trigger{Type: domain.TriggerCondition, Condition: &domain.ConditionSpec{
-					Tag: "LRCA-602", Op: domain.OpLT, Value: 30,
+					Tag: "LRCA 602", Op: domain.OpLT, Value: 30,
 				}}},
 		},
 		ReferenceActions: []domain.ReferenceAction{
@@ -181,7 +181,7 @@ func scenarioVacuumLossK2() domain.Scenario {
 		Description: "Рост давления в К-2 до 1,0 кгс/см² → ПАЗ при 1,5",
 		Type:        domain.ScenarioExam,
 		Faults: []domain.ScenarioFault{
-			{ID: "f1", FaultID: "vacuum_loss_K2", ComponentInstanceID: "column-k2",
+			{ID: "f1", FaultID: "FLT-K2-VACUUM-LOSS", ComponentInstanceID: "column-k2",
 				Params:  domain.FaultParams{SeverityPct: 100, RampSeconds: 150},
 				Trigger: domain.Trigger{Type: domain.TriggerTime, AtModelTime: pFloat(200)}},
 		},
@@ -207,10 +207,10 @@ func scenarioLevelDropK3_1() domain.Scenario {
 		Description: "Падение уровня LRCA-606 ниже 15% → останов насосов Н-14/Н-67А",
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
-			{ID: "f1", FaultID: "level_drop_K3_1", ComponentInstanceID: "stripping-k3-1",
+			{ID: "f1", FaultID: "FLT-K31-LEVEL-LOW", ComponentInstanceID: "stripping-k3-1",
 				Params: domain.FaultParams{SeverityPct: 90, RampSeconds: 60},
 				Trigger: domain.Trigger{Type: domain.TriggerCondition, Condition: &domain.ConditionSpec{
-					Tag: "LRCA-606", Op: domain.OpLT, Value: 20,
+					Tag: "LRCA 606", Op: domain.OpLT, Value: 20,
 				}}},
 		},
 		ReferenceActions: []domain.ReferenceAction{
@@ -231,10 +231,10 @@ func scenarioPressureRiseK4() domain.Scenario {
 		Description: "Рост давления PRCA-220 выше 11 кгс/см²",
 		Type:        domain.ScenarioTraining,
 		Faults: []domain.ScenarioFault{
-			{ID: "f1", FaultID: "pressure_rise_K4", ComponentInstanceID: "stabilization-k4",
+			{ID: "f1", FaultID: "FLT-K4-PRESSURE-HIGH", ComponentInstanceID: "stabilization-k4",
 				Params: domain.FaultParams{SeverityPct: 80, RampSeconds: 120},
 				Trigger: domain.Trigger{Type: domain.TriggerCondition, Condition: &domain.ConditionSpec{
-					Tag: "PRCA-220", Op: domain.OpGT, Value: 11,
+					Tag: "PRCA 220", Op: domain.OpGT, Value: 11,
 				}}},
 		},
 		ReferenceActions: []domain.ReferenceAction{
@@ -257,7 +257,7 @@ func scenarioInstrumentAirLoss() domain.Scenario {
 		Description: "Падение давления PRA-700 → отказ регуляторов → аварийный останов",
 		Type:        domain.ScenarioExam,
 		Faults: []domain.ScenarioFault{
-			{ID: "f1", FaultID: "instrument_air_loss", ComponentInstanceID: "kip-air-supply",
+			{ID: "f1", FaultID: "FLT-IA-PRESSURE-LOW", ComponentInstanceID: "kip-air-supply",
 				Params:  domain.FaultParams{SeverityPct: 100, RampSeconds: 0},
 				Trigger: domain.Trigger{Type: domain.TriggerTime, AtModelTime: pFloat(100)}},
 		},

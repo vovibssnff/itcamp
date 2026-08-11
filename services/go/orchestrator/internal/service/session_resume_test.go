@@ -38,4 +38,14 @@ func TestMockSimStepTags(t *testing.T) {
 	if len(st.Tags) == 0 {
 		t.Fatal("expected mock tags")
 	}
+	found := false
+	for _, tag := range st.Tags {
+		if tag.TagID == "PRSA 204" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected ЭЛОУ tag PRSA 204")
+	}
 }

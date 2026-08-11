@@ -13,11 +13,32 @@ function toBackendTemplate(t: (typeof templates)[0]) {
     status: t.isValid ? 'published' : 'draft',
     created_at: t.createdAt,
     updated_at: t.updatedAt,
-    scheme: t.scheme,
     graph: {
-      schema_version: 1,
-      nodes: t.nodes,
-      edges: t.edges,
+      schema_version: '2.0',
+      nodes: t.nodes.map((n) => ({
+        id: n.id,
+        component_type_id: n.typeId,
+        label: n.label,
+        position: { x: n.x, y: n.y },
+        parameters: {
+          ...n.parameters,
+          ...(n.tags ? { tags: n.tags } : {}),
+          ...(n.width != null ? { width: n.width } : {}),
+          ...(n.height != null ? { height: n.height } : {}),
+        },
+        tags: n.tags,
+        ports: {},
+      })),
+      edges: t.edges.map((e) => ({
+        id: e.id,
+        type: e.type ?? 'liquid',
+        from: { node_id: e.sourceNodeId, port: e.sourcePortId },
+        to: { node_id: e.targetNodeId, port: e.targetPortId },
+      })),
+      layout: {
+        mnemo_positions: Object.fromEntries(t.nodes.map((n) => [n.id, { x: n.x, y: n.y }])),
+        custom_labels: {},
+      },
     },
   }
 }
@@ -66,7 +87,6 @@ export const constructorHandlers = [
           status: backend.status,
           created_at: backend.created_at,
           updated_at: backend.updated_at,
-          scheme: backend.scheme,
           // Keep nodes in list responses so isValid mapping stays useful in UI.
           graph: backend.graph,
         }

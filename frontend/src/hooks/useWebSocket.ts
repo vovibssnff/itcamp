@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import { message } from 'antd'
 import { ensureAccessToken } from '@/api/client'
 import { WsConnection, type WsChannel } from '@/ws/connection'
 import { useSessionStore } from '@/store/session'
-import type { ServerMessage } from '@/ws/types'
+import { parseServerMessage } from '@/ws/types'
 
 interface UseWebSocketOptions {
   sessionId: string | null
@@ -21,6 +22,7 @@ export function useWebSocket({ sessionId, channel, enabled = true }: UseWebSocke
     setModelTime,
     setSpeed,
     updateRegulator,
+    addFault,
   } = useSessionStore()
 
   useEffect(() => {
@@ -33,8 +35,6 @@ export function useWebSocket({ sessionId, channel, enabled = true }: UseWebSocke
     let ws: WsConnection | null = null
 
     void (async () => {
-      // Access tokens are not persisted — wait for bootstrap/refresh before opening WS
-      // or the gateway rejects the upgrade (empty ?token=) and we reconnect forever.
       const token = await ensureAccessToken()
       if (cancelled || !token) return
 
@@ -42,13 +42,16 @@ export function useWebSocket({ sessionId, channel, enabled = true }: UseWebSocke
         sessionId,
         channel,
         onStatusChange: setConnected,
-        onMessage: (msg: ServerMessage) => {
+        onMessage: (raw) => {
+          const msg = parseServerMessage(raw)
+          if (!msg) return
           switch (msg.type) {
             case 'telemetry':
               updateTelemetry(msg.tags)
               break
             case 'alarm':
               addAlarm(msg.alarm)
+              message.warning(`${msg.alarm.tag} · ${msg.alarm.level}`, 4)
               break
             case 'alarm_clear':
               acknowledgeAlarm(msg.id)
@@ -60,6 +63,9 @@ export function useWebSocket({ sessionId, channel, enabled = true }: UseWebSocke
               break
             case 'regulator_state':
               updateRegulator(msg.regulator)
+              break
+            case 'fault':
+              addFault(msg.fault)
               break
           }
         },
@@ -88,6 +94,7 @@ export function useWebSocket({ sessionId, channel, enabled = true }: UseWebSocke
     setModelTime,
     setSpeed,
     updateRegulator,
+    addFault,
   ])
 
   return {

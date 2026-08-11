@@ -165,8 +165,8 @@ export const scenarioHandlers = [
       faults: [
         {
           id: `sf-ai-${Date.now()}`,
-          fault_id: 'flt-pump-trip',
-          component_instance_id: 'H-101A',
+          fault_id: 'FLT-FEED-FLOW-LOW',
+          component_instance_id: 'n-pump1',
           params: { severity_pct: 80, ramp_seconds: 0 },
           trigger: { type: 'time', at_model_time: 180 },
           hidden: false,

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/itcamp/ktc/services/orchestrator/internal/domain"
@@ -120,11 +122,11 @@ func (c *HTTPSimClient) DestroySession(ctx context.Context, sessionID string) er
 	return nil
 }
 
-func (c *HTTPSimClient) Step(ctx context.Context, sessionID string, ticks int32) (domain.SimState, error) {
-	if ticks <= 0 {
-		ticks = 1
+func (c *HTTPSimClient) Step(ctx context.Context, sessionID string, dtSec float64) (domain.SimState, error) {
+	if dtSec <= 0 {
+		dtSec = 1
 	}
-	payload, _ := json.Marshal(map[string]any{"real_dt_s": float64(ticks)})
+	payload, _ := json.Marshal(map[string]any{"real_dt_s": dtSec})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+"/v1/sessions/"+sessionID+"/step", bytes.NewReader(payload))
 	if err != nil {
 		return domain.SimState{}, err
@@ -139,12 +141,17 @@ func (c *HTTPSimClient) Step(ctx context.Context, sessionID string, ticks int32)
 		return domain.SimState{}, fmt.Errorf("%w: step status %d", domain.ErrSimUnavailable, resp.StatusCode)
 	}
 	var result struct {
-		State workerState `json:"state"`
+		State         workerState   `json:"state"`
+		NewAlarms     []workerAlarm `json:"new_alarms"`
+		ClearedAlarms []workerAlarm `json:"cleared_alarms"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return domain.SimState{}, fmt.Errorf("sim step decode: %w", err)
 	}
-	return result.State.toDomain(sessionID), nil
+	st := result.State.toDomain(sessionID)
+	st.NewAlarms = workerAlarmsToDomain(sessionID, result.NewAlarms)
+	st.ClearedAlarms = workerAlarmsToDomain(sessionID, result.ClearedAlarms)
+	return st, nil
 }
 
 func (c *HTTPSimClient) GetState(ctx context.Context, sessionID string) (domain.SimState, error) {
@@ -241,31 +248,114 @@ func (c *HTTPSimClient) SetSpeed(ctx context.Context, sessionID string, factor f
 	return nil
 }
 
-type workerState struct {
-	SessionID    string             `json:"session_id"`
-	ModelTimeS   float64            `json:"model_time_s"`
-	TagValues    map[string]float64 `json:"tag_values"`
-	ActiveAlarms []struct {
-		AlarmID   string   `json:"alarm_id"`
-		TagID     string   `json:"tag_id"`
-		Priority  string   `json:"priority"`
-		RaisedAtS float64  `json:"raised_at_s"`
-		AckAtS    *float64 `json:"ack_at_s"`
-	} `json:"active_alarms"`
+func (c *HTTPSimClient) SetActuator(ctx context.Context, sessionID, tag string, value any) error {
+	tag = CanonicalActuatorTag(tag)
+	cmd, v := ResolveActuatorCommand(tag, value)
+	return c.Command(ctx, sessionID, cmd, tag, v)
 }
 
-func (s workerState) toDomain(sessionID string) domain.SimState {
-	if s.SessionID != "" {
-		sessionID = s.SessionID
+func (c *HTTPSimClient) Command(ctx context.Context, sessionID, cmdType, target string, value any) error {
+	target = CanonicalActuatorTag(target)
+	body := map[string]any{
+		"type":   cmdType,
+		"target": target,
 	}
-	tags := make([]domain.Tag, 0, len(s.TagValues))
-	for id, v := range s.TagValues {
-		tags = append(tags, domain.Tag{TagID: id, Value: v, Quality: "good"})
+	if value != nil {
+		switch v := value.(type) {
+		case float64, float32, int, int64, json.Number:
+			body["value_to"] = v
+		case string:
+			if cmdType == "SET_MODE" {
+				// sim: value_to >= 0.5 → MANUAL, else AUTO
+				if v == "manual" || v == "MANUAL" {
+					body["value_to"] = 1.0
+				} else {
+					body["value_to"] = 0.0
+				}
+			} else if f, err := strconv.ParseFloat(v, 64); err == nil {
+				body["value_to"] = f
+			}
+		case bool:
+			if v {
+				body["value_to"] = 1.0
+			} else {
+				body["value_to"] = 0.0
+			}
+		default:
+			body["value_to"] = value
+		}
 	}
-	alarms := make([]domain.AlarmEvent, 0, len(s.ActiveAlarms))
-	for _, a := range s.ActiveAlarms {
+	payload, _ := json.Marshal(body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+"/v1/sessions/"+sessionID+"/command", bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("sim command: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		b, _ := io.ReadAll(resp.Body)
+		detail := strings.TrimSpace(string(b))
+		if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusBadRequest {
+			return fmt.Errorf("%w: %s", domain.ErrInvalidCommand, detail)
+		}
+		return fmt.Errorf("sim command: status %d: %s", resp.StatusCode, detail)
+	}
+	return nil
+}
+
+type workerAlarm struct {
+	AlarmID   string   `json:"alarm_id"`
+	TagID     string   `json:"tag_id"`
+	Priority  string   `json:"priority"`
+	RaisedAtS float64  `json:"raised_at_s"`
+	AckAtS    *float64 `json:"ack_at_s"`
+}
+
+type workerState struct {
+	SessionID       string             `json:"session_id"`
+	ModelTimeS      float64            `json:"model_time_s"`
+	TagValues       map[string]float64 `json:"tag_values"`
+	EquipmentStates map[string]string  `json:"equipment_states"`
+	ControllerModes map[string]string  `json:"controller_modes"`
+	// ActiveAlarms accepts both REST list and snapshot map forms.
+	ActiveAlarms json.RawMessage `json:"active_alarms"`
+}
+
+func parseWorkerAlarms(raw json.RawMessage) []workerAlarm {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil
+	}
+	var asList []workerAlarm
+	if err := json.Unmarshal(raw, &asList); err == nil {
+		return asList
+	}
+	var asMap map[string]workerAlarm
+	if err := json.Unmarshal(raw, &asMap); err == nil {
+		out := make([]workerAlarm, 0, len(asMap))
+		for k, a := range asMap {
+			if a.AlarmID == "" {
+				a.AlarmID = k
+			}
+			out = append(out, a)
+		}
+		return out
+	}
+	return nil
+}
+
+func workerAlarmsToDomain(sessionID string, in []workerAlarm) []domain.AlarmEvent {
+	alarms := make([]domain.AlarmEvent, 0, len(in))
+	for _, a := range in {
+		id := a.AlarmID
+		if id == "" {
+			id = sessionID + ":" + a.TagID + ":" + a.Priority
+		}
 		alarms = append(alarms, domain.AlarmEvent{
-			ID:              a.AlarmID,
+			ID:              id,
 			SessionID:       sessionID,
 			TagID:           a.TagID,
 			Priority:        a.Priority,
@@ -273,10 +363,66 @@ func (s workerState) toDomain(sessionID string) domain.SimState {
 			AckModelTime:    a.AckAtS,
 		})
 	}
+	return alarms
+}
+
+func equipmentStateToValue(state string) float64 {
+	switch strings.ToUpper(strings.TrimSpace(state)) {
+	case "RUNNING", "OPEN", "ON", "TRUE", "1":
+		return 1
+	case "STOPPED", "CLOSED", "OFF", "FALSE", "0":
+		return 0
+	default:
+		return 0
+	}
+}
+
+func isLikelyRegulatorTag(id string) bool {
+	u := strings.ToUpper(strings.TrimSpace(id))
+	for _, p := range []string{"LRCA", "LRCSA", "TRC", "FRC", "FRCA", "PRC", "PRCA", "FQRC", "FYQR"} {
+		if strings.HasPrefix(u, p+" ") || strings.HasPrefix(u, p+"-") || u == p {
+			return true
+		}
+	}
+	return false
+}
+
+func (s workerState) toDomain(sessionID string) domain.SimState {
+	if s.SessionID != "" {
+		sessionID = s.SessionID
+	}
+	tags := make([]domain.Tag, 0, len(s.TagValues)+len(s.EquipmentStates))
+	for id, v := range s.TagValues {
+		tags = append(tags, domain.Tag{TagID: id, Value: v, Quality: "good"})
+	}
+	// Expose pump/valve discrete states as numeric tags for HMI widgets.
+	for id, st := range s.EquipmentStates {
+		tags = append(tags, domain.Tag{TagID: id, Value: equipmentStateToValue(st), Quality: "good"})
+	}
+	alarms := workerAlarmsToDomain(sessionID, parseWorkerAlarms(s.ActiveAlarms))
+	regs := make([]domain.Regulator, 0, len(s.ControllerModes))
+	for id, mode := range s.ControllerModes {
+		if !isLikelyRegulatorTag(id) {
+			continue
+		}
+		pv := s.TagValues[id]
+		modeNorm := strings.ToUpper(strings.TrimSpace(mode))
+		if modeNorm != "MANUAL" {
+			modeNorm = "AUTO"
+		}
+		regs = append(regs, domain.Regulator{
+			TagID: id,
+			PV:    pv,
+			SP:    pv, // worker state has no separate SP; SPA still shows live PV
+			OUT:   pv,
+			Mode:  modeNorm,
+		})
+	}
 	return domain.SimState{
-		SessionID: sessionID,
-		ModelTime: s.ModelTimeS,
-		Tags:      tags,
-		Alarms:    alarms,
+		SessionID:  sessionID,
+		ModelTime:  s.ModelTimeS,
+		Tags:       tags,
+		Regulators: regs,
+		Alarms:     alarms,
 	}
 }

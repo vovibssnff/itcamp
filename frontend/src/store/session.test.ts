@@ -1,20 +1,35 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useSessionStore, type TagValue, type ActiveAlarm, type RegulatorState } from './session'
+import {
+  useSessionStore,
+  normalizeTagId,
+  lookupTelemetry,
+  type TagValue,
+  type ActiveAlarm,
+  type RegulatorState,
+} from './session'
 
 function reset() {
   useSessionStore.getState().clearSession()
 }
 
-const tag: TagValue = { tag: 'TI-1', value: 100, unit: '°C', alarmState: 'normal', timestamp: 1 }
+const tag: TagValue = { tag: 'TI 1', value: 100, unit: '°C', alarmState: 'normal', timestamp: 1 }
 const alarm: ActiveAlarm = {
   id: 'a1',
-  tag: 'TI-1',
+  tag: 'TI 1',
   level: 'H',
   message: 'high',
   timestamp: 1,
   acknowledged: false,
 }
-const reg: RegulatorState = { tag: 'TRC-1', mode: 'auto', pv: 1, sp: 2, out: 3 }
+const reg: RegulatorState = { tag: 'TRC 1', mode: 'auto', pv: 1, sp: 2, out: 3 }
+
+describe('normalizeTagId', () => {
+  it('canonicalizes hyphen and .PV variants to space form', () => {
+    expect(normalizeTagId('PRSA-204')).toBe('PRSA 204')
+    expect(normalizeTagId('PRSA_204.PV')).toBe('PRSA 204')
+    expect(normalizeTagId('LRCA 602')).toBe('LRCA 602')
+  })
+})
 
 describe('sessionStore', () => {
   beforeEach(reset)
@@ -28,18 +43,18 @@ describe('sessionStore', () => {
     expect(state.status).toBe('running')
   })
 
-  it('updates telemetry keyed by tag', () => {
-    useSessionStore.getState().updateTelemetry([tag])
-    expect(useSessionStore.getState().telemetry['TI-1']?.value).toBe(100)
+  it('updates telemetry keyed by normalized tag', () => {
+    useSessionStore.getState().updateTelemetry([{ ...tag, tag: 'TI-1' }])
+    expect(useSessionStore.getState().telemetry['TI 1']?.value).toBe(100)
+    expect(lookupTelemetry(useSessionStore.getState().telemetry, 'TI-1')?.value).toBe(100)
   })
 
   it('promotes non-normal telemetry alarmState into alarms', () => {
     useSessionStore.getState().updateTelemetry([{ ...tag, alarmState: 'H', timestamp: 42 }])
     const alarms = useSessionStore.getState().alarms
     expect(alarms).toHaveLength(1)
-    expect(alarms[0]?.id).toBe('tag:TI-1:H')
+    expect(alarms[0]?.id).toBe('tag:TI 1:H')
     expect(alarms[0]?.level).toBe('H')
-    // idempotent
     useSessionStore.getState().updateTelemetry([{ ...tag, alarmState: 'H', timestamp: 43 }])
     expect(useSessionStore.getState().alarms).toHaveLength(1)
   })
@@ -55,7 +70,19 @@ describe('sessionStore', () => {
 
   it('updates regulators', () => {
     useSessionStore.getState().updateRegulator(reg)
-    expect(useSessionStore.getState().regulators['TRC-1']?.mode).toBe('auto')
+    expect(useSessionStore.getState().regulators['TRC 1']?.mode).toBe('auto')
+  })
+
+  it('tracks faults', () => {
+    useSessionStore.getState().addFault({
+      id: 'f1',
+      faultId: 'FLT-K1-PRESSURE-HIGH',
+      message: 'Pressure high',
+      timestamp: 1,
+    })
+    expect(useSessionStore.getState().faults).toHaveLength(1)
+    useSessionStore.getState().clearFault('f1')
+    expect(useSessionStore.getState().faults).toHaveLength(0)
   })
 
   it('sets model time and speed', () => {

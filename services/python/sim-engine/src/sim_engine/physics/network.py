@@ -155,6 +155,7 @@ class Network:
             apply_faults(self)
 
         self._apply_couplings()
+        self._apply_pump_effects()
 
         total_draw = sum(f.flow.pv for f in self.furnaces.values())
         self.loops["LRCA 602"].disturbance += -K1_DRAW_COUPLING_PCT_PER_M3H * (
@@ -179,6 +180,68 @@ class Network:
                     continue
                 contribution += gain * assist.deviation
             loop.disturbance += contribution
+
+    def _apply_pump_effects(self) -> None:
+        """Stopped pumps must disturb related loops/assists — otherwise START/STOP is cosmetic.
+
+        Mapping follows template_atm_demo equipment roles (сырьё / печи / орошение / мазут).
+        Note: FRC 404/405/406 are AssistPoints (operator levers), not ControlLoops.
+        """
+
+        def _stopped(tag: str) -> bool:
+            for p in self.pumps.values():
+                if p.tag_id == tag:
+                    return p.state != EquipmentState.RUNNING
+            return False
+
+        def _disturb_loop(tag: str, delta: float) -> None:
+            loop = self.loops.get(tag)
+            if loop is not None:
+                loop.disturbance += delta
+                return
+            for f in self.furnaces.values():
+                if f.flow.tag_id == tag:
+                    f.flow.disturbance += delta
+                    return
+                if f.fuel.tag_id == tag:
+                    f.fuel.disturbance += delta
+                    return
+
+        def _force_assist(tag: str, value: float) -> None:
+            assist = self.assists.get(tag)
+            if assist is not None:
+                assist.set_value(value)
+
+        # Н-1 — сырьевой: без него падают расходы ЭЛОУ / загрузки
+        if _stopped("PUMP-N1"):
+            for tag in ("FRC 404", "FRC 405", "FRC 406"):
+                _force_assist(tag, 5.0)
+            _disturb_loop("PRA 312", -3.0)
+            for tag in ("LRCA 641", "LRCA 640", "LRCA 639"):
+                _disturb_loop(tag, -120.0)
+
+        # Н-20 — подача обессоленной нефти в К-1
+        if _stopped("PUMP-N20"):
+            _disturb_loop("LRCA 602", -35.0)
+            _force_assist("FRC 408", 10.0)
+
+        # Н-2 / Н-3 — подача в атмосферные печи (возмущение > gain*out_max, иначе ПИ компенсирует)
+        if _stopped("PUMP-N2"):
+            for tag in ("FRCA 411", "FRCA 412", "FRCA 413", "FRCA 414", "FRCA 428"):
+                _disturb_loop(tag, -400.0)
+        if _stopped("PUMP-N3"):
+            for tag in ("FRCA 416", "FRCA 417"):
+                _disturb_loop(tag, -400.0)
+
+        # Н-6 — орошение К-1 / сырьё К-4
+        if _stopped("PUMP-N6"):
+            _force_assist("FRC 408", 5.0)
+            _disturb_loop("PRSA 204", 2.5)
+
+        # Н-4 — откачка мазута из К-2
+        if _stopped("PUMP-N4"):
+            _disturb_loop("LRCA 604", 40.0)
+            _disturb_loop("PRSA 213", 1.2)
 
     # -- снимок тегов -----------------------------------------------------
 

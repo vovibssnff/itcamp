@@ -12,6 +12,7 @@ var (
 	ErrExamRestoreForbidden  = errors.New("restore forbidden in exam mode for operator")
 	ErrForbidden             = errors.New("forbidden")
 	ErrSimUnavailable        = errors.New("simulation engine unavailable")
+	ErrInvalidCommand        = errors.New("invalid simulation command")
 	ErrScenarioNotFound      = errors.New("scenario not found")
 	ErrTemplateNotFound      = errors.New("template not found")
 	ErrTelemetryNotFound     = errors.New("telemetry not found")

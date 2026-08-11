@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/itcamp/ktc/services/orchestrator/internal/domain"
 )
@@ -40,12 +41,73 @@ func tagsForWS(tags []domain.Tag, modelTime float64, alarms []domain.AlarmEvent)
 	alarmByTag := make(map[string]string, len(alarms))
 	for _, a := range alarms {
 		if a.AckModelTime == nil && a.TagID != "" {
-			alarmByTag[a.TagID] = a.Priority
+			key := normalizeTagKey(a.TagID)
+			prio := strings.ToUpper(strings.TrimSpace(a.Priority))
+			if prio == "" {
+				prio = "H"
+			}
+			alarmByTag[key] = prio
+			alarmByTag[a.TagID] = prio
 		}
 	}
 	out := make([]map[string]any, 0, len(tags))
 	for _, t := range tags {
-		out = append(out, tagValueForWS(t, modelTime, alarmByTag[t.TagID]))
+		state := alarmByTag[t.TagID]
+		if state == "" {
+			state = alarmByTag[normalizeTagKey(t.TagID)]
+		}
+		out = append(out, tagValueForWS(t, modelTime, state))
 	}
 	return out
+}
+
+func normalizeTagKey(tag string) string {
+	s := strings.TrimSpace(tag)
+	s = strings.ReplaceAll(s, "-", " ")
+	s = strings.ReplaceAll(s, "_", " ")
+	for strings.Contains(s, "  ") {
+		s = strings.ReplaceAll(s, "  ", " ")
+	}
+	return strings.ToUpper(s)
+}
+
+// TelemetryTagsForWS maps a cached Telemetry snapshot into the SPA telemetry tags array.
+func TelemetryTagsForWS(t domain.Telemetry) []map[string]any {
+	return tagsForWS(t.Tags, t.ModelTime, t.Alarms)
+}
+
+func regulatorForWS(r domain.Regulator) map[string]any {
+	mode := strings.ToLower(strings.TrimSpace(r.Mode))
+	if mode != "manual" {
+		mode = "auto"
+	}
+	return map[string]any{
+		"tag":  r.TagID,
+		"mode": mode,
+		"pv":   r.PV,
+		"sp":   r.SP,
+		"out":  r.OUT,
+	}
+}
+
+// RegulatorsForWS maps regulator snapshots for SPA regulator_state messages.
+func RegulatorsForWS(regs []domain.Regulator) []map[string]any {
+	out := make([]map[string]any, 0, len(regs))
+	for _, r := range regs {
+		if r.TagID == "" {
+			continue
+		}
+		out = append(out, regulatorForWS(r))
+	}
+	return out
+}
+
+func faultForWS(f domain.FaultEvent) map[string]any {
+	return map[string]any{
+		"id":                    f.ID,
+		"fault_id":              f.FaultID,
+		"component_instance_id": f.ComponentID,
+		"trigger_type":          f.TriggerType,
+		"fired_model_time":      f.FiredModelTime,
+	}
 }

@@ -3,6 +3,7 @@ import {
   inferComponentShape,
   mapComponent,
   mapReplay,
+  mapTemplate,
   mapUser,
   pickPrimaryRole,
   rolesFromAccessToken,
@@ -36,10 +37,23 @@ describe('toTemplateBody', () => {
     const body = toTemplateBody({
       name: 'Test',
       description: 'd',
-      nodes: [{ id: 'n1', typeId: 'centrifugal_pump', x: 10, y: 20, label: 'Н-1', parameters: {} }],
+      nodes: [
+        {
+          id: 'n1',
+          typeId: 'centrifugal_pump',
+          x: 10,
+          y: 20,
+          label: 'Н-1',
+          parameters: {},
+          tags: ['FI 101'],
+          width: 44,
+          height: 44,
+        },
+      ],
       edges: [
         {
           id: 'e1',
+          type: 'steam',
           sourceNodeId: 'n1',
           sourcePortId: 'out',
           targetNodeId: 'n2',
@@ -53,12 +67,152 @@ describe('toTemplateBody', () => {
       id: 'n1',
       component_type_id: 'centrifugal_pump',
       position: { x: 10, y: 20 },
+      tags: ['FI 101'],
     })
     expect(body.graph.edges[0]).toMatchObject({
       id: 'e1',
+      type: 'steam',
       from: { node_id: 'n1', port: 'out' },
       to: { node_id: 'n2', port: 'in' },
     })
+    expect(body.graph.layout.mnemo_positions.n1).toEqual({ x: 10, y: 20 })
+  })
+
+  it('derives edge type from source port when edge.type missing', () => {
+    const body = toTemplateBody(
+      {
+        name: 'Test',
+        nodes: [{ id: 'n1', typeId: 'pump', x: 0, y: 0, label: 'P', parameters: {} }],
+        edges: [
+          {
+            id: 'e1',
+            sourceNodeId: 'n1',
+            sourcePortId: 'outlet',
+            targetNodeId: 'n2',
+            targetPortId: 'in',
+          },
+        ],
+      },
+      [{ id: 'pump', ports: [{ id: 'outlet', type: 'gas' }] }],
+    )
+    expect(body.graph.edges[0]?.type).toBe('gas')
+  })
+
+  it('round-trips edge.type, tags, positions, and schema_version string "2.0"', () => {
+    const canvas = {
+      name: 'ЭЛОУ round-trip',
+      description: 'contract',
+      nodes: [
+        {
+          id: 'n-pump',
+          typeId: 'centrifugal_pump',
+          x: 120,
+          y: 240,
+          label: 'Н-1',
+          parameters: { flow: 400 },
+          tags: ['FI 101', 'PI 101'],
+          width: 44,
+          height: 44,
+        },
+        {
+          id: 'n-valve',
+          typeId: 'control_valve',
+          x: 280,
+          y: 240,
+          label: 'FV 101',
+          parameters: {},
+          tags: ['FV 101'],
+        },
+      ],
+      edges: [
+        {
+          id: 'e-steam',
+          type: 'steam' as const,
+          sourceNodeId: 'n-pump',
+          sourcePortId: 'out',
+          targetNodeId: 'n-valve',
+          targetPortId: 'in',
+        },
+        {
+          id: 'e-signal',
+          type: 'signal' as const,
+          sourceNodeId: 'n-valve',
+          sourcePortId: 'sig',
+          targetNodeId: 'n-pump',
+          targetPortId: 'cmd',
+        },
+      ],
+    }
+
+    const body = toTemplateBody(canvas)
+    expect(body.graph.schema_version).toBe('2.0')
+    expect(typeof body.graph.schema_version).toBe('string')
+    expect(body.graph.edges.map((e) => e.type)).toEqual(['steam', 'signal'])
+    expect(body.graph.nodes[0]).toMatchObject({
+      position: { x: 120, y: 240 },
+      tags: ['FI 101', 'PI 101'],
+    })
+    expect(body.graph.layout.mnemo_positions['n-pump']).toEqual({ x: 120, y: 240 })
+    expect(body.graph.layout.mnemo_positions['n-valve']).toEqual({ x: 280, y: 240 })
+
+    const mapped = mapTemplate({
+      id: 'tmpl-rt',
+      name: canvas.name,
+      description: canvas.description,
+      status: 'published',
+      created_at: '2026-08-11T00:00:00Z',
+      updated_at: '2026-08-11T00:00:00Z',
+      graph: body.graph,
+    })
+
+    expect(mapped.nodes).toHaveLength(2)
+    expect(mapped.nodes[0]).toMatchObject({
+      id: 'n-pump',
+      typeId: 'centrifugal_pump',
+      x: 120,
+      y: 240,
+      tags: ['FI 101', 'PI 101'],
+      width: 44,
+      height: 44,
+    })
+    expect(mapped.edges).toEqual([
+      {
+        id: 'e-steam',
+        type: 'steam',
+        sourceNodeId: 'n-pump',
+        sourcePortId: 'out',
+        targetNodeId: 'n-valve',
+        targetPortId: 'in',
+      },
+      {
+        id: 'e-signal',
+        type: 'signal',
+        sourceNodeId: 'n-valve',
+        sourcePortId: 'sig',
+        targetNodeId: 'n-pump',
+        targetPortId: 'cmd',
+      },
+    ])
+
+    // Second save must keep schema_version as string "2.0" and media types.
+    const body2 = toTemplateBody({ ...mapped, name: mapped.name })
+    expect(body2.graph.schema_version).toBe('2.0')
+    expect(typeof body2.graph.schema_version).toBe('string')
+    expect(body2.graph.edges.map((e) => e.type)).toEqual(['steam', 'signal'])
+  })
+
+  it('reads positions from mnemo_positions when node.position missing', () => {
+    const mapped = mapTemplate({
+      id: 'tmpl-mnemo',
+      name: 'Mnemo',
+      graph: {
+        schema_version: '2.0',
+        nodes: [{ id: 'n1', component_type_id: 'pump', label: 'P', parameters: {} }],
+        edges: [],
+        layout: { mnemo_positions: { n1: { x: 55, y: 66 } }, custom_labels: {} },
+      },
+    })
+    expect(mapped.nodes[0]).toMatchObject({ id: 'n1', x: 55, y: 66 })
   })
 })
 
@@ -133,7 +287,7 @@ describe('mapComponent', () => {
     })
     expect(ct.category).toBe('common')
     expect(ct.shape).toBe('pump')
-    expect(ct.ports[1]?.type).toBe('gas')
+    expect(ct.ports[1]?.type).toBe('steam')
     expect(ct.parameters[0]).toMatchObject({
       label: 'Номинальная подача',
       type: 'number',

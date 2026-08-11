@@ -49,5 +49,5 @@ go run ./cmd/scenario -config config.toml
 ## Seed
 
 При `seed.enabled = true` загружаются:
-- **10 неисправностей** (level_drop, pressure_rise, feed_flow_drop, cot_rise, vacuum_loss и др.)
+- **10 неисправностей** (`FLT-*`, совпадают с sim-engine `faults_catalog.json`)
 - **10 сценариев** из документа «Сценарии для КТК» (ЭЛОУ, печи, К-1, К-2, К-3/1, К-4, воздух КИП)

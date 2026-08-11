@@ -78,6 +78,16 @@ func (h *WSHub) BroadcastAlarm(sessionID string, alarm any) {
 	}
 }
 
+func (h *WSHub) BroadcastAlarmClear(sessionID string, alarmID string) {
+	h.mu.RLock()
+	clients := h.clients[sessionID]
+	h.mu.RUnlock()
+	msg := map[string]any{"type": "alarm_clear", "id": alarmID}
+	for c := range clients {
+		c.Send(msg)
+	}
+}
+
 func (h *WSHub) BroadcastSessionStatus(sessionID string, status string, modelTime float64, speed float64) {
 	h.mu.RLock()
 	clients := h.clients[sessionID]
@@ -87,6 +97,27 @@ func (h *WSHub) BroadcastSessionStatus(sessionID string, status string, modelTim
 	}
 	// Frontend ServerMessage: { type: 'session_status', status, modelTime, speed }
 	msg := map[string]any{"type": "session_status", "status": status, "modelTime": modelTime, "speed": speed}
+	for c := range clients {
+		c.Send(msg)
+	}
+}
+
+func (h *WSHub) BroadcastFault(sessionID string, fault any) {
+	h.mu.RLock()
+	clients := h.clients[sessionID]
+	h.mu.RUnlock()
+	msg := map[string]any{"type": "fault", "fault": fault}
+	for c := range clients {
+		c.Send(msg)
+	}
+}
+
+func (h *WSHub) BroadcastRegulator(sessionID string, regulator any) {
+	h.mu.RLock()
+	clients := h.clients[sessionID]
+	h.mu.RUnlock()
+	// Frontend ServerMessage: { type: 'regulator_state', regulator: RegulatorState }
+	msg := map[string]any{"type": "regulator_state", "regulator": regulator}
 	for c := range clients {
 		c.Send(msg)
 	}

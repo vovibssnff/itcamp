@@ -1,4 +1,4 @@
-import type { ServerMessage, ClientMessage } from './types'
+import type { ClientMessage } from './types'
 import { useAuthStore } from '@/store/auth'
 
 export type WsChannel = 'operator' | 'observe'
@@ -6,7 +6,7 @@ export type WsChannel = 'operator' | 'observe'
 interface WsOptions {
   sessionId: string
   channel: WsChannel
-  onMessage: (msg: ServerMessage) => void
+  onMessage: (msg: unknown) => void
   onStatusChange?: (connected: boolean) => void
 }
 
@@ -19,7 +19,7 @@ export class WsConnection {
   private ws: WebSocket | null = null
   private sessionId: string
   private channel: WsChannel
-  private onMessage: (msg: ServerMessage) => void
+  private onMessage: (msg: unknown) => void
   private onStatusChange: (connected: boolean) => void
   private reconnectAttempt = 0
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
@@ -68,7 +68,7 @@ export class WsConnection {
 
     this.ws.onmessage = (e: MessageEvent) => {
       try {
-        const msg = JSON.parse(e.data as string) as ServerMessage
+        const msg = JSON.parse(e.data as string) as unknown
         this.onMessage(msg)
       } catch {
         // ignore malformed messages

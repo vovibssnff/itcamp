@@ -83,9 +83,19 @@ export function toCreateUserBody(profile: {
   }
 }
 
+const EDGE_MEDIA = new Set(['liquid', 'gas', 'steam', 'electric', 'signal'])
+
+function mapEdgeMediaType(raw: unknown): CanvasEdge['type'] | undefined {
+  const t = String(raw ?? '').toLowerCase()
+  if (EDGE_MEDIA.has(t)) return t as CanvasEdge['type']
+  return undefined
+}
+
 function mapGraph(raw: unknown): { nodes: CanvasNode[]; edges: CanvasEdge[] } {
   const r = asRecord(raw)
   const graph = asRecord(r.graph)
+  const layout = asRecord(graph.layout)
+  const mnemo = asRecord(layout.mnemo_positions)
 
   // Backend shape: { component_type_id, position: {x,y}, parameters, label }
   // Frontend shape: { typeId, x, y, parameters, label }
@@ -93,31 +103,42 @@ function mapGraph(raw: unknown): { nodes: CanvasNode[]; edges: CanvasEdge[] } {
   const nodes: CanvasNode[] = rawNodes.map((n) => {
     const rn = asRecord(n)
     const pos = asRecord(rn.position)
+    const id = str(rn.id)
+    const mnemoPos = asRecord(mnemo[id])
+    const params = (rn.parameters as Record<string, unknown>) ?? {}
+    // tags may live on the node or inside parameters.tags
+    const tagsFromParams = Array.isArray(params.tags) ? (params.tags as string[]) : undefined
+    const tags = Array.isArray(rn.tags) ? (rn.tags as string[]) : tagsFromParams
+    const width = typeof rn.width === 'number' ? rn.width : num(params.width, NaN)
+    const height = typeof rn.height === 'number' ? rn.height : num(params.height, NaN)
     return {
-      id: str(rn.id),
-      // backend: component_type_id  |  mock fixtures: typeId
+      id,
       typeId: str(rn.component_type_id ?? rn.typeId ?? rn.type_id),
-      x: num(rn.x ?? pos.x),
-      y: num(rn.y ?? pos.y),
+      x: num(rn.x ?? pos.x ?? mnemoPos.x),
+      y: num(rn.y ?? pos.y ?? mnemoPos.y),
       label: str(rn.label),
-      parameters: (rn.parameters as Record<string, unknown>) ?? {},
-      tags: Array.isArray(rn.tags) ? (rn.tags as string[]) : undefined,
+      parameters: params,
+      tags,
+      ...(Number.isFinite(width) ? { width } : {}),
+      ...(Number.isFinite(height) ? { height } : {}),
     }
   })
 
-  // Backend shape: { from: {node_id, port}, to: {node_id, port} }
-  // Frontend shape: { sourceNodeId, sourcePortId, targetNodeId, targetPortId }
+  // Backend shape: { from: {node_id, port}, to: {node_id, port}, type }
+  // Frontend shape: { sourceNodeId, sourcePortId, targetNodeId, targetPortId, type }
   const rawEdges = (graph.edges ?? r.edges ?? []) as unknown[]
   const edges: CanvasEdge[] = rawEdges.map((e) => {
     const re = asRecord(e)
     const from = asRecord(re.from)
     const to = asRecord(re.to)
+    const type = mapEdgeMediaType(re.type)
     return {
       id: str(re.id),
       sourceNodeId: str(from.node_id ?? re.sourceNodeId),
       sourcePortId: str(from.port ?? re.sourcePortId),
       targetNodeId: str(to.node_id ?? re.targetNodeId),
       targetPortId: str(to.port ?? re.targetPortId),
+      ...(type ? { type } : {}),
     }
   })
 
@@ -140,31 +161,63 @@ export function mapTemplate(raw: unknown): Template {
     nodes,
     edges,
     isValid,
-    scheme: r.scheme === 'elou-avt' ? 'elou-avt' : undefined,
   }
 }
 
-export function toTemplateBody(template: Partial<Template> & { name: string }) {
+/** Resolve edge media for save — prefer stored type, else derive from source port. */
+export function resolveEdgeTypeForSave(
+  edge: CanvasEdge,
+  nodes: CanvasNode[],
+  componentTypes?: Array<{ id: string; ports: Array<{ id: string; type: string }> }>,
+): string {
+  if (edge.type && EDGE_MEDIA.has(edge.type)) return edge.type
+  if (!componentTypes) return 'liquid'
+  const srcNode = nodes.find((n) => n.id === edge.sourceNodeId)
+  if (!srcNode) return 'liquid'
+  const ct = componentTypes.find((c) => c.id === srcNode.typeId)
+  const port = ct?.ports.find((p) => p.id === edge.sourcePortId)
+  const t = String(port?.type ?? 'liquid').toLowerCase()
+  return EDGE_MEDIA.has(t) ? t : 'liquid'
+}
+
+export function toTemplateBody(
+  template: Partial<Template> & { name: string },
+  componentTypes?: Array<{ id: string; ports: Array<{ id: string; type: string }> }>,
+) {
+  const nodes = template.nodes ?? []
+  const edges = template.edges ?? []
+  const mnemo_positions: Record<string, { x: number; y: number }> = {}
+  for (const n of nodes) {
+    mnemo_positions[n.id] = { x: n.x, y: n.y }
+  }
+
   return {
     name: template.name,
     description: template.description ?? '',
     graph: {
       schema_version: '2.0',
-      nodes: (template.nodes ?? []).map((n) => ({
-        id: n.id,
-        component_type_id: n.typeId,
-        label: n.label ?? '',
-        position: { x: n.x, y: n.y },
-        parameters: n.parameters ?? {},
-        ports: {},
-      })),
-      edges: (template.edges ?? []).map((e) => ({
+      nodes: nodes.map((n) => {
+        const parameters: Record<string, unknown> = { ...(n.parameters ?? {}) }
+        if (n.tags?.length) parameters.tags = n.tags
+        if (n.width != null) parameters.width = n.width
+        if (n.height != null) parameters.height = n.height
+        return {
+          id: n.id,
+          component_type_id: n.typeId,
+          label: n.label ?? '',
+          position: { x: n.x, y: n.y },
+          parameters,
+          ports: {},
+          ...(n.tags?.length ? { tags: n.tags } : {}),
+        }
+      }),
+      edges: edges.map((e) => ({
         id: e.id,
-        type: 'liquid',
+        type: resolveEdgeTypeForSave(e, nodes, componentTypes),
         from: { node_id: e.sourceNodeId, port: e.sourcePortId },
         to: { node_id: e.targetNodeId, port: e.targetPortId },
       })),
-      layout: { mnemo_positions: {}, custom_labels: {} },
+      layout: { mnemo_positions, custom_labels: {} },
     },
   }
 }
@@ -239,8 +292,7 @@ function mapParamType(raw: unknown): ComponentType['parameters'][number]['type']
 
 function mapPortType(raw: unknown): ComponentType['ports'][number]['type'] {
   const t = String(raw ?? 'liquid').toLowerCase()
-  if (t === 'steam') return 'gas'
-  if (t === 'liquid' || t === 'gas' || t === 'signal' || t === 'electric') return t
+  if (t === 'liquid' || t === 'gas' || t === 'steam' || t === 'signal' || t === 'electric') return t
   return 'liquid'
 }
 

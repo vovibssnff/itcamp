@@ -3,12 +3,8 @@ import { Input, Tag, Tooltip } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import type { ComponentType } from '@/mocks/fixtures/components'
-import {
-  categoryColor,
-  categoryLabel,
-  distinctCategories,
-  shapeIcon,
-} from '@/utils/component-display'
+import { categoryColor, categoryLabel, distinctCategories } from '@/utils/component-display'
+import { ShapeThumbnail } from '@/canvas/shared/ShapeThumbnail'
 import { tokens } from '@/theme/tokens'
 
 interface ComponentPaletteProps {
@@ -157,8 +153,8 @@ function PaletteItem({
           borderLeft: `2px solid ${hovered ? accent : 'transparent'}`,
         }}
       >
-        <span style={{ fontSize: 16, width: 20, textAlign: 'center', color: catColor }}>
-          {shapeIcon(ct.shape)}
+        <span style={{ width: 22, height: 22, display: 'inline-flex', flexShrink: 0 }}>
+          <ShapeThumbnail shape={ct.shape} color={catColor} size={22} />
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div

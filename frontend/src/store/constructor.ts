@@ -16,12 +16,16 @@ export interface CanvasNode {
   tags?: string[]
 }
 
+export type EdgeMediaType = 'liquid' | 'gas' | 'steam' | 'electric' | 'signal'
+
 export interface CanvasEdge {
   id: string
   sourceNodeId: string
   sourcePortId: string
   targetNodeId: string
   targetPortId: string
+  /** Process media — liquid | gas | steam | electric | signal */
+  type?: EdgeMediaType
   validationErrors?: string[]
 }
 

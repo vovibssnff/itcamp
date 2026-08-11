@@ -95,7 +95,7 @@ export default function TrainingScreen() {
         }
       }
     })()
-  }, [sessionId])
+  }, [sessionId, setStatus])
 
   const nodes = template.nodes
   const edges = template.edges

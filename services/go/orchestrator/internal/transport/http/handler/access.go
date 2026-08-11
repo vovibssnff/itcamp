@@ -60,14 +60,6 @@ func canAccessSession(r *http.Request, sess domain.Session) bool {
 	return false
 }
 
-func requirePrivileged(w http.ResponseWriter, r *http.Request) bool {
-	if isPrivileged(rolesFromHeader(r)) {
-		return true
-	}
-	writeError(w, domain.ErrForbidden)
-	return false
-}
-
 func canCreateSession(r *http.Request, mode string, operatorIDs []string) bool {
 	roles := rolesFromHeader(r)
 	if isPrivileged(roles) {

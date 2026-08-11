@@ -24,3 +24,9 @@ use_ssl           = false
 [seed]
 enabled           = true
 seed_file         = ""
+
+[redis]
+addr              = "radix:7379"
+password          = ""
+db                = 0
+ttl               = "5m"

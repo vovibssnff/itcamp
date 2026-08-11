@@ -24,10 +24,10 @@ type TaskPublisher interface {
 }
 
 type ReportService struct {
-	repo     *repository.ReportRepo
-	storage  ReportStorage
+	repo      *repository.ReportRepo
+	storage   ReportStorage
 	publisher TaskPublisher
-	log      *slog.Logger
+	log       *slog.Logger
 }
 
 func NewReportService(repo *repository.ReportRepo, storage ReportStorage, publisher TaskPublisher, log *slog.Logger) *ReportService {

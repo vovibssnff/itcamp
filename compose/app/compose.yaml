@@ -49,6 +49,7 @@ services:
       dockerfile: constructor/deploy/Dockerfile
     environment:
       CONSTRUCTOR_DB_DSN: ${DB_DSN}
+      CONSTRUCTOR_REDIS_ADDR: ${REDIS_ADDR}
     volumes:
       - ./config/constructor.toml:/app/config.toml:ro
     ports:
@@ -63,6 +64,7 @@ services:
       dockerfile: scenario/deploy/Dockerfile
     environment:
       SCENARIO_DB_DSN: ${DB_DSN}
+      SCENARIO_REDIS_ADDR: ${REDIS_ADDR}
     volumes:
       - ./config/scenario.toml:/app/config.toml:ro
     ports:

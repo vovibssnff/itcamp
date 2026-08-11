@@ -129,13 +129,19 @@ class SimulationEngine:
         )
 
     def inject_fault(
-        self, session_id: str, fault_id: str, magnitude: float = 1.0
+        self,
+        session_id: str,
+        fault_id: str,
+        magnitude: float = 1.0,
+        ramp_s: float | None = None,
     ) -> FaultInstance:
         session = self._get(session_id)
         fault_def = self.faults_catalog.get(fault_id)
         if fault_def is None:
             raise KeyError(f"Неизвестная неисправность: {fault_id}")
-        return session.fault_injector.inject(fault_def, session.model_time_s, magnitude)
+        return session.fault_injector.inject(
+            fault_def, session.model_time_s, magnitude, ramp_s=ramp_s
+        )
 
     def clear_fault(self, session_id: str, fault_id: str) -> bool:
         return self._get(session_id).fault_injector.clear(fault_id)

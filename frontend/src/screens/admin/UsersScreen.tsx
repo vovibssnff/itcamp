@@ -3,6 +3,7 @@ import { Table, Button, Tag, Space, Modal, Form, Input, Select, message } from '
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { UserProfile, UserRole } from '@/store/auth'
 import { usersApi } from '@/api/users'
+import { tablePagination } from '@/components/ui'
 import { tokens } from '@/theme/tokens'
 import { isMockApi } from '@/utils/env'
 
@@ -164,7 +165,7 @@ export default function UsersScreen() {
         columns={columns}
         rowKey="id"
         loading={loading}
-        pagination={false}
+        pagination={tablePagination()}
       />
 
       {mutable && (

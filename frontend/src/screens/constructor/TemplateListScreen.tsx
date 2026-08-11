@@ -1,17 +1,21 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { message } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router'
-import { DataTable, Pill, Modal } from '@/components/ui'
+import { DataTable, Pill, Modal, ListPagination } from '@/components/ui'
 import { Field } from '@/components/ui'
+import { JsonImportButton } from '@/components/ui/JsonImportButton'
 import { templatesApi } from '@/api/templates'
 import type { TemplateSummary } from '@/api/mappers'
 
 type TemplateRow = TemplateSummary
 
+const PAGE_SIZE = 20
+
 export default function TemplateListScreen() {
   const [templates, setTemplates] = useState<TemplateRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
@@ -22,12 +26,18 @@ export default function TemplateListScreen() {
     try {
       const data = await templatesApi.list()
       setTemplates(data)
+      setPage(1)
     } catch {
       void message.error('Ошибка загрузки шаблонов')
     } finally {
       setLoading(false)
     }
   }, [])
+
+  const paged = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE
+    return templates.slice(start, start + PAGE_SIZE)
+  }, [templates, page])
 
   useEffect(() => {
     void fetchTemplates()
@@ -87,9 +97,26 @@ export default function TemplateListScreen() {
             Технологические схемы КТК для сценариев обучения
           </p>
         </div>
-        <button className="btn btn-acc" onClick={() => setCreateOpen(true)}>
-          <PlusOutlined /> Новый шаблон
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <JsonImportButton
+            label="Импорт установки"
+            onImport={async (data) => {
+              const payload = data as { name: string; description?: string; graph?: unknown }
+              const result = await templatesApi.import(payload)
+              const valid = result.validation?.valid
+              void message.success(
+                valid
+                  ? `Установка «${result.template.name}» импортирована`
+                  : `Установка «${result.template.name}» импортирована (граф с ошибками)`,
+              )
+              void fetchTemplates()
+              void navigate(`/templates/${result.template.id}/edit`)
+            }}
+          />
+          <button className="btn btn-acc" onClick={() => setCreateOpen(true)}>
+            <PlusOutlined /> Новый шаблон
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -163,11 +190,21 @@ export default function TemplateListScreen() {
                 ),
               },
             ]}
-            rows={templates}
+            rows={paged}
             rowKey={(row) => row.id}
             onRowClick={(row) => void navigate(`/templates/${row.id}/edit`)}
             emptyText="Шаблоны не найдены"
           />
+          {templates.length > PAGE_SIZE && (
+            <div style={{ marginTop: 16 }}>
+              <ListPagination
+                current={page}
+                total={templates.length}
+                pageSize={PAGE_SIZE}
+                onChange={setPage}
+              />
+            </div>
+          )}
         </div>
       )}
 

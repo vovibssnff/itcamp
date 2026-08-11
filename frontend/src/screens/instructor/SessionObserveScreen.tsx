@@ -56,7 +56,10 @@ export default function SessionObserveScreen() {
   const modelTimeStr = new Date(modelTime * 1000).toISOString().substr(11, 8)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div
+      data-testid="session-observe"
+      style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}
+    >
       <AlarmBanner />
       <div className="topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

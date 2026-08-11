@@ -1,5 +1,10 @@
 import { http, HttpResponse } from 'msw'
-import { SCENARIOS, FAULT_CATALOG, type Scenario } from '../fixtures/scenarios'
+import {
+  SCENARIOS,
+  FAULT_CATALOG,
+  type Scenario,
+  type FaultCatalogItem,
+} from '../fixtures/scenarios'
 
 // Mutable in-memory copy
 const scenarios: Scenario[] = SCENARIOS.map((s) => ({ ...s }))
@@ -223,5 +228,47 @@ export const scenarioHandlers = [
     const f = FAULT_CATALOG.find((fc) => fc.fault_id === params.id)
     if (!f) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
     return HttpResponse.json(f)
+  }),
+
+  http.post('/api/v1/faults/import', async ({ request }) => {
+    const body = (await request.json()) as { faults?: FaultCatalogItem[] }
+    let created = 0
+    let updated = 0
+    for (const f of body.faults ?? []) {
+      const idx = FAULT_CATALOG.findIndex((x) => x.fault_id === f.fault_id)
+      if (idx === -1) {
+        FAULT_CATALOG.push(f)
+        created++
+      } else {
+        FAULT_CATALOG[idx] = f
+        updated++
+      }
+    }
+    return HttpResponse.json({ created, updated, errors: [] })
+  }),
+
+  http.post('/api/v1/scenarios/import', async ({ request }) => {
+    const body = (await request.json()) as { scenarios?: Scenario[] }
+    let created = 0
+    let updated = 0
+    for (const s of body.scenarios ?? []) {
+      const id = s.id || `sc-${Date.now()}`
+      const idx = scenarios.findIndex((x) => x.id === id)
+      const next = {
+        ...s,
+        id,
+        status: s.status ?? 'draft',
+        created_at: s.created_at ?? new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as Scenario
+      if (idx === -1) {
+        scenarios.push(next)
+        created++
+      } else {
+        scenarios[idx] = { ...scenarios[idx], ...next }
+        updated++
+      }
+    }
+    return HttpResponse.json({ created, updated, errors: [] })
   }),
 ]

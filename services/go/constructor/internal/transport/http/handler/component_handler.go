@@ -93,3 +93,21 @@ func (h *ComponentHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+type importComponentsReq struct {
+	Components []domain.ComponentType `json:"components"`
+}
+
+func (h *ComponentHandler) Import(w http.ResponseWriter, r *http.Request) {
+	if !domain.CanManageComponent(rolesFromHeader(r)) {
+		writeError(w, domain.ErrForbidden)
+		return
+	}
+	var req importComponentsReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, err)
+		return
+	}
+	result := h.svc.Import(r.Context(), req.Components)
+	writeJSON(w, http.StatusOK, result)
+}

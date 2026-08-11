@@ -5,18 +5,28 @@ import (
 	"log/slog"
 
 	"github.com/itcamp/ktc/services/constructor/internal/domain"
-	"github.com/itcamp/ktc/services/constructor/internal/repository"
 	"github.com/itcamp/ktc/shared/go/audit"
 )
 
+// TemplateStore — зависимость TemplateService для тестов с mock-ами.
+type TemplateStore interface {
+	GetByID(ctx context.Context, id string) (domain.Template, error)
+	List(ctx context.Context, authorID, status, query string, limit, offset int) ([]domain.Template, error)
+	Create(ctx context.Context, t domain.Template) error
+	Update(ctx context.Context, t domain.Template) error
+	UpdateStatus(ctx context.Context, id string, status domain.TemplateStatus) error
+	Delete(ctx context.Context, id string) error
+	DeepClone(ctx context.Context, id, newName string) (domain.Template, error)
+}
+
 type TemplateService struct {
-	repo      *repository.TemplateRepo
+	repo      TemplateStore
 	validator *Validator
 	exporter  *Exporter
 	log       *slog.Logger
 }
 
-func NewTemplateService(repo *repository.TemplateRepo, validator *Validator, exporter *Exporter) *TemplateService {
+func NewTemplateService(repo TemplateStore, validator *Validator, exporter *Exporter) *TemplateService {
 	return &TemplateService{repo: repo, validator: validator, exporter: exporter}
 }
 
@@ -121,4 +131,35 @@ func (s *TemplateService) Export(ctx context.Context, id string) (map[string]any
 	}
 	audit.Emit(ctx, s.log, "template.exported", "id", id)
 	return state, nil
+}
+
+// TemplateImportResult — созданный шаблон и результат валидации графа.
+type TemplateImportResult struct {
+	Template   domain.Template         `json:"template"`
+	Validation domain.ValidationResult `json:"validation"`
+}
+
+// Import создаёт draft-шаблон и возвращает валидацию графа (даже если граф невалиден).
+func (s *TemplateService) Import(ctx context.Context, t domain.Template) (TemplateImportResult, error) {
+	created, err := s.Create(ctx, t)
+	if err != nil {
+		return TemplateImportResult{}, err
+	}
+	validation := s.validator.Validate(created.Graph)
+	if validation.Valid {
+		IncTemplateValidation("valid")
+	} else {
+		IncTemplateValidation("invalid")
+	}
+	audit.Emit(ctx, s.log, "template.imported", "id", created.ID)
+	return TemplateImportResult{Template: created, Validation: validation}, nil
+}
+
+// ExportFile возвращает граф шаблона для скачивания (не sim init-state).
+func (s *TemplateService) ExportFile(ctx context.Context, id string) (domain.Graph, error) {
+	t, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return domain.Graph{}, err
+	}
+	return t.Graph, nil
 }

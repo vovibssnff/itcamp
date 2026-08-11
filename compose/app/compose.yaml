@@ -33,6 +33,8 @@ services:
       AUTH_DB_DSN: ${DB_DSN}
       AUTH_JWT_SIGNING_KEY: ${JWT_SIGNING_KEY}
       AUTH_TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY}
+      # MVP: skip TOTP; set false to restore privileged MFA enforcement
+      AUTH_MFA_DISABLED: ${AUTH_MFA_DISABLED:-true}
     volumes:
       - ./config/auth.toml:/app/config.toml:ro
     ports:

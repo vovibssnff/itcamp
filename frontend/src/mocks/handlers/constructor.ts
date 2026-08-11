@@ -155,4 +155,47 @@ export const constructorHandlers = [
           : [],
     })
   }),
+
+  http.post('/api/v1/components/import', async ({ request }) => {
+    const body = (await request.json()) as { components?: ComponentType[] }
+    let created = 0
+    let updated = 0
+    for (const c of body.components ?? []) {
+      const idx = components.findIndex((x) => x.id === c.id)
+      if (idx === -1) {
+        components.push(c)
+        created++
+      } else {
+        components[idx] = { ...components[idx], ...c }
+        updated++
+      }
+    }
+    return HttpResponse.json({ created, updated, errors: [] })
+  }),
+
+  http.post('/api/v1/templates/import', async ({ request }) => {
+    const body = (await request.json()) as {
+      name: string
+      description?: string
+      graph?: { nodes?: unknown[]; edges?: unknown[] }
+    }
+    const newTemplate = {
+      id: `tmpl-${Date.now()}`,
+      name: body.name,
+      description: body.description ?? '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      nodes: (body.graph?.nodes ?? []) as (typeof TEMPLATES)[0]['nodes'],
+      edges: (body.graph?.edges ?? []) as (typeof TEMPLATES)[0]['edges'],
+      isValid: (body.graph?.nodes?.length ?? 0) > 0,
+    }
+    templates.push(newTemplate)
+    return HttpResponse.json(
+      {
+        template: toBackendTemplate(newTemplate),
+        validation: { valid: newTemplate.isValid, errors: [] },
+      },
+      { status: 201 },
+    )
+  }),
 ]

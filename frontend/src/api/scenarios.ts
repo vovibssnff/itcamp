@@ -1,5 +1,6 @@
 import { apiClient } from './client'
 import { unwrap, unwrapVoid } from './request'
+import { postImport, type ImportResult } from './import'
 
 const BASE_URL =
   import.meta.env.VITE_MOCK_API === 'true' ? '' : (import.meta.env.VITE_API_BASE_URL ?? '')
@@ -72,6 +73,16 @@ export const scenariosApi = {
   async listFaults(): Promise<unknown[]> {
     const raw = await unwrap<unknown[]>(apiClient.GET('/api/v1/faults'))
     return raw ?? []
+  },
+
+  async importFaults(payload: { faults: unknown[] } | unknown[]): Promise<ImportResult> {
+    const body = Array.isArray(payload) ? { faults: payload } : payload
+    return postImport<ImportResult>('/api/v1/faults/import', body)
+  },
+
+  async importScenarios(payload: { scenarios: unknown[] } | unknown[]): Promise<ImportResult> {
+    const body = Array.isArray(payload) ? { scenarios: payload } : payload
+    return postImport<ImportResult>('/api/v1/scenarios/import', body)
   },
 
   /** Not in gateway — mock-only AI generate kept on /api/scenarios/ai-generate. */

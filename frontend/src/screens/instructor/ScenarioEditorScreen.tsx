@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { message, Select, InputNumber, Tooltip } from 'antd'
 import {
@@ -20,9 +20,20 @@ import type {
   FaultCatalogItem,
   ScenarioStatus,
 } from '@/mocks/fixtures/scenarios'
-import { DataTable, Pill, Modal, Field, TextArea, Seg, SectionLabel } from '@/components/ui'
+import {
+  DataTable,
+  Pill,
+  Modal,
+  Field,
+  TextArea,
+  Seg,
+  SectionLabel,
+  ListPagination,
+} from '@/components/ui'
+import { JsonImportButton } from '@/components/ui/JsonImportButton'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { scenariosApi } from '@/api/scenarios'
+import { summarizeImport } from '@/api/import'
 import { templatesApi } from '@/api/templates'
 import { snapshotsApi } from '@/api/snapshots'
 import { isMockApi } from '@/utils/env'
@@ -41,6 +52,8 @@ const STATUS_VARIANT: Record<ScenarioStatus, 'ok' | 'warn' | 'alarm' | 'default'
 
 // ─── List View ────────────────────────────────────────────────────────────────
 
+const SCENARIO_PAGE_SIZE = 20
+
 function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
   const navigate = useNavigate()
   const mock = isMockApi()
@@ -48,6 +61,7 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
     Omit<Scenario, 'faults' | 'reference_actions' | 'criteria'>[]
   >([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
   const [filterStatus, setFilterStatus] = useState('')
   const [filterType, setFilterType] = useState('')
   const [q, setQ] = useState('')
@@ -64,6 +78,7 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
       if (q) query.q = q
       const data = (await scenariosApi.list(query)) as typeof scenarios
       setScenarios(data)
+      setPage(1)
     } catch {
       void message.error('Ошибка загрузки сценариев')
     } finally {
@@ -74,6 +89,11 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
   useEffect(() => {
     void fetch_()
   }, [fetch_])
+
+  const pagedScenarios = useMemo(() => {
+    const start = (page - 1) * SCENARIO_PAGE_SIZE
+    return scenarios.slice(start, start + SCENARIO_PAGE_SIZE)
+  }, [scenarios, page])
 
   async function doDelete(id: string) {
     await scenariosApi.remove(id)
@@ -137,7 +157,28 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
             Управление сценариями обучения и аттестации
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <JsonImportButton
+            label="Импорт неисправностей"
+            onImport={async (data) => {
+              const result = await scenariosApi.importFaults(data as { faults: unknown[] })
+              void message.success(`Неисправности: ${summarizeImport(result)}`)
+              if (result.errors?.length) {
+                void message.warning(result.errors.map((e) => e.message).join('; '))
+              }
+            }}
+          />
+          <JsonImportButton
+            label="Импорт сценариев"
+            onImport={async (data) => {
+              const result = await scenariosApi.importScenarios(data as { scenarios: unknown[] })
+              void message.success(`Сценарии: ${summarizeImport(result)}`)
+              if (result.errors?.length) {
+                void message.warning(result.errors.map((e) => e.message).join('; '))
+              }
+              await fetch_()
+            }}
+          />
           {mock && (
             <Tooltip title="Сгенерировать черновик с помощью ИИ">
               <button className="btn btn-ghost" onClick={() => setAiModal(true)}>
@@ -270,9 +311,19 @@ function ScenarioList({ onEdit }: { onEdit: (id: string) => void }) {
                 ),
               },
             ]}
-            rows={scenarios}
+            rows={pagedScenarios}
             rowKey={(row) => row.id}
           />
+          {scenarios.length > SCENARIO_PAGE_SIZE && (
+            <div style={{ marginTop: 16 }}>
+              <ListPagination
+                current={page}
+                total={scenarios.length}
+                pageSize={SCENARIO_PAGE_SIZE}
+                onChange={setPage}
+              />
+            </div>
+          )}
         </div>
       )}
 

@@ -47,6 +47,36 @@ components:
         severity:                  { type: string, enum: [low, medium, high, critical] }
         damage_per_sec:            { type: number }
 
+    ImportFaultsRequest:
+      type: object
+      required: [faults]
+      properties:
+        faults:
+          type: array
+          items: { $ref: '#/components/schemas/Fault' }
+
+    ImportScenariosRequest:
+      type: object
+      required: [scenarios]
+      properties:
+        scenarios:
+          type: array
+          items: { $ref: '#/components/schemas/Scenario' }
+
+    ImportResult:
+      type: object
+      properties:
+        created: { type: integer }
+        updated: { type: integer }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              id:      { type: string }
+              index:   { type: integer }
+              message: { type: string }
+
     Error:
       $ref: https://ktc.itcamp/schemas/error.json
 
@@ -166,6 +196,36 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/Fault' }
+
+  /faults/import:
+    post:
+      summary: Пакетный импорт неисправностей (upsert)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportFaultsRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportResult' }
+
+  /scenarios/import:
+    post:
+      summary: Пакетный импорт сценариев (upsert)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportScenariosRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportResult' }
 
   /faults/{fault_id}:
     get:

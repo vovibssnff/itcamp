@@ -203,7 +203,7 @@ export default function ExamScreen() {
               Светлая
             </div>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={handleFinish}>
+          <button className="btn btn-ghost btn-sm" data-testid="exam-finish" onClick={handleFinish}>
             Завершить
           </button>
         </div>

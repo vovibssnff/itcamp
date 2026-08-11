@@ -58,6 +58,14 @@ func (r *TemplateRepo) List(ctx context.Context, authorID, status, query string,
 		}
 		cond += fmt.Sprintf(" status = $%d", len(args)+1)
 		args = append(args, status)
+	} else {
+		// Soft-delete archives templates; hide them from the default list.
+		if cond == "" {
+			cond = " WHERE"
+		} else {
+			cond += " AND"
+		}
+		cond += " status <> 'archived'"
 	}
 	if query != "" {
 		if cond == "" {

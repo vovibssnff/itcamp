@@ -1,6 +1,7 @@
 import { apiClient } from './client'
 import { unwrap, unwrapVoid } from './request'
 import { mapTemplate, mapTemplateSummary, toTemplateBody, type TemplateSummary } from './mappers'
+import { postImport, type TemplateImportResult } from './import'
 import type { Template } from '@/mocks/fixtures/templates'
 
 export interface ValidationResult {
@@ -75,5 +76,13 @@ export const templatesApi = {
         edgeId: e.edge_id,
       })),
     }
+  },
+
+  async import(payload: {
+    name: string
+    description?: string
+    graph?: unknown
+  }): Promise<TemplateImportResult> {
+    return postImport<TemplateImportResult>('/api/v1/templates/import', payload)
   },
 }

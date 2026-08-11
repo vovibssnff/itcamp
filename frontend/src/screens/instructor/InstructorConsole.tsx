@@ -38,9 +38,11 @@ import { scenariosApi } from '@/api/scenarios'
 import { usersApi } from '@/api/users'
 import { toErrorMessage } from '@/api/errors'
 import type { SnapshotMeta } from '@/api/mappers'
+import { tablePagination } from '@/components/ui'
 import type { TemplateSummary } from '@/api/mappers'
 import type { UserProfile } from '@/store/auth'
 import { tokens } from '@/theme/tokens'
+import { ScoreBadge } from '@/components/session/ScoreBadge'
 
 const EMPTY_ASSIGN_FORM = {
   operatorId: '',
@@ -86,8 +88,10 @@ export default function InstructorConsole() {
     operatorId: string
     mode: 'training' | 'exam'
   }>()
+  const selectedTemplateId = Form.useWatch('templateId', createForm)
   const [templates, setTemplates] = useState<TemplateSummary[]>([])
   const [scenarios, setScenarios] = useState<{ id: string; name: string }[]>([])
+  const [scenariosLoading, setScenariosLoading] = useState(false)
   const [operators, setOperators] = useState<UserProfile[]>([])
   const [restoreModal, setRestoreModal] = useState<{ open: boolean; sessionId: string | null }>({
     open: false,
@@ -207,20 +211,26 @@ export default function InstructorConsole() {
     void fetchAssignments()
   }
 
-  async function openCreate() {
+  async function loadScenariosForTemplate(templateId: string) {
+    setScenariosLoading(true)
     try {
-      const [tmpls, scens, users] = await Promise.all([
-        templatesApi.list(),
-        scenariosApi.list(),
-        usersApi.list(),
-      ])
-      setTemplates(tmpls)
+      const scens = await scenariosApi.list({ template_id: templateId, limit: '200' })
       setScenarios(
         (scens as { id?: string; name?: string }[]).map((s) => ({
           id: s.id ?? '',
           name: s.name ?? s.id ?? '',
         })),
       )
+    } finally {
+      setScenariosLoading(false)
+    }
+  }
+
+  async function openCreate() {
+    try {
+      const [tmpls, users] = await Promise.all([templatesApi.list(), usersApi.list()])
+      setTemplates(tmpls)
+      setScenarios([])
       setOperators(users.filter((u) => (u.roles ?? []).includes('operator')))
       createForm.resetFields()
       createForm.setFieldsValue({ mode: 'training' })
@@ -398,6 +408,7 @@ export default function InstructorConsole() {
             <Tooltip title="Запустить">
               <Button
                 size="small"
+                data-testid="session-start"
                 icon={<PlayCircleOutlined />}
                 onClick={() => void sessionAction(record.id, 'start')}
               />
@@ -462,6 +473,9 @@ export default function InstructorConsole() {
               onClick={() => void queueReport(record)}
             />
           </Tooltip>
+          {(record.status === 'finished' || record.status === 'stopped') && (
+            <ScoreBadge sessionId={record.id} />
+          )}
           {(record.reportId || record.status === 'finished' || record.status === 'stopped') && (
             <Tooltip title="Скорректировать оценку">
               <Button
@@ -582,7 +596,7 @@ export default function InstructorConsole() {
         columns={columns}
         rowKey="id"
         loading={loading}
-        pagination={false}
+        pagination={tablePagination()}
       />
 
       {/* ── Exam assignments (mock-only) ─────────────────────────────────── */}
@@ -612,7 +626,7 @@ export default function InstructorConsole() {
             dataSource={assignments}
             columns={assignmentColumns}
             rowKey="id"
-            pagination={false}
+            pagination={tablePagination({ pageSize: 10, hideOnSinglePage: true })}
             locale={{ emptyText: 'Нет назначенных экзаменов' }}
           />
 
@@ -737,6 +751,12 @@ export default function InstructorConsole() {
               options={templates.map((t) => ({ value: t.id, label: t.name }))}
               showSearch
               optionFilterProp="label"
+              onChange={(templateId: string) => {
+                createForm.setFieldValue('scenarioId', undefined)
+                void loadScenariosForTemplate(templateId).catch(() => {
+                  void message.error('Не удалось загрузить сценарии шаблона')
+                })
+              }}
             />
           </Form.Item>
           <Form.Item name="scenarioId" label="Сценарий" rules={[{ required: true }]}>
@@ -744,6 +764,9 @@ export default function InstructorConsole() {
               options={scenarios.map((s) => ({ value: s.id, label: s.name }))}
               showSearch
               optionFilterProp="label"
+              loading={scenariosLoading}
+              disabled={!selectedTemplateId || scenariosLoading}
+              placeholder={selectedTemplateId ? 'Выберите сценарий' : 'Сначала выберите шаблон'}
             />
           </Form.Item>
           <Form.Item name="operatorId" label="Оператор" rules={[{ required: true }]}>

@@ -14,7 +14,8 @@ cache_ttl         = "30s"
 cache_max_size    = 1000
 
 [security]
-rate_limit_per_min = 100
+# Local compose: live Playwright + API helpers need headroom (prod stays lower in deploy example).
+rate_limit_per_min = 2000
 
 [upstreams.auth]
 url = "http://auth:8080"

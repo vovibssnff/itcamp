@@ -13,9 +13,12 @@ export function AlarmBanner() {
   if (!hasAlarms) return null
 
   return (
-    <div className="alarmbar">
+    <div className="alarmbar" data-testid="alarm-banner">
       <b />
-      <span style={{ fontWeight: 700, color: 'var(--alarm)', fontSize: 13 }}>
+      <span
+        data-testid="alarm-count"
+        style={{ fontWeight: 700, color: 'var(--alarm)', fontSize: 13 }}
+      >
         {activeAlarms.length}
       </span>
       <span>

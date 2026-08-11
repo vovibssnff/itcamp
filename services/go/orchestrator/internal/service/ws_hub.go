@@ -50,7 +50,8 @@ func (h *WSHub) BroadcastTelemetry(sessionID string, telemetry any) {
 	h.mu.RLock()
 	clients := h.clients[sessionID]
 	h.mu.RUnlock()
-	msg := map[string]any{"type": "telemetry", "data": telemetry}
+	// Frontend ServerMessage: { type: 'telemetry', tags: TagValue[] }
+	msg := map[string]any{"type": "telemetry", "tags": telemetry}
 	for c := range clients {
 		c.Send(msg)
 	}
@@ -70,17 +71,22 @@ func (h *WSHub) BroadcastAlarm(sessionID string, alarm any) {
 	h.mu.RLock()
 	clients := h.clients[sessionID]
 	h.mu.RUnlock()
-	msg := map[string]any{"type": "alarm", "data": alarm}
+	// Frontend ServerMessage: { type: 'alarm', alarm: ActiveAlarm }
+	msg := map[string]any{"type": "alarm", "alarm": alarm}
 	for c := range clients {
 		c.Send(msg)
 	}
 }
 
-func (h *WSHub) BroadcastSessionStatus(sessionID string, status string, modelTime float64) {
+func (h *WSHub) BroadcastSessionStatus(sessionID string, status string, modelTime float64, speed float64) {
 	h.mu.RLock()
 	clients := h.clients[sessionID]
 	h.mu.RUnlock()
-	msg := map[string]any{"type": "session_status", "status": status, "model_time": modelTime}
+	if speed <= 0 {
+		speed = 1.0
+	}
+	// Frontend ServerMessage: { type: 'session_status', status, modelTime, speed }
+	msg := map[string]any{"type": "session_status", "status": status, "modelTime": modelTime, "speed": speed}
 	for c := range clients {
 		c.Send(msg)
 	}

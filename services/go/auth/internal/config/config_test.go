@@ -130,3 +130,20 @@ func TestConfig_Validate_UnsupportedSigningMethod(t *testing.T) {
 		t.Error("expected error for unsupported signing method")
 	}
 }
+
+func TestConfig_applyEnvOverrides_MFADisabled(t *testing.T) {
+	t.Setenv("AUTH_MFA_DISABLED", "true")
+	c := validConfig()
+	c.Security.MFADisabled = false
+	c.applyEnvOverrides()
+	if !c.Security.MFADisabled {
+		t.Fatal("AUTH_MFA_DISABLED=true must set security.mfa_disabled")
+	}
+
+	t.Setenv("AUTH_MFA_DISABLED", "0")
+	c.Security.MFADisabled = true
+	c.applyEnvOverrides()
+	if c.Security.MFADisabled {
+		t.Fatal("AUTH_MFA_DISABLED=0 must clear security.mfa_disabled")
+	}
+}

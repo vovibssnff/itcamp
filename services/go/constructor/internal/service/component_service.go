@@ -2,19 +2,31 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"strconv"
 
 	"github.com/itcamp/ktc/services/constructor/internal/domain"
-	"github.com/itcamp/ktc/services/constructor/internal/repository"
 	"github.com/itcamp/ktc/shared/go/audit"
 )
 
+// ComponentStore — зависимость ComponentService для тестов с mock-ами.
+type ComponentStore interface {
+	GetByID(ctx context.Context, id string) (domain.ComponentType, error)
+	List(ctx context.Context, category, query string, limit, offset int) ([]domain.ComponentType, error)
+	Create(ctx context.Context, c domain.ComponentType) error
+	Update(ctx context.Context, c domain.ComponentType) error
+	Delete(ctx context.Context, id string) error
+	Upsert(ctx context.Context, c domain.ComponentType) error
+	IsUsedInTemplates(ctx context.Context, id string) (bool, error)
+}
+
 type ComponentService struct {
-	repo *repository.ComponentRepo
+	repo ComponentStore
 	log  *slog.Logger
 }
 
-func NewComponentService(repo *repository.ComponentRepo) *ComponentService {
+func NewComponentService(repo ComponentStore) *ComponentService {
 	return &ComponentService{repo: repo}
 }
 
@@ -77,4 +89,44 @@ func (s *ComponentService) Seed(ctx context.Context, components []domain.Compone
 		}
 	}
 	return nil
+}
+
+// Import upsert-ит типы компонентов; ошибки по элементам накапливаются в результате.
+func (s *ComponentService) Import(ctx context.Context, components []domain.ComponentType) ImportResult {
+	result := ImportResult{Errors: []ImportItemError{}}
+	seen := make(map[string]int, len(components))
+
+	for i, c := range components {
+		if err := ValidateComponent(c); err != nil {
+			result.Errors = append(result.Errors, ImportItemError{ID: c.ID, Index: i, Message: err.Error()})
+			continue
+		}
+		if prev, dup := seen[c.ID]; dup {
+			result.Errors = append(result.Errors, ImportItemError{
+				ID: c.ID, Index: i, Message: "duplicate id in payload (first at index " + strconv.Itoa(prev) + ")",
+			})
+			continue
+		}
+		seen[c.ID] = i
+
+		_, err := s.repo.GetByID(ctx, c.ID)
+		exists := err == nil
+		if err != nil && !errors.Is(err, domain.ErrComponentNotFound) {
+			result.Errors = append(result.Errors, ImportItemError{ID: c.ID, Index: i, Message: err.Error()})
+			continue
+		}
+		if err := s.repo.Upsert(ctx, c); err != nil {
+			result.Errors = append(result.Errors, ImportItemError{ID: c.ID, Index: i, Message: err.Error()})
+			continue
+		}
+		if exists {
+			result.Updated++
+			audit.Emit(ctx, s.log, "component.imported", "id", c.ID, "action", "updated")
+		} else {
+			result.Created++
+			IncComponentCreated()
+			audit.Emit(ctx, s.log, "component.imported", "id", c.ID, "action", "created")
+		}
+	}
+	return result
 }

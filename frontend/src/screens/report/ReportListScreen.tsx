@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router'
-import { Input, Select, Pagination, Empty, Spin, message } from 'antd'
+import { Input, Select, Empty, Spin, message } from 'antd'
 import { SearchOutlined, DownloadOutlined, PlusOutlined } from '@ant-design/icons'
-import { Pill } from '@/components/ui'
+import { Pill, ListPagination } from '@/components/ui'
 import { reportsApi } from '@/api/reports'
 import type { ReportMeta } from '@/api/mappers'
 import { isMockApi } from '@/utils/env'
@@ -212,16 +212,15 @@ export default function ReportListScreen() {
       {total > PAGE_SIZE && (
         <div
           className="rise d3"
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: 16,
+            gap: 16,
+          }}
         >
-          <Pagination
-            current={page}
-            total={total}
-            pageSize={PAGE_SIZE}
-            onChange={setPage}
-            showSizeChanger={false}
-            showQuickJumper
-          />
+          <ListPagination current={page} total={total} pageSize={PAGE_SIZE} onChange={setPage} />
           {isMockApi() && (
             <button
               className="btn btn-ghost btn-sm"

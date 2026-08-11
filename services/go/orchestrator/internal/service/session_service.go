@@ -403,12 +403,13 @@ func (r *SessionRunner) tick(ctx context.Context) {
 	}
 
 	_ = r.svc.cache.SaveTelemetry(ctx, r.sessionID, telemetry)
-	r.svc.hub.BroadcastTelemetry(r.sessionID, telemetry)
+	r.svc.hub.BroadcastTelemetry(r.sessionID, tagsForWS(state.Tags, state.ModelTime, state.Alarms))
 
 	for _, alarm := range state.Alarms {
 		if alarm.AckModelTime == nil {
 			_ = r.svc.repo.RecordAlarm(ctx, alarm)
 			_ = r.svc.assessment.SendEvent(ctx, r.sessionID, r.scenarioID, "alarm", alarm)
+			r.svc.hub.BroadcastAlarm(r.sessionID, alarmForWS(alarm))
 		}
 	}
 

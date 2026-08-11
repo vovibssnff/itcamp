@@ -33,6 +33,17 @@ describe('sessionStore', () => {
     expect(useSessionStore.getState().telemetry['TI-1']?.value).toBe(100)
   })
 
+  it('promotes non-normal telemetry alarmState into alarms', () => {
+    useSessionStore.getState().updateTelemetry([{ ...tag, alarmState: 'H', timestamp: 42 }])
+    const alarms = useSessionStore.getState().alarms
+    expect(alarms).toHaveLength(1)
+    expect(alarms[0]?.id).toBe('tag:TI-1:H')
+    expect(alarms[0]?.level).toBe('H')
+    // idempotent
+    useSessionStore.getState().updateTelemetry([{ ...tag, alarmState: 'H', timestamp: 43 }])
+    expect(useSessionStore.getState().alarms).toHaveLength(1)
+  })
+
   it('adds and acknowledges alarms, dedups by id', () => {
     const s = useSessionStore.getState()
     s.addAlarm(alarm)

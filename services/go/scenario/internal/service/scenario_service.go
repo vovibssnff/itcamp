@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"strconv"
+	"strings"
 
 	"github.com/itcamp/ktc/services/scenario/internal/domain"
 	"github.com/itcamp/ktc/shared/go/audit"
@@ -110,4 +113,56 @@ func (s *ScenarioService) Seed(ctx context.Context, scenarios []domain.Scenario)
 		}
 	}
 	return nil
+}
+
+// Import upsert-ит сценарии с валидацией; ошибки по элементам накапливаются в результате.
+func (s *ScenarioService) Import(ctx context.Context, scenarios []domain.Scenario) ImportResult {
+	result := ImportResult{Errors: []ImportItemError{}}
+	seen := make(map[string]int, len(scenarios))
+
+	for i, sc := range scenarios {
+		if sc.ID == "" {
+			sc.ID = newUUID()
+		}
+		if sc.Type == "" {
+			sc.Type = domain.ScenarioTraining
+		}
+		if prev, dup := seen[sc.ID]; dup {
+			result.Errors = append(result.Errors, ImportItemError{
+				ID: sc.ID, Index: i,
+				Message: "duplicate id in payload (first at index " + strconv.Itoa(prev) + ")",
+			})
+			continue
+		}
+		seen[sc.ID] = i
+
+		if err := s.validator.ValidateScenario(sc); err != nil {
+			result.Errors = append(result.Errors, ImportItemError{ID: sc.ID, Index: i, Message: err.Error()})
+			continue
+		}
+		if strings.TrimSpace(sc.TemplateID) == "" {
+			result.Errors = append(result.Errors, ImportItemError{ID: sc.ID, Index: i, Message: "template_id is required"})
+			continue
+		}
+
+		_, err := s.repo.GetByID(ctx, sc.ID)
+		exists := err == nil
+		if err != nil && !errors.Is(err, domain.ErrScenarioNotFound) {
+			result.Errors = append(result.Errors, ImportItemError{ID: sc.ID, Index: i, Message: err.Error()})
+			continue
+		}
+		if err := s.repo.Upsert(ctx, sc); err != nil {
+			result.Errors = append(result.Errors, ImportItemError{ID: sc.ID, Index: i, Message: err.Error()})
+			continue
+		}
+		if exists {
+			result.Updated++
+			audit.Emit(ctx, s.log, "scenario.imported", "id", sc.ID, "action", "updated")
+		} else {
+			result.Created++
+			IncScenarioCreated(string(sc.Type))
+			audit.Emit(ctx, s.log, "scenario.imported", "id", sc.ID, "action", "created")
+		}
+	}
+	return result
 }

@@ -28,7 +28,7 @@ func TestTriggerEngine_TimeTrigger_FiresAtCorrectTime(t *testing.T) {
 				Trigger: TriggerData{Type: "time", AtModelTime: &t120}},
 		},
 	}
-	engine.scenarios["sess-1"] = scenario
+	engine.LoadScenario("sess-1", scenario)
 
 	engine.CheckTriggers(context.Background(), "sess-1", 100, nil, sim, nil, nil)
 	if len(sim.Faults) != 0 {
@@ -84,7 +84,7 @@ func TestTriggerEngine_ConditionTrigger_FiresWhenThresholdReached(t *testing.T) 
 				}}},
 		},
 	}
-	engine.scenarios["sess-1"] = scenario
+	engine.LoadScenario("sess-1", scenario)
 
 	tags := []domain.Tag{{TagID: "TR-55-9", Value: 330}}
 	engine.CheckTriggers(context.Background(), "sess-1", 50, tags, sim, nil, nil)
@@ -113,7 +113,7 @@ func TestTriggerEngine_MultipleFaults(t *testing.T) {
 				Trigger: TriggerData{Type: "time", AtModelTime: &t120}},
 		},
 	}
-	engine.scenarios["sess-1"] = scenario
+	engine.LoadScenario("sess-1", scenario)
 
 	engine.CheckTriggers(context.Background(), "sess-1", 60, nil, sim, nil, nil)
 	if len(sim.Faults) != 1 {
@@ -146,14 +146,17 @@ func TestTriggerEngine_Reset(t *testing.T) {
 				Trigger: TriggerData{Type: "time", AtModelTime: &t50}},
 		},
 	}
-	engine.scenarios["sess-1"] = scenario
+	engine.LoadScenario("sess-1", scenario)
 	engine.CheckTriggers(context.Background(), "sess-1", 50, nil, sim, nil, nil)
 	if len(sim.Faults) != 1 {
 		t.Fatal("expected 1 fault")
 	}
 
 	engine.Reset("sess-1")
-	if _, exists := engine.scenarios["sess-1"]; exists {
+	engine.mu.Lock()
+	_, exists := engine.scenarios["sess-1"]
+	engine.mu.Unlock()
+	if exists {
 		t.Fatal("scenario should be removed after reset")
 	}
 }

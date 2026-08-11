@@ -65,7 +65,7 @@ func Middleware(next http.Handler) http.Handler {
 		next.ServeHTTP(rw, r)
 		duration := time.Since(start).Seconds()
 
-		path := normalizePath(r.URL.Path)
+		path := r.URL.Path
 		httpRequestsTotal.WithLabelValues(r.Method, path, strconv.Itoa(rw.status)).Inc()
 		httpRequestDuration.WithLabelValues(r.Method, path).Observe(duration)
 	})
@@ -99,8 +99,4 @@ func (r *statusRecorder) Flush() {
 
 func (r *statusRecorder) Unwrap() http.ResponseWriter {
 	return r.ResponseWriter
-}
-
-func normalizePath(path string) string {
-	return path
 }

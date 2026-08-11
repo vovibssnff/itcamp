@@ -6,6 +6,8 @@ import (
 	"runtime/debug"
 
 	"log/slog"
+
+	"github.com/itcamp/ktc/services/auth/internal/domain"
 )
 
 type statusWriter struct {
@@ -66,4 +68,21 @@ func ContextValue(ctx context.Context, key ctxKey) string {
 
 func ContextUserID(ctx context.Context) string {
 	return ContextValue(ctx, CtxUserID)
+}
+
+func ContextRoles(ctx context.Context) []domain.Role {
+	if v, ok := ctx.Value(CtxRoles).([]domain.Role); ok {
+		return v
+	}
+	return nil
+}
+
+// clientIP извлекает IP клиента. Предпочитается X-Real-IP (выставляется
+// доверенным прокси), затем RemoteAddr. X-Forwarded-For не используется
+// напрямую — его может подделать клиент.
+func clientIP(r *http.Request) string {
+	if real := r.Header.Get("X-Real-IP"); real != "" {
+		return real
+	}
+	return r.RemoteAddr
 }

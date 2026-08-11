@@ -8,6 +8,9 @@ import (
 	"time"
 )
 
+// maxResponseBytes ограничивает размер читаемого ответа upstream (16 МБ).
+const maxResponseBytes = 16 << 20
+
 type HTTPScenarioClient struct {
 	url    string
 	client *http.Client
@@ -30,7 +33,7 @@ func (c *HTTPScenarioClient) GetFullScenario(ctx context.Context, scenarioID str
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("scenario get full: status %d", resp.StatusCode)
 	}
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 }
 
 func (c *HTTPScenarioClient) GetRandomExam(ctx context.Context, templateID string) ([]byte, error) {
@@ -47,5 +50,5 @@ func (c *HTTPScenarioClient) GetRandomExam(ctx context.Context, templateID strin
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("scenario get exam: status %d", resp.StatusCode)
 	}
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 }

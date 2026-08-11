@@ -20,16 +20,25 @@ func NewHTTPAssessmentClient(url string) *HTTPAssessmentClient {
 }
 
 func (c *HTTPAssessmentClient) SendEvent(ctx context.Context, sessionID, scenarioID, eventType string, data any) error {
-	payload, _ := json.Marshal(map[string]any{
+	payload := map[string]any{
 		"session_id": sessionID,
 		"type":       eventType,
-		"data":       data,
-	})
+	}
+	if data != nil {
+		raw, _ := json.Marshal(data)
+		var fields map[string]any
+		if err := json.Unmarshal(raw, &fields); err == nil {
+			for k, v := range fields {
+				payload[k] = v
+			}
+		}
+	}
+	body, _ := json.Marshal(payload)
 	urlStr := c.url + "/assessment/event"
 	if scenarioID != "" {
 		urlStr += "?scenario_id=" + url.QueryEscape(scenarioID)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlStr, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlStr, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}

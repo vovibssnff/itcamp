@@ -66,7 +66,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	totpSvc, err := security.NewTOTPService([]byte(cfg.JWT.SigningKey))
+	totpKey := cfg.Security.TOTPEncryptionKey
+	if totpKey == "" {
+		totpKey = cfg.JWT.SigningKey
+	}
+	totpSvc, err := security.NewTOTPService([]byte(totpKey))
 	if err != nil {
 		log.Error("totp init failed", "error", err)
 		os.Exit(1)

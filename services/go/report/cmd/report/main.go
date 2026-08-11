@@ -49,7 +49,7 @@ func main() {
 	}
 	defer nc.Close()
 
-	reportSvc := service.NewReportService(repository.NewReportRepo(pg), log)
+	reportSvc := service.NewReportService(repository.NewReportRepo(pg), nil, log)
 
 	go startNATSConsumer(nc, cfg.NATS, reportSvc, log)
 

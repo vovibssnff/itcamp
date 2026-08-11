@@ -38,6 +38,7 @@ func New(d Deps) *Server {
 
 	h := middleware.Recover(d.Log)(mux)
 	h = sharedmetrics.Middleware(h)
+	h = middleware.Audit(d.Audit)(h)
 	h = middleware.RequestLogger(d.Log)(h)
 	h = middleware.RateLimit(d.Cfg.Security.AuthRateLimit, d.Cfg.Security.RateLimitWindow.Std(), d.Log)(h)
 

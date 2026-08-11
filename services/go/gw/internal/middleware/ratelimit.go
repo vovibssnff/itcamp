@@ -66,8 +66,8 @@ func RateLimit(perMin int, log *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ip := r.RemoteAddr
-			if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-				ip = fwd
+			if real := r.Header.Get("X-Real-IP"); real != "" {
+				ip = real
 			}
 			if !rl.allow(ip) {
 				w.Header().Set("Retry-After", "60")

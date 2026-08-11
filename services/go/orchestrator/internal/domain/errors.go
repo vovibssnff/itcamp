@@ -14,4 +14,5 @@ var (
 	ErrSimUnavailable        = errors.New("simulation engine unavailable")
 	ErrScenarioNotFound      = errors.New("scenario not found")
 	ErrTemplateNotFound      = errors.New("template not found")
+	ErrTelemetryNotFound     = errors.New("telemetry not found")
 )

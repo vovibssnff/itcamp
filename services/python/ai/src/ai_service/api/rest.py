@@ -68,13 +68,17 @@ class ExplainRequest(BaseModel):
 
 
 def create_app(application: Application | None = None) -> FastAPI:
-    app = FastAPI(title="КТК — ИИ-сервис", version="1.0.0")
     state: dict[str, Application] = {}
 
-    @app.on_event("startup")
-    def _startup() -> None:
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
         state["app"] = application or build_application()
         logger.info("ИИ-сервис запущен: %s", state["app"].health())
+        yield
+
+    app = FastAPI(title="КТК — ИИ-сервис", version="1.0.0", lifespan=lifespan)
 
     def current() -> Application:
         if "app" not in state:

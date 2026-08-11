@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"sync"
 
 	"github.com/itcamp/ktc/services/orchestrator/internal/client"
 	"github.com/itcamp/ktc/services/orchestrator/internal/domain"
@@ -41,6 +42,7 @@ type ConditionData struct {
 
 type TriggerEngine struct {
 	log       *slog.Logger
+	mu        sync.Mutex
 	firedMap  map[string]bool
 	scenarios map[string]ScenarioData
 }
@@ -54,6 +56,8 @@ func NewTriggerEngine(log *slog.Logger) *TriggerEngine {
 }
 
 func (e *TriggerEngine) LoadScenario(sessionID string, data ScenarioData) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	e.scenarios[sessionID] = data
 }
 
@@ -66,7 +70,9 @@ func (e *TriggerEngine) CheckTriggers(
 	repo *repository.SessionRepo,
 	publisher *events.Publisher,
 ) {
+	e.mu.Lock()
 	scenario, ok := e.scenarios[sessionID]
+	e.mu.Unlock()
 	if !ok {
 		return
 	}
@@ -78,9 +84,12 @@ func (e *TriggerEngine) CheckTriggers(
 
 	for _, fault := range scenario.Faults {
 		key := sessionID + ":" + fault.ID
+		e.mu.Lock()
 		if e.firedMap[key] {
+			e.mu.Unlock()
 			continue
 		}
+		e.mu.Unlock()
 
 		shouldFire := false
 		var triggerType string
@@ -105,7 +114,9 @@ func (e *TriggerEngine) CheckTriggers(
 			continue
 		}
 
+		e.mu.Lock()
 		e.firedMap[key] = true
+		e.mu.Unlock()
 
 		req := domain.InjectFaultReq{
 			SessionID:           sessionID,
@@ -141,6 +152,8 @@ func (e *TriggerEngine) CheckTriggers(
 }
 
 func (e *TriggerEngine) Reset(sessionID string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	for k := range e.firedMap {
 		if len(k) > len(sessionID) && k[:len(sessionID)] == sessionID {
 			delete(e.firedMap, k)

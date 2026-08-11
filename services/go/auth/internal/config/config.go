@@ -75,12 +75,13 @@ type PAMConfig struct {
 }
 
 type SecurityConfig struct {
-	PasswordMinLen   int      `toml:"password_min_len"`
-	LockoutThreshold int      `toml:"lockout_threshold"`
-	LockoutWindow    Duration `toml:"lockout_window"`
-	LockoutDuration  Duration `toml:"lockout_duration"`
-	AuthRateLimit    int      `toml:"auth_rate_limit"`
-	RateLimitWindow  Duration `toml:"rate_limit_window"`
+	PasswordMinLen    int      `toml:"password_min_len"`
+	LockoutThreshold  int      `toml:"lockout_threshold"`
+	LockoutWindow     Duration `toml:"lockout_window"`
+	LockoutDuration   Duration `toml:"lockout_duration"`
+	AuthRateLimit     int      `toml:"auth_rate_limit"`
+	RateLimitWindow   Duration `toml:"rate_limit_window"`
+	TOTPEncryptionKey string   `toml:"totp_encryption_key"`
 	// MFADisabled skips TOTP for all users (MVP / local). Env: AUTH_MFA_DISABLED.
 	MFADisabled bool `toml:"mfa_disabled"`
 }
@@ -124,7 +125,7 @@ func (c *Config) applyEnvOverrides() {
 		c.LDAP.URL = v
 	}
 	if v := os.Getenv("AUTH_TOTP_ENCRYPTION_KEY"); v != "" {
-		c.JWT.SigningKey = v
+		c.Security.TOTPEncryptionKey = v
 	}
 	if v := os.Getenv("AUTH_MFA_DISABLED"); v != "" {
 		c.Security.MFADisabled = stringsEqualFoldTrue(v)

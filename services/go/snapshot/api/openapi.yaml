@@ -28,6 +28,40 @@ components:
         is_preset:      { type: boolean }
         created_at:     { type: string, format: date-time }
 
+    SaveSnapshotRequest:
+      type: object
+      required: [session_id, payload_json]
+      properties:
+        session_id:     { type: string }
+        name:           { type: string }
+        is_preset:      { type: boolean }
+        schema_version: { type: string }
+        model_time:     { type: number }
+        seed:           { type: integer }
+        payload_json:   { type: string, description: "JSON-снимок состояния (json.RawMessage)" }
+
+    SaveSnapshotResponse:
+      type: object
+      properties:
+        snapshot_id: { type: string }
+        sha256:      { type: string }
+        storage_key: { type: string }
+
+    RestoreSnapshotRequest:
+      type: object
+      required: [snapshot_id]
+      properties:
+        snapshot_id: { type: string }
+
+    RestoreSnapshotResponse:
+      type: object
+      properties:
+        payload_json:   { type: string, description: "JSON-снимок состояния (json.RawMessage)" }
+        model_time:     { type: number }
+        seed:           { type: integer }
+        sha256_valid:   { type: boolean }
+        schema_version: { type: string }
+
     Error:
       $ref: https://ktc.itcamp/schemas/error.json
 
@@ -65,6 +99,36 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/SnapshotMeta' }
+
+  /snapshots/save:
+    post:
+      summary: Сохранить снапшот — internal (orchestrator)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveSnapshotRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSnapshotResponse' }
+
+  /snapshots/restore:
+    post:
+      summary: Восстановить из снапшота — internal (orchestrator)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RestoreSnapshotRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RestoreSnapshotResponse' }
 
   /healthz:
     get:

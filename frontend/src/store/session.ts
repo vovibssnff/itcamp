@@ -64,8 +64,30 @@ export const useSessionStore = create<SessionState>()((set) => ({
   updateTelemetry: (tags) =>
     set((s) => {
       const next = { ...s.telemetry }
-      for (const t of tags) next[t.tag] = t
-      return { telemetry: next }
+      let alarms = s.alarms
+      for (const t of tags) {
+        next[t.tag] = t
+        // Telemetry carries alarmState; keep AlarmBanner in sync even if a
+        // dedicated {type:'alarm'} frame is delayed or dropped.
+        if (t.alarmState && t.alarmState !== 'normal') {
+          const id = `tag:${t.tag}:${t.alarmState}`
+          const existing = alarms.find((a) => a.id === id)
+          if (!existing) {
+            alarms = [
+              {
+                id,
+                tag: t.tag,
+                level: t.alarmState,
+                message: `${t.tag} · ${t.alarmState}`,
+                timestamp: t.timestamp,
+                acknowledged: false,
+              },
+              ...alarms,
+            ].slice(0, 200)
+          }
+        }
+      }
+      return { telemetry: next, alarms }
     }),
 
   addAlarm: (alarm) =>

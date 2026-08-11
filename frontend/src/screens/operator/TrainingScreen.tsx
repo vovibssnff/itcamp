@@ -116,7 +116,11 @@ export default function TrainingScreen() {
   async function handleStart() {
     if (!sessionId) return
     try {
-      await sessionsApi.action(sessionId, 'start')
+      // Instructor may already have started the session — join without re-start.
+      const session = await sessionsApi.get(sessionId)
+      if (session.status === 'idle') {
+        await sessionsApi.action(sessionId, 'start')
+      }
       setStarted(true)
     } catch (err) {
       void message.error(toErrorMessage(err, 'Не удалось начать тренировку'))

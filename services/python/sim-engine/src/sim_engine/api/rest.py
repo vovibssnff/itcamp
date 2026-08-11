@@ -172,13 +172,20 @@ def create_app(application: Application | None = None) -> FastAPI:
         engine = current().engine
         fault_id = payload.get("fault_id", "")
         magnitude = float(payload.get("magnitude", 1.0))
+        ramp_raw = payload.get("ramp_s")
+        ramp_s = float(ramp_raw) if ramp_raw is not None else None
         try:
-            instance = engine.inject_fault(session_id, fault_id, magnitude=magnitude)
+            instance = engine.inject_fault(
+                session_id, fault_id, magnitude=magnitude, ramp_s=ramp_s
+            )
         except UnknownSessionError:
             raise HTTPException(status_code=404, detail="UNKNOWN_SESSION") from None
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
         metrics.fault_injected(fault_id)
+        ramp_applied = (
+            instance.fault_def.effects[0].ramp_s if instance.fault_def.effects else None
+        )
         return {
             "fault_id": instance.fault_def.fault_id,
             "injected_at_s": instance.injected_at_s,
@@ -186,6 +193,7 @@ def create_app(application: Application | None = None) -> FastAPI:
             "active": instance.active,
             "title": instance.fault_def.title,
             "docx_ref": instance.fault_def.docx_ref,
+            "ramp_s": ramp_applied,
         }
 
     @app.delete("/v1/sessions/{session_id}/faults/{fault_id}")

@@ -7,30 +7,18 @@ export {
   API_BASE,
   CREDS,
 } from './auth'
-export {
-  apiToken,
-  apiImportComponents,
-  apiImportFaults,
-  apiImportTemplate,
-  apiImportScenario,
-  apiListUsers,
-  apiFindOperatorId,
-  apiCreateSession,
-  apiSessionAction,
-  apiGetSession,
-  apiSessionReplay,
-  apiListSnapshots,
-  apiSeedStack,
-  writeBoundScenarioFixture,
-  SIM_FAULTS,
-  type ReplayTimeline,
-} from './api'
+export { writeBoundScenarioFixture, writeBoundTemplateFixture, SIM_FAULTS } from './fixtures'
 export {
   uploadJson,
+  searchListFor,
   pickSelectOption,
   createSessionViaUi,
-  createAndOpenSession,
   startSessionFromList,
+  setSessionSpeedViaUi,
+  stopSessionViaUi,
+  joinOperatorTraining,
+  waitForAlarm,
+  uiSeedStack,
   expectRedirectAwayFrom,
 } from './ui'
 export { finishExamViaUi } from './exam'

@@ -49,6 +49,29 @@ func TestTriggerEngine_TimeTrigger_FiresAtCorrectTime(t *testing.T) {
 	}
 }
 
+func TestTriggerEngine_PassesRampSeconds(t *testing.T) {
+	engine := testTriggerEngine()
+	sim := client.NewMockSimClient()
+	t10 := float64(10)
+	engine.scenarios["sess-1"] = ScenarioData{
+		Faults: []ScenarioFaultData{
+			{ID: "f1", FaultID: "FLT-K1-PRESSURE-HIGH", ComponentInstanceID: "column-k1",
+				Params:  FaultParamsData{SeverityPct: 100, RampSeconds: 30},
+				Trigger: TriggerData{Type: "time", AtModelTime: &t10}},
+		},
+	}
+	engine.CheckTriggers(context.Background(), "sess-1", 10, nil, sim, nil, nil)
+	if len(sim.Faults) != 1 {
+		t.Fatalf("expected 1 fault, got %d", len(sim.Faults))
+	}
+	if sim.Faults[0].RampSeconds != 30 {
+		t.Fatalf("expected RampSeconds=30, got %v", sim.Faults[0].RampSeconds)
+	}
+	if sim.Faults[0].SeverityPct != 100 {
+		t.Fatalf("expected SeverityPct=100, got %v", sim.Faults[0].SeverityPct)
+	}
+}
+
 func TestTriggerEngine_ConditionTrigger_FiresWhenThresholdReached(t *testing.T) {
 	engine := testTriggerEngine()
 	sim := client.NewMockSimClient()

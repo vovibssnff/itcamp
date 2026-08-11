@@ -197,10 +197,15 @@ func (c *HTTPSimClient) InjectFault(ctx context.Context, fault domain.InjectFaul
 	if mag <= 0 {
 		mag = 1.0
 	}
-	payload, _ := json.Marshal(map[string]any{
+	body := map[string]any{
 		"fault_id":  fault.FaultID,
 		"magnitude": mag,
-	})
+	}
+	// Scenario ramp_seconds overrides catalog ramp when set (>0).
+	if fault.RampSeconds > 0 {
+		body["ramp_s"] = fault.RampSeconds
+	}
+	payload, _ := json.Marshal(body)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+"/v1/sessions/"+fault.SessionID+"/faults", bytes.NewReader(payload))
 	if err != nil {
 		return err

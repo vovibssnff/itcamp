@@ -4,6 +4,7 @@ import { message, Table, Tag, Button } from 'antd'
 import { sessionsApi } from '@/api/sessions'
 import { useAuthStore } from '@/store/auth'
 import type { SessionRecord } from '@/mocks/fixtures/sessions'
+import { tablePagination } from '@/components/ui'
 import { tokens } from '@/theme/tokens'
 
 /** Operator landing: list sessions assigned to the current user. */
@@ -59,7 +60,7 @@ export default function OperatorHomeScreen() {
         loading={loading}
         dataSource={sessions}
         locale={{ emptyText: 'Нет назначенных сессий' }}
-        pagination={false}
+        pagination={tablePagination()}
         columns={[
           {
             title: 'ID',

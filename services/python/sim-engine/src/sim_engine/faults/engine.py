@@ -10,7 +10,7 @@
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from ..domain.models import FaultDef, FaultInstance
 from ..physics.network import Network
@@ -22,8 +22,16 @@ class FaultInjector:
     _baseline: dict[tuple[str, str], float] = field(default_factory=dict, repr=False)
 
     def inject(
-        self, fault_def: FaultDef, model_time_s: float, magnitude: float = 1.0
+        self,
+        fault_def: FaultDef,
+        model_time_s: float,
+        magnitude: float = 1.0,
+        ramp_s: float | None = None,
     ) -> FaultInstance:
+        # Scenario params may override catalog ramp (orchestrator → ramp_seconds).
+        if ramp_s is not None and ramp_s >= 0:
+            effects = tuple(replace(e, ramp_s=ramp_s) for e in fault_def.effects)
+            fault_def = replace(fault_def, effects=effects)
         instance = FaultInstance(
             fault_def=fault_def, injected_at_s=model_time_s, magnitude=magnitude
         )

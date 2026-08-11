@@ -1,8 +1,14 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Input, Tag, Tooltip } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import type { ComponentType } from '@/mocks/fixtures/components'
+import {
+  categoryColor,
+  categoryLabel,
+  distinctCategories,
+  shapeIcon,
+} from '@/utils/component-display'
 import { tokens } from '@/theme/tokens'
 
 interface ComponentPaletteProps {
@@ -10,31 +16,28 @@ interface ComponentPaletteProps {
   onDragStart: (typeId: string) => void
 }
 
-const CATEGORIES = [
-  { id: 'all', label: 'Все' },
-  { id: 'elou', label: 'ЭЛОУ', color: tokens.zone.elou },
-  { id: 'atm', label: 'Атмосфера', color: tokens.zone.atm },
-  { id: 'gdm', label: 'ГДМ', color: tokens.zone.gdm },
-  { id: 'common', label: 'Общие', color: tokens.text.secondary },
-]
-
-const SHAPE_ICONS: Record<string, string> = {
-  pump: '⊙',
-  column: '▬',
-  vessel: '⬡',
-  heatexchanger: '⊞',
-  valve: '⋈',
-  sensor: '◉',
-  controller: '⊕',
-  separator: '⊟',
-  compressor: '◈',
-  furnace: '▲',
-}
-
 export function ComponentPalette({ componentTypes, onDragStart }: ComponentPaletteProps) {
   const [category, setCategory] = useState('all')
   const [search, setSearch] = useState('')
   const { t } = useTranslation()
+
+  const categoryTabs = useMemo(() => {
+    const fromApi = distinctCategories(componentTypes)
+    return [
+      { id: 'all', label: 'Все', color: tokens.accent.cyan },
+      ...fromApi.map((id) => ({
+        id,
+        label: categoryLabel(id),
+        color: categoryColor(id),
+      })),
+    ]
+  }, [componentTypes])
+
+  useEffect(() => {
+    if (category !== 'all' && !categoryTabs.some((tab) => tab.id === category)) {
+      setCategory('all')
+    }
+  }, [category, categoryTabs])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
@@ -45,7 +48,7 @@ export function ComponentPalette({ componentTypes, onDragStart }: ComponentPalet
     )
   }, [componentTypes, category, search])
 
-  const catColor = CATEGORIES.find((c) => c.id === category)?.color ?? tokens.text.secondary
+  const catColor = categoryTabs.find((c) => c.id === category)?.color ?? tokens.text.secondary
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -70,28 +73,25 @@ export function ComponentPalette({ componentTypes, onDragStart }: ComponentPalet
           style={{ background: tokens.bg.elevated, borderColor: tokens.border.subtle }}
         />
         <div style={{ display: 'flex', gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
-          {CATEGORIES.map((cat) => (
-            <Tag
-              key={cat.id}
-              color={category === cat.id ? (cat.color ?? tokens.accent.cyan) : undefined}
-              onClick={() => setCategory(cat.id)}
-              style={{
-                cursor: 'pointer',
-                background: category === cat.id ? undefined : tokens.bg.elevated,
-                borderColor:
-                  category === cat.id ? (cat.color ?? tokens.accent.cyan) : tokens.border.subtle,
-                color:
-                  category === cat.id
-                    ? cat.color
-                      ? tokens.bg.base
-                      : tokens.bg.base
-                    : tokens.text.secondary,
-                fontSize: 11,
-              }}
-            >
-              {cat.label}
-            </Tag>
-          ))}
+          {categoryTabs.map((cat) => {
+            const active = category === cat.id
+            return (
+              <Tag
+                key={cat.id}
+                onClick={() => setCategory(cat.id)}
+                style={{
+                  cursor: 'pointer',
+                  marginInlineEnd: 0,
+                  background: active ? cat.color : tokens.bg.elevated,
+                  borderColor: active ? cat.color : tokens.border.subtle,
+                  color: active ? tokens.bg.base : tokens.text.secondary,
+                  fontSize: 11,
+                }}
+              >
+                {cat.label}
+              </Tag>
+            )
+          })}
         </div>
       </div>
 
@@ -109,7 +109,13 @@ export function ComponentPalette({ componentTypes, onDragStart }: ComponentPalet
           </div>
         )}
         {filtered.map((ct) => (
-          <PaletteItem key={ct.id} ct={ct} catColor={catColor} onDragStart={onDragStart} />
+          <PaletteItem
+            key={ct.id}
+            ct={ct}
+            catColor={categoryColor(ct.category)}
+            activeCatColor={catColor}
+            onDragStart={onDragStart}
+          />
         ))}
       </div>
     </div>
@@ -119,13 +125,16 @@ export function ComponentPalette({ componentTypes, onDragStart }: ComponentPalet
 function PaletteItem({
   ct,
   catColor,
+  activeCatColor,
   onDragStart,
 }: {
   ct: ComponentType
   catColor: string
+  activeCatColor: string
   onDragStart: (id: string) => void
 }) {
   const [hovered, setHovered] = useState(false)
+  const accent = hovered ? activeCatColor : catColor
 
   return (
     <Tooltip title={ct.description} placement="right" mouseEnterDelay={0.6}>
@@ -145,11 +154,11 @@ function PaletteItem({
           cursor: 'grab',
           background: hovered ? 'rgba(255,255,255,0.04)' : 'transparent',
           transition: 'background 0.1s',
-          borderLeft: `2px solid ${hovered ? catColor : 'transparent'}`,
+          borderLeft: `2px solid ${hovered ? accent : 'transparent'}`,
         }}
       >
         <span style={{ fontSize: 16, width: 20, textAlign: 'center', color: catColor }}>
-          {SHAPE_ICONS[ct.shape] ?? '⬜'}
+          {shapeIcon(ct.shape)}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div

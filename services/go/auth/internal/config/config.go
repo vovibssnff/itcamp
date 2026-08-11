@@ -81,6 +81,8 @@ type SecurityConfig struct {
 	LockoutDuration  Duration `toml:"lockout_duration"`
 	AuthRateLimit    int      `toml:"auth_rate_limit"`
 	RateLimitWindow  Duration `toml:"rate_limit_window"`
+	// MFADisabled skips TOTP for all users (MVP / local). Env: AUTH_MFA_DISABLED.
+	MFADisabled bool `toml:"mfa_disabled"`
 }
 
 type Duration = sharedcfg.Duration
@@ -123,6 +125,19 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("AUTH_TOTP_ENCRYPTION_KEY"); v != "" {
 		c.JWT.SigningKey = v
+	}
+	if v := os.Getenv("AUTH_MFA_DISABLED"); v != "" {
+		c.Security.MFADisabled = stringsEqualFoldTrue(v)
+	}
+}
+
+// stringsEqualFoldTrue accepts common truthy env values without importing strconv for one call.
+func stringsEqualFoldTrue(v string) bool {
+	switch v {
+	case "1", "true", "TRUE", "True", "yes", "YES", "on", "ON":
+		return true
+	default:
+		return false
 	}
 }
 

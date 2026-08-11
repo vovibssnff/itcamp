@@ -1,55 +1,51 @@
 import { test, expect } from '@playwright/test'
 import {
-  apiGetSession,
-  apiSeedStack,
-  apiSessionAction,
-  apiSessionReplay,
-  createAndOpenSession,
+  joinOperatorTraining,
   loginAsInstructorLive,
-  SIM_FAULTS,
+  loginAsOperatorLive,
+  setSessionSpeedViaUi,
   startSessionFromList,
+  stopSessionViaUi,
+  uiSeedStack,
+  waitForAlarm,
 } from './helpers'
-
-// Note: apiGetSession is used only for the final status assertion.
 
 test.describe.configure({ mode: 'serial' })
 
-/** SRD TEST-02 subset — timed fault scenario run. */
+/** SRD TEST-02 subset — timed fault scenario run; assert via AlarmBanner. */
 test.describe('SRD TEST-02 scenario run (live)', () => {
-  test('import timed-fault scenario → start → fault fires and model time advances', async ({
-    page,
+  test('import timed-fault scenario → start → alarm appears in operator HMI', async ({
+    browser,
   }) => {
+    // Fixture uses ramp_seconds=30 + severity 100; at 10× wall time ≈ 10–15s
+    // after fault at model_time=10 until PRSA 204 H alarm.
     test.setTimeout(180_000)
-    const triggerAt = 10
-    const seed = await apiSeedStack({
+    const instructor = await browser.newContext()
+    const iPage = await instructor.newPage()
+    await loginAsInstructorLive(iPage)
+
+    const seed = await uiSeedStack(iPage, {
       scenarioName: `E2E Fault Run ${Date.now().toString(36)}`,
-      atModelTime: triggerAt,
+      atModelTime: 10,
       start: false,
     })
+    await startSessionFromList(iPage, seed.sessionId)
+    await setSessionSpeedViaUi(iPage, seed.sessionId, 10)
 
-    await loginAsInstructorLive(page)
-    const sessionId = await createAndOpenSession(page, {
-      token: seed.token,
-      templateId: seed.templateId,
-      scenarioId: seed.scenarioId,
-    })
-    await startSessionFromList(page, sessionId)
+    const operator = await browser.newContext()
+    const oPage = await operator.newPage()
+    await loginAsOperatorLive(oPage)
+    await joinOperatorTraining(oPage, seed.sessionId)
 
-    // Poll the assessment replay — the fault record is written to the DB when fired
-    // so this is the only reliable REST indicator of model-time advancement.
-    // (GET /sessions/{id}.model_time always returns 0 while running; it is only
-    // persisted on stop.)  The fault only fires when model_time >= triggerAt, so
-    // seeing it in the replay implicitly proves the sim clock passed the trigger.
-    await expect
-      .poll(
-        async () =>
-          (await apiSessionReplay(seed.token, sessionId)).faults?.map((f) => f.fault_id) ?? [],
-        { timeout: 120_000, intervals: [2000] },
-      )
-      .toContain(SIM_FAULTS.k1PressureHigh)
+    await waitForAlarm(oPage, { timeout: 90_000 })
 
-    expect((await apiGetSession(seed.token, sessionId)).status).toBe('running')
+    await iPage.goto('/sessions')
+    await iPage.waitForLoadState('networkidle')
+    const row = iPage.locator(`tr[data-row-key="${seed.sessionId}"]`)
+    await expect(row.getByText('Идёт')).toBeVisible({ timeout: 15000 })
 
-    await apiSessionAction(seed.token, sessionId, 'stop')
+    await stopSessionViaUi(iPage, seed.sessionId)
+    await instructor.close()
+    await operator.close()
   })
 })

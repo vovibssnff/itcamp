@@ -21,7 +21,8 @@ export interface ComponentParameter {
 export interface ComponentType {
   id: string
   name: string
-  category: 'elou' | 'atm' | 'gdm' | 'common'
+  /** SPA key (elou/atm/…) or raw API category string for custom types. */
+  category: string
   description: string
   shape:
     | 'pump'

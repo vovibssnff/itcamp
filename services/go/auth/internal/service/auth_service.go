@@ -121,7 +121,9 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginResult, er
 		return LoginResult{}, domain.ErrUserLocked
 	}
 
-	if user.MFAEnabled || user.IsPrivileged() {
+	// MVP: security.mfa_disabled / AUTH_MFA_DISABLED skips TOTP entirely (password-only login).
+	// Remove or set false to restore privileged/enrolled MFA enforcement.
+	if s.requiresMFA(user) {
 		if in.MFACode == "" {
 			result := LoginResult{MFANeeded: true, User: user}
 			if !user.MFAEnabled {
@@ -164,6 +166,15 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (LoginResult, er
 	s.audit.Log(ctx, AuditLoginSuccess, user.ID, in.IP)
 	IncAuthLogin("success")
 	return LoginResult{Tokens: tokens, User: user}, nil
+}
+
+// requiresMFA reports whether login must collect/verify a TOTP code.
+// When MFADisabled is set (MVP), privileged and already-enrolled users skip MFA.
+func (s *AuthService) requiresMFA(user domain.User) bool {
+	if s.cfg.MFADisabled {
+		return false
+	}
+	return user.MFAEnabled || user.IsPrivileged()
 }
 
 func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {

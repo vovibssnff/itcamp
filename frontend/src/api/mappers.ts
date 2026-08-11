@@ -133,8 +133,122 @@ export function mapTemplateSummary(raw: unknown): TemplateSummary {
   return summary
 }
 
+const CATEGORY_FROM_API: Record<string, string> = {
+  ЭЛОУ: 'elou',
+  Атмосфера: 'atm',
+  ГДМ: 'gdm',
+  Общие: 'common',
+  elou: 'elou',
+  atm: 'atm',
+  gdm: 'gdm',
+  common: 'common',
+}
+
+const SHAPES: ComponentType['shape'][] = [
+  'pump',
+  'column',
+  'vessel',
+  'heatexchanger',
+  'valve',
+  'sensor',
+  'controller',
+  'separator',
+  'compressor',
+  'furnace',
+]
+
+/** Infer Konva/palette shape from API model_code / id (seeds have no `shape`). */
+export function inferComponentShape(
+  modelCode: string,
+  id: string,
+  explicit?: unknown,
+): ComponentType['shape'] {
+  if (typeof explicit === 'string' && (SHAPES as string[]).includes(explicit)) {
+    return explicit as ComponentType['shape']
+  }
+  const key = `${modelCode} ${id}`.toLowerCase()
+  const rules: Array<[RegExp, ComponentType['shape']]> = [
+    [/pump|насос/, 'pump'],
+    [/furnace|печ|heater|superheater/, 'furnace'],
+    [/column|колон|distill|stripp|stabiliz/, 'column'],
+    [/heat_?exchanger|cooler|condenser|теплообмен/, 'heatexchanger'],
+    [/compressor|компрес/, 'compressor'],
+    [/separator|сепар|demister/, 'separator'],
+    [/valve|клапан|задвиж|doser/, 'valve'],
+    [/sensor|kip|датчик|transmitter/, 'sensor'],
+    [/controller|pid|регулятор/, 'controller'],
+    [/vessel|ёмкость|емкость|tank|dehydrator|reactor|mixer|source|sink|ipm|transformer/, 'vessel'],
+  ]
+  for (const [re, shape] of rules) {
+    if (re.test(key)) return shape
+  }
+  return 'vessel'
+}
+
+function mapParamType(raw: unknown): ComponentType['parameters'][number]['type'] {
+  const t = String(raw ?? 'string').toLowerCase()
+  if (t === 'float' || t === 'int' || t === 'number' || t === 'integer') return 'number'
+  if (t === 'bool' || t === 'boolean') return 'boolean'
+  if (t === 'select' || t === 'enum') return 'enum'
+  return 'string'
+}
+
+function mapPortType(raw: unknown): ComponentType['ports'][number]['type'] {
+  const t = String(raw ?? 'liquid').toLowerCase()
+  if (t === 'steam') return 'gas'
+  if (t === 'liquid' || t === 'gas' || t === 'signal' || t === 'electric') return t
+  return 'liquid'
+}
+
+/** Normalize constructor API / import payloads to the SPA ComponentType (mock-compatible). */
 export function mapComponent(raw: unknown): ComponentType {
-  return raw as ComponentType
+  const r = asRecord(raw)
+  const id = str(r.id)
+  const modelCode = str(pick(r, 'model_code', 'modelCode'), id)
+  const categoryRaw = str(r.category, 'common')
+  // Map known Russian/English keys; keep custom API categories as-is.
+  const category = CATEGORY_FROM_API[categoryRaw] ?? categoryRaw
+
+  const portsRaw = Array.isArray(r.ports) ? r.ports : []
+  const ports = portsRaw.map((p, i) => {
+    const pr = asRecord(p)
+    return {
+      id: str(pr.id, `port-${i}`),
+      name: str(pr.name, str(pr.id, `port-${i}`)),
+      type: mapPortType(pr.type),
+      direction: str(pr.direction, 'in') === 'out' ? ('out' as const) : ('in' as const),
+    }
+  })
+
+  const paramsRaw = Array.isArray(r.parameters) ? r.parameters : []
+  const parameters = paramsRaw.map((p, i) => {
+    const pr = asRecord(p)
+    const name = str(pr.name, str(pr.id, `p-${i}`))
+    const label = str(pr.label, name)
+    const defaultValue = pr.defaultValue !== undefined ? pr.defaultValue : pr.default
+    return {
+      id: str(pr.id, `p-${i}`),
+      name,
+      label,
+      type: mapParamType(pr.type),
+      unit: str(pr.unit) || undefined,
+      defaultValue,
+      options: Array.isArray(pr.options) ? pr.options.map(String) : undefined,
+      min: typeof pr.min === 'number' ? pr.min : undefined,
+      max: typeof pr.max === 'number' ? pr.max : undefined,
+      required: Boolean(pr.required),
+    }
+  })
+
+  return {
+    id,
+    name: str(r.name, id),
+    category,
+    description: str(r.description),
+    shape: inferComponentShape(modelCode, id, r.shape),
+    ports,
+    parameters,
+  }
 }
 
 export function mapSession(raw: unknown): SessionRecord {

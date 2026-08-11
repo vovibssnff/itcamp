@@ -45,6 +45,13 @@ export class WsConnection {
   private connect() {
     if (this.destroyed) return
 
+    const token = useAuthStore.getState().accessToken
+    if (!token) {
+      // Token not ready yet (post-reload bootstrap) — retry shortly.
+      this.scheduleReconnect()
+      return
+    }
+
     try {
       this.ws = new WebSocket(this.buildUrl())
     } catch {

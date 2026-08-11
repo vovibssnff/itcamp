@@ -6,7 +6,7 @@ Status is the result of the last full local run. Last run: **21/21 passed, 1 ski
 
 | SRD / docs ID                  | Spec file                          | Status      | Notes                                                                    |
 | ------------------------------ | ---------------------------------- | ----------- | ------------------------------------------------------------------------ |
-| TEST-11, AUTH, E2E-001/002/007 | `srd-test-11-auth-rbac.spec.ts`    | pass        | Operator + instructor/admin MFA; RBAC redirects                          |
+| TEST-11, AUTH, E2E-001/002/007 | `srd-test-11-auth-rbac.spec.ts`    | pass        | Password login (operator/instructor/admin); RBAC redirects               |
 | TEST-04, FR-TMPL-*             | `srd-test-04-templates.spec.ts`    | pass        | Import → list → copy → validate → delete                                 |
 | TEST-01, FR-CNST-*             | `srd-test-01-constructor.spec.ts`  | pass        | ≥10-node fixture import → validate → save → list                         |
 | TEST-02 (subset)               | `srd-test-02-scenario-run.spec.ts` | pass        | Fault fires in replay; status is exactly `running`                       |

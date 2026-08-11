@@ -10,7 +10,7 @@ import {
 
 test.describe.configure({ mode: 'serial' })
 
-/** SRD TEST-11 / AUTH — MFA roles + RBAC redirects. */
+/** SRD TEST-11 / AUTH — password login + RBAC redirects. */
 test.describe('SRD TEST-11 auth RBAC (live)', () => {
   test('operator login and blocked from instructor/admin routes', async ({ page }) => {
     test.setTimeout(120_000)
@@ -28,7 +28,7 @@ test.describe('SRD TEST-11 auth RBAC (live)', () => {
     await expect(page).toHaveURL(/\/login/)
   })
 
-  test('instructor MFA login; blocked from admin', async ({ page }) => {
+  test('instructor login; blocked from admin', async ({ page }) => {
     test.setTimeout(120_000)
     await loginAsInstructorLive(page)
     await page.goto('/templates')
@@ -40,7 +40,7 @@ test.describe('SRD TEST-11 auth RBAC (live)', () => {
     await logoutLive(page)
   })
 
-  test('admin MFA login; users list visible', async ({ page }) => {
+  test('admin login; users list visible', async ({ page }) => {
     test.setTimeout(120_000)
     await loginAsAdminLive(page)
     await page.goto('/admin/users')

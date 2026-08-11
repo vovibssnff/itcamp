@@ -142,6 +142,146 @@
   margin: 16px 18px !important;
 }
 
+/* Pagination — compact list chrome (ListPagination + Table) */
+.ant-pagination.list-pagination,
+.ant-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--ui) !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  color: var(--tx) !important;
+}
+
+.ant-pagination .ant-pagination-total-text {
+  margin-inline-end: 12px !important;
+  height: auto !important;
+  line-height: 28px !important;
+  color: var(--tx) !important;
+  font-size: 12px !important;
+}
+
+.ant-pagination .ant-pagination-item {
+  min-width: 28px !important;
+  height: 28px !important;
+  margin-inline-end: 4px !important;
+  line-height: 26px !important;
+  background: var(--srf2) !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--r) !important;
+  font-family: var(--ui) !important;
+  font-weight: 400 !important;
+}
+
+.ant-pagination .ant-pagination-item a {
+  padding: 0 6px !important;
+  color: var(--tx) !important;
+}
+
+.ant-pagination .ant-pagination-item:hover {
+  background: var(--srf3) !important;
+  border-color: transparent !important;
+}
+
+.ant-pagination .ant-pagination-item:hover a {
+  color: var(--tx) !important;
+}
+
+.ant-pagination .ant-pagination-item-active {
+  background: var(--srf2) !important;
+  border-color: var(--acc) !important;
+}
+
+.ant-pagination .ant-pagination-item-active a {
+  color: var(--acc-txt) !important;
+}
+
+.ant-pagination .ant-pagination-item-active:hover {
+  background: var(--srf2) !important;
+  border-color: var(--acc) !important;
+}
+
+.ant-pagination .ant-pagination-item-active:hover a {
+  color: var(--acc-txt) !important;
+}
+
+.ant-pagination .ant-pagination-prev,
+.ant-pagination .ant-pagination-next,
+.ant-pagination .ant-pagination-jump-prev,
+.ant-pagination .ant-pagination-jump-next {
+  min-width: 28px !important;
+  height: 28px !important;
+  margin-inline-end: 4px !important;
+  line-height: 28px !important;
+}
+
+.ant-pagination .ant-pagination-prev .ant-pagination-item-link,
+.ant-pagination .ant-pagination-next .ant-pagination-item-link {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  height: 28px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: var(--r) !important;
+  color: var(--tx2) !important;
+}
+
+.ant-pagination .ant-pagination-prev:hover .ant-pagination-item-link,
+.ant-pagination .ant-pagination-next:hover .ant-pagination-item-link {
+  background: var(--srf2) !important;
+  color: var(--tx) !important;
+}
+
+.ant-pagination .ant-pagination-disabled .ant-pagination-item-link,
+.ant-pagination .ant-pagination-disabled:hover .ant-pagination-item-link {
+  background: transparent !important;
+  color: var(--tx4) !important;
+  cursor: not-allowed !important;
+}
+
+.ant-pagination
+  .ant-pagination-jump-prev
+  .ant-pagination-item-container
+  .ant-pagination-item-ellipsis,
+.ant-pagination
+  .ant-pagination-jump-next
+  .ant-pagination-item-container
+  .ant-pagination-item-ellipsis {
+  color: var(--tx3) !important;
+}
+
+.ant-pagination .ant-pagination-options {
+  margin-inline-start: 8px !important;
+}
+
+.ant-pagination .ant-pagination-options-quick-jumper {
+  height: 28px !important;
+  line-height: 28px !important;
+  color: var(--tx) !important;
+  font-size: 12px !important;
+}
+
+.ant-pagination .ant-pagination-options-quick-jumper input {
+  width: 44px !important;
+  height: 28px !important;
+  margin-inline: 6px !important;
+  padding: 0 6px !important;
+  background: var(--srf2) !important;
+  border: 1px solid var(--ln2) !important;
+  border-radius: var(--r) !important;
+  color: var(--tx) !important;
+  font-size: 12px !important;
+  box-shadow: none !important;
+}
+
+.ant-pagination .ant-pagination-options-quick-jumper input:hover,
+.ant-pagination .ant-pagination-options-quick-jumper input:focus {
+  border-color: var(--acc) !important;
+}
+
 /* Card */
 .ant-card {
   background: var(--srf) !important;

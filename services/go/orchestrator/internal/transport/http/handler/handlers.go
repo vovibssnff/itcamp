@@ -276,8 +276,10 @@ func (h *SessionHandler) handleWS(w http.ResponseWriter, r *http.Request, sessio
 	}
 
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		// Matched against Origin host (filepath.Match). Same request host is always allowed.
-		OriginPatterns: []string{"localhost", "127.0.0.1"},
+		// Behind the gateway the request Host is the upstream service name while the
+		// browser Origin stays on the SPA host:port — allow any origin here; CSRF is
+		// mitigated by the gateway's token auth on the upgrade request.
+		OriginPatterns: []string{"*"},
 	})
 	if err != nil {
 		return

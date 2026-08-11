@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test'
 import {
-  apiSeedStack,
-  createAndOpenSession,
+  joinOperatorTraining,
   loginAsInstructorLive,
   loginAsOperatorLive,
   startSessionFromList,
+  stopSessionViaUi,
+  uiSeedStack,
 } from './helpers'
 
 test.describe.configure({ mode: 'serial' })
@@ -13,32 +14,23 @@ test.describe.configure({ mode: 'serial' })
 test.describe('SRD TEST-03 observe (live)', () => {
   test('parallel operator training + instructor observe without controls', async ({ browser }) => {
     test.setTimeout(180_000)
-    const seed = await apiSeedStack({
-      scenarioName: `E2E Observe ${Date.now().toString(36)}`,
-      atModelTime: 120,
-      start: false,
-    })
 
     const instructor = await browser.newContext()
     const instructorPage = await instructor.newPage()
     await loginAsInstructorLive(instructorPage)
-    const sessionId = await createAndOpenSession(instructorPage, {
-      token: seed.token,
-      templateId: seed.templateId,
-      scenarioId: seed.scenarioId,
+    const seed = await uiSeedStack(instructorPage, {
+      scenarioName: `E2E Observe ${Date.now().toString(36)}`,
+      atModelTime: 120,
+      start: false,
     })
-    await startSessionFromList(instructorPage, sessionId)
+    await startSessionFromList(instructorPage, seed.sessionId)
 
     const operator = await browser.newContext()
     const opPage = await operator.newPage()
     await loginAsOperatorLive(opPage)
-    await opPage.goto(`/sessions/${sessionId}/operator`)
-    const start = opPage.getByTestId('training-start')
-    if (await start.isVisible({ timeout: 8000 }).catch(() => false)) {
-      await start.click()
-    }
+    await joinOperatorTraining(opPage, seed.sessionId)
 
-    await instructorPage.goto(`/sessions/${sessionId}/observe`)
+    await instructorPage.goto(`/sessions/${seed.sessionId}/observe`)
     await expect(instructorPage.getByTestId('session-observe')).toBeVisible({ timeout: 20000 })
     await expect(instructorPage.getByText('Наблюдение')).toBeVisible()
     await expect(instructorPage.getByTestId('training-start')).toHaveCount(0)
@@ -46,6 +38,7 @@ test.describe('SRD TEST-03 observe (live)', () => {
       0,
     )
 
+    await stopSessionViaUi(instructorPage, seed.sessionId)
     await instructor.close()
     await operator.close()
   })

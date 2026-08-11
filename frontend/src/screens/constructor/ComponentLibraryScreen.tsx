@@ -5,21 +5,17 @@ import { type ComponentType } from '@/mocks/fixtures/components'
 import { componentsApi } from '@/api/components'
 import { summarizeImport } from '@/api/import'
 import { JsonImportButton } from '@/components/ui/JsonImportButton'
+import { ListPagination } from '@/components/ui'
+import {
+  CATEGORY_LABELS,
+  categoryColor,
+  categoryLabel,
+  distinctCategories,
+  shapeIcon,
+} from '@/utils/component-display'
 import { tokens } from '@/theme/tokens'
 
-const CATEGORY_COLORS: Record<string, string> = {
-  elou: tokens.zone.elou,
-  atm: tokens.zone.atm,
-  gdm: tokens.zone.gdm,
-  common: tokens.text.secondary,
-}
-
-const CATEGORY_LABELS: Record<string, string> = {
-  elou: 'ЭЛОУ',
-  atm: 'Атмосфера',
-  gdm: 'ГДМ',
-  common: 'Общие',
-}
+const PAGE_SIZE = 12
 
 const SHAPES = [
   'pump',
@@ -47,6 +43,8 @@ export default function ComponentLibraryScreen() {
   const [components, setComponents] = useState<ComponentType[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [category, setCategory] = useState<string>('all')
+  const [page, setPage] = useState(1)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [editing, setEditing] = useState<ComponentType | null>(null)
@@ -55,6 +53,7 @@ export default function ComponentLibraryScreen() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
+      // Full catalog (limit=500) so filter chips reflect distinct backend categories.
       setComponents(await componentsApi.list())
     } catch {
       void message.error('Ошибка загрузки компонентов')
@@ -67,22 +66,56 @@ export default function ComponentLibraryScreen() {
     void load()
   }, [load])
 
+  const categoryTabs = useMemo(() => {
+    const fromApi = distinctCategories(components)
+    return [
+      { id: 'all', label: 'Все', color: tokens.accent.cyan },
+      ...fromApi.map((id) => ({
+        id,
+        label: categoryLabel(id),
+        color: categoryColor(id),
+      })),
+    ]
+  }, [components])
+
+  const categoryOptions = useMemo(() => {
+    const fromApi = distinctCategories(components)
+    const known = Object.keys(CATEGORY_LABELS)
+    const ids = [...new Set([...fromApi, ...known])]
+    return distinctCategories(ids.map((id) => ({ category: id }))).map((id) => ({
+      value: id,
+      label: categoryLabel(id),
+    }))
+  }, [components])
+
+  // Client-side filter on the loaded catalog (chips stay stable). list({ category, q }) is wired for API use.
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    if (!q) return components
     return components.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.description.toLowerCase().includes(q),
+      (c) =>
+        (category === 'all' || c.category === category) &&
+        (!q ||
+          c.name.toLowerCase().includes(q) ||
+          c.description.toLowerCase().includes(q) ||
+          c.shape.toLowerCase().includes(q) ||
+          c.id.toLowerCase().includes(q)),
     )
-  }, [search, components])
+  }, [search, category, components])
 
-  const grouped = useMemo(() => {
-    const groups: Record<string, ComponentType[]> = {}
-    for (const ct of filtered) {
-      if (!groups[ct.category]) groups[ct.category] = []
-      groups[ct.category]!.push(ct)
+  useEffect(() => {
+    setPage(1)
+  }, [search, category])
+
+  useEffect(() => {
+    if (category !== 'all' && !categoryTabs.some((t) => t.id === category)) {
+      setCategory('all')
     }
-    return groups
-  }, [filtered])
+  }, [category, categoryTabs])
+
+  const paged = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE
+    return filtered.slice(start, start + PAGE_SIZE)
+  }, [filtered, page])
 
   function openCreate() {
     setEditing(null)
@@ -134,7 +167,7 @@ export default function ComponentLibraryScreen() {
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 1200 }}>
+    <div className="wrap">
       <div
         style={{
           marginBottom: 20,
@@ -142,12 +175,18 @@ export default function ComponentLibraryScreen() {
           justifyContent: 'space-between',
           alignItems: 'flex-start',
         }}
+        className="rise"
       >
         <div>
-          <h3 style={{ color: tokens.text.primary, margin: '0 0 4px' }}>Библиотека компонентов</h3>
-          <span style={{ color: tokens.text.muted, fontSize: 12 }}>
-            {loading ? '…' : `${components.length} типов компонентов`}
-          </span>
+          <div className="sec">Конструктор</div>
+          <h1 className="h1" style={{ marginTop: 12 }}>
+            Библиотека компонентов
+          </h1>
+          <p className="note" style={{ marginTop: 12 }}>
+            {loading
+              ? '…'
+              : `${filtered.length} из ${components.length} · на странице ${paged.length}`}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <JsonImportButton
@@ -169,115 +208,174 @@ export default function ComponentLibraryScreen() {
 
       <Input
         prefix={<SearchOutlined />}
-        placeholder="Поиск..."
+        placeholder="Поиск по названию, id, форме..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        style={{ maxWidth: 400, marginBottom: 24 }}
+        style={{ maxWidth: 400, marginBottom: 16 }}
+        allowClear
       />
 
-      {Object.entries(grouped).map(([cat, types]) => (
-        <div key={cat} style={{ marginBottom: 32 }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginBottom: 12,
-              paddingBottom: 8,
-              borderBottom: `1px solid ${tokens.border.subtle}`,
-            }}
-          >
-            <span
+      <div
+        style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 24 }}
+        className="rise d1"
+      >
+        {categoryTabs.map((cat) => {
+          const active = category === cat.id
+          return (
+            <Tag
+              key={cat.id}
+              onClick={() => setCategory(cat.id)}
               style={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                background: CATEGORY_COLORS[cat] ?? tokens.text.secondary,
-              }}
-            />
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: CATEGORY_COLORS[cat] ?? tokens.text.secondary,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
+                cursor: 'pointer',
+                marginInlineEnd: 0,
+                background: active ? cat.color : tokens.bg.elevated,
+                borderColor: active ? cat.color : tokens.border.subtle,
+                color: active ? tokens.bg.base : tokens.text.secondary,
+                fontSize: 11,
               }}
             >
-              {CATEGORY_LABELS[cat] ?? cat}
-            </span>
-            <span style={{ fontSize: 11, color: tokens.text.dim }}>{types.length}</span>
-          </div>
+              {cat.label}
+            </Tag>
+          )
+        })}
+      </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-              gap: 12,
-            }}
-          >
-            {types.map((ct) => (
-              <div
-                key={ct.id}
-                onClick={() => setExpandedId(expandedId === ct.id ? null : ct.id)}
-                style={{
-                  background: tokens.bg.surface,
-                  border: `1px solid ${expandedId === ct.id ? (CATEGORY_COLORS[ct.category] ?? tokens.border.medium) : tokens.border.subtle}`,
-                  borderRadius: tokens.radius.lg,
-                  padding: 16,
-                  cursor: 'pointer',
-                  transition: 'border-color 0.15s',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, color: tokens.text.primary, fontSize: 13 }}>
-                      {ct.name}
-                    </div>
-                    <div style={{ fontSize: 11, color: tokens.text.muted, marginTop: 2 }}>
-                      {ct.description}
-                    </div>
-                  </div>
-                  <Tag style={{ flexShrink: 0, fontSize: 10, fontFamily: tokens.font.mono }}>
-                    {ct.shape}
-                  </Tag>
-                </div>
-
-                <div
-                  style={{ display: 'flex', gap: 6, marginTop: 10 }}
-                  onClick={(e) => e.stopPropagation()}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+          gap: 12,
+        }}
+        className="rise d2"
+      >
+        {paged.map((ct) => {
+          const accent = categoryColor(ct.category)
+          return (
+            <div
+              key={ct.id}
+              onClick={() => setExpandedId(expandedId === ct.id ? null : ct.id)}
+              style={{
+                background: tokens.bg.surface,
+                border: `1px solid ${expandedId === ct.id ? accent : tokens.border.subtle}`,
+                borderRadius: tokens.radius.lg,
+                padding: 16,
+                cursor: 'pointer',
+                transition: 'border-color 0.15s',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <span
+                  aria-hidden
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: tokens.radius.md,
+                    background: tokens.bg.elevated ?? tokens.bg.surface,
+                    border: `1px solid ${tokens.border.subtle}`,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 20,
+                    color: accent,
+                    flexShrink: 0,
+                  }}
                 >
-                  <button className="btn btn-ghost btn-sm" onClick={() => void openEdit(ct)}>
-                    <EditOutlined />
-                  </button>
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={() => void deleteComponent(ct.id)}
-                  >
-                    <DeleteOutlined />
-                  </button>
-                </div>
-
-                {expandedId === ct.id && (
+                  {shapeIcon(ct.shape)}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, color: tokens.text.primary, fontSize: 13 }}>
+                    {ct.name}
+                  </div>
+                  <div style={{ fontSize: 11, color: tokens.text.muted, marginTop: 2 }}>
+                    {ct.description || '—'}
+                  </div>
                   <div
                     style={{
-                      marginTop: 12,
-                      paddingTop: 12,
-                      borderTop: `1px solid ${tokens.border.subtle}`,
+                      fontSize: 10,
+                      fontFamily: tokens.font.mono,
+                      color: tokens.text.dim,
+                      marginTop: 4,
                     }}
                   >
-                    <div style={{ marginBottom: 8 }}>
-                      <div
-                        style={{
-                          fontSize: 10,
-                          color: tokens.text.dim,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.06em',
-                          marginBottom: 4,
-                        }}
-                      >
-                        Порты
-                      </div>
+                    {ct.id}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4,
+                    alignItems: 'flex-end',
+                  }}
+                >
+                  <Tag style={{ fontSize: 10, fontFamily: tokens.font.mono, marginInlineEnd: 0 }}>
+                    {ct.shape}
+                  </Tag>
+                  <Tag
+                    style={{
+                      fontSize: 10,
+                      marginInlineEnd: 0,
+                      borderColor: accent,
+                      color: accent,
+                      background: 'transparent',
+                    }}
+                  >
+                    {categoryLabel(ct.category)}
+                  </Tag>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                  marginTop: 10,
+                  fontSize: 11,
+                  color: tokens.text.dim,
+                }}
+              >
+                <span>{ct.ports.length} порт.</span>
+                <span>{ct.parameters.length} пар.</span>
+              </div>
+
+              <div
+                style={{ display: 'flex', gap: 6, marginTop: 10 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button className="btn btn-ghost btn-sm" onClick={() => void openEdit(ct)}>
+                  <EditOutlined />
+                </button>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => void deleteComponent(ct.id)}
+                >
+                  <DeleteOutlined />
+                </button>
+              </div>
+
+              {expandedId === ct.id && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    paddingTop: 12,
+                    borderTop: `1px solid ${tokens.border.subtle}`,
+                  }}
+                >
+                  <div style={{ marginBottom: 8 }}>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        color: tokens.text.dim,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        marginBottom: 4,
+                      }}
+                    >
+                      Порты
+                    </div>
+                    {ct.ports.length === 0 ? (
+                      <span style={{ fontSize: 11, color: tokens.text.dim }}>Нет портов</span>
+                    ) : (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                         {ct.ports.map((p) => (
                           <Tooltip
@@ -296,48 +394,96 @@ export default function ComponentLibraryScreen() {
                           </Tooltip>
                         ))}
                       </div>
+                    )}
+                  </div>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        color: tokens.text.dim,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        marginBottom: 4,
+                      }}
+                    >
+                      Параметры
                     </div>
-                    <div>
-                      <div
-                        style={{
-                          fontSize: 10,
-                          color: tokens.text.dim,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.06em',
-                          marginBottom: 4,
-                        }}
-                      >
-                        Параметры
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {ct.parameters.length === 0 ? (
+                      <span style={{ fontSize: 11, color: tokens.text.dim }}>Нет параметров</span>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {ct.parameters.map((p) => (
-                          <div key={p.id} style={{ display: 'flex', gap: 8, fontSize: 11 }}>
-                            <span style={{ color: tokens.text.secondary, flex: 1 }}>{p.label}</span>
-                            {p.unit && (
+                          <div
+                            key={p.id}
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '1fr auto auto auto',
+                              gap: 8,
+                              fontSize: 11,
+                              alignItems: 'baseline',
+                            }}
+                          >
+                            <span style={{ color: tokens.text.secondary }}>
+                              {p.label || p.name}
+                            </span>
+                            <span
+                              style={{
+                                color: tokens.text.dim,
+                                fontFamily: tokens.font.mono,
+                                fontSize: 10,
+                              }}
+                            >
+                              {p.type}
+                            </span>
+                            {p.unit ? (
                               <span
                                 style={{ color: tokens.text.dim, fontFamily: tokens.font.mono }}
                               >
                                 {p.unit}
                               </span>
+                            ) : (
+                              <span />
                             )}
-                            {p.defaultValue !== undefined && (
+                            {p.defaultValue !== undefined && p.defaultValue !== null ? (
                               <span
-                                style={{ fontFamily: tokens.font.mono, color: tokens.accent.cyan }}
+                                style={{
+                                  fontFamily: tokens.font.mono,
+                                  color: tokens.accent.cyan,
+                                }}
                               >
                                 {String(p.defaultValue)}
                               </span>
+                            ) : (
+                              <span />
                             )}
                           </div>
                         ))}
                       </div>
-                    </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {!loading && filtered.length === 0 && (
+        <p className="note" style={{ marginTop: 24 }}>
+          Компоненты не найдены
+        </p>
+      )}
+
+      {filtered.length > PAGE_SIZE && (
+        <div style={{ marginTop: 16, marginBottom: 24 }}>
+          <ListPagination
+            current={page}
+            total={filtered.length}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </div>
-      ))}
+      )}
 
       <AntModal
         title={editing ? 'Редактировать компонент' : 'Новый компонент'}
@@ -355,12 +501,7 @@ export default function ComponentLibraryScreen() {
             <Input />
           </Form.Item>
           <Form.Item name="category" label="Категория" rules={[{ required: true }]}>
-            <Select
-              options={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
-                value,
-                label,
-              }))}
-            />
+            <Select options={categoryOptions} />
           </Form.Item>
           <Form.Item name="shape" label="Форма" rules={[{ required: true }]}>
             <Select options={SHAPES.map((s) => ({ value: s, label: s }))} />

@@ -1,8 +1,11 @@
 package metrics
 
 import (
+	"bufio"
+	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -45,7 +48,11 @@ func Handler() http.Handler {
 
 func Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/metrics" || r.URL.Path == "/healthz" {
+		// Skip probes and WebSocket upgrades — wrapping ResponseWriter breaks http.Hijacker.
+		// Use header detection so this works at every proxy layer (gw path is /api/v1/ws/…,
+		// orchestrator path is /ws/…).
+		if r.URL.Path == "/metrics" || r.URL.Path == "/healthz" ||
+			strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -72,6 +79,26 @@ type statusRecorder struct {
 func (r *statusRecorder) WriteHeader(code int) {
 	r.status = code
 	r.ResponseWriter.WriteHeader(code)
+}
+
+// Hijack / Flush / Unwrap keep WebSocket and streaming working when other
+// middleware still wraps the recorder.
+func (r *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	h, ok := r.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, http.ErrNotSupported
+	}
+	return h.Hijack()
+}
+
+func (r *statusRecorder) Flush() {
+	if f, ok := r.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func (r *statusRecorder) Unwrap() http.ResponseWriter {
+	return r.ResponseWriter
 }
 
 func normalizePath(path string) string {

@@ -319,10 +319,13 @@ func (s *SessionService) HandleActuator(ctx context.Context, id, userID, target 
 	}
 	IncOperatorAction()
 	s.hub.BroadcastOperatorAction(id, action)
-	_ = s.assessment.SendEvent(ctx, id, sess.ScenarioID, "action", action)
+	// Resolve the sim command so assessment sees start/stop/set_sp, not generic "set".
+	cmd, cmdVal := client.ResolveActuatorCommand(target, value)
+	_ = s.assessment.SendEvent(ctx, id, sess.ScenarioID, "action",
+		assessmentActionPayload(userID, target, cmd, cmdVal, sess.ModelTime))
 	_ = s.publisher.PublishSessionEvent(ctx, id, "operator_action", action)
 	// Push immediately — don't wait for the next runner tick.
-	s.pushAfterCommand(ctx, id, 4)
+	s.pushAfterCommand(ctx, id)
 	return nil
 }
 
@@ -345,9 +348,10 @@ func (s *SessionService) HandleOperatorCommand(ctx context.Context, id, userID, 
 	}
 	IncOperatorAction()
 	s.hub.BroadcastOperatorAction(id, action)
-	_ = s.assessment.SendEvent(ctx, id, sess.ScenarioID, "action", action)
+	_ = s.assessment.SendEvent(ctx, id, sess.ScenarioID, "action",
+		assessmentActionPayload(userID, target, cmdType, value, sess.ModelTime))
 	_ = s.publisher.PublishSessionEvent(ctx, id, "operator_action", action)
-	s.pushAfterCommand(ctx, id, 2)
+	s.pushAfterCommand(ctx, id)
 	return nil
 }
 
@@ -357,29 +361,31 @@ func (s *SessionService) AckAlarm(ctx context.Context, id, alarmID, userID strin
 		return err
 	}
 	mt := sess.ModelTime
-	if err := s.repo.AckAlarm(ctx, alarmID, mt, userID); err != nil {
+	tagID, err := s.repo.AckAlarm(ctx, alarmID, mt, userID)
+	if err != nil {
 		return err
 	}
+	if tagID == "" {
+		tagID = alarmID
+	}
 	_ = s.assessment.SendEvent(ctx, id, sess.ScenarioID, "alarm_ack", map[string]any{
-		"tag_id":     alarmID,
+		"tag_id":     tagID,
 		"model_time": mt,
 	})
 	s.hub.BroadcastAlarmClear(id, alarmID)
 	return nil
 }
 
-// pushAfterCommand advances the model a few seconds and broadcasts the live snapshot
-// so faceplates/alarms update without waiting for the 250ms runner tick.
-func (s *SessionService) pushAfterCommand(ctx context.Context, sessionID string, catchUpSteps int) {
-	if catchUpSteps < 1 {
-		catchUpSteps = 1
-	}
-	var state domain.SimState
-	var err error
-	for i := 0; i < catchUpSteps; i++ {
-		state, err = s.lockedStep(ctx, sessionID, 1)
+// pushAfterCommand refreshes HMI state after an operator command without jumping
+// model time. Advancing multiple 1s steps here previously fired time-based
+// faults early and burned assessment deadlines on every faceplate click.
+func (s *SessionService) pushAfterCommand(ctx context.Context, sessionID string) {
+	state, err := s.sim.GetState(ctx, sessionID)
+	if err != nil {
+		// Fallback: one realtime tick if GetState is unavailable.
+		state, err = s.lockedStep(ctx, sessionID, 0.25)
 		if err != nil {
-			s.log.Warn("post-command sim step failed", "session", sessionID, "error", err)
+			s.log.Warn("post-command state refresh failed", "session", sessionID, "error", err)
 			return
 		}
 	}

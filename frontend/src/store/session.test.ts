@@ -49,14 +49,26 @@ describe('sessionStore', () => {
     expect(lookupTelemetry(useSessionStore.getState().telemetry, 'TI-1')?.value).toBe(100)
   })
 
-  it('promotes non-normal telemetry alarmState into alarms', () => {
+  it('updates telemetry without synthesizing phantom alarm ids', () => {
     useSessionStore.getState().updateTelemetry([{ ...tag, alarmState: 'H', timestamp: 42 }])
+    expect(useSessionStore.getState().telemetry['TI 1']?.alarmState).toBe('H')
+    expect(useSessionStore.getState().alarms).toHaveLength(0)
+  })
+
+  it('adds alarms only via dedicated alarm events', () => {
+    useSessionStore.getState().updateTelemetry([{ ...tag, alarmState: 'H', timestamp: 42 }])
+    useSessionStore.getState().addAlarm({
+      id: 'alarm-uuid-1',
+      tag: 'TI-1',
+      level: 'H',
+      message: 'TI 1 · H',
+      timestamp: 42,
+      acknowledged: false,
+    })
     const alarms = useSessionStore.getState().alarms
     expect(alarms).toHaveLength(1)
-    expect(alarms[0]?.id).toBe('tag:TI 1:H')
-    expect(alarms[0]?.level).toBe('H')
-    useSessionStore.getState().updateTelemetry([{ ...tag, alarmState: 'H', timestamp: 43 }])
-    expect(useSessionStore.getState().alarms).toHaveLength(1)
+    expect(alarms[0]?.id).toBe('alarm-uuid-1')
+    expect(alarms[0]?.tag).toBe('TI 1')
   })
 
   it('adds and acknowledges alarms, dedups by id', () => {

@@ -192,3 +192,31 @@ func TestMatchesReference_NoMatch_Action(t *testing.T) {
 		t.Error("expected no match (different action)")
 	}
 }
+
+func TestMatchesReference_TagNormalization(t *testing.T) {
+	ref := domain.ReferenceAction{Expected: domain.ExpectedAction{Target: "LRCA-641", Action: "set_mode", Value: "MANUAL"}}
+	event := domain.AssessmentEvent{Target: "LRCA 641", Action: "set_mode", Value: "MANUAL"}
+	if !matchesReference(event, ref) {
+		t.Fatal("expected hyphen/space tag forms to match")
+	}
+}
+
+func TestMatchesReference_ModeValueEquivalence(t *testing.T) {
+	ref := domain.ReferenceAction{Expected: domain.ExpectedAction{Target: "LRCA-641", Action: "set_mode", Value: "MANUAL"}}
+	event := domain.AssessmentEvent{Target: "LRCA-641", Action: "set_mode", Value: 1.0}
+	if !matchesReference(event, ref) {
+		t.Fatal("expected numeric MANUAL (1.0) to match string MANUAL")
+	}
+	eventAuto := domain.AssessmentEvent{Target: "LRCA-641", Action: "set_mode", Value: 0.0}
+	if matchesReference(eventAuto, ref) {
+		t.Fatal("AUTO (0.0) must not match MANUAL")
+	}
+}
+
+func TestMatchesReference_ActionCaseInsensitive(t *testing.T) {
+	ref := domain.ReferenceAction{Expected: domain.ExpectedAction{Target: "TRC-3", Action: "decrease"}}
+	event := domain.AssessmentEvent{Target: "trc-3", Action: "Decrease"}
+	if !matchesReference(event, ref) {
+		t.Fatal("expected case-insensitive action/target match")
+	}
+}

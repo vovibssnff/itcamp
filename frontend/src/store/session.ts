@@ -118,30 +118,14 @@ export const useSessionStore = create<SessionState>()((set) => ({
   updateTelemetry: (tags) =>
     set((s) => {
       const next = { ...s.telemetry }
-      let alarms = s.alarms
       for (const t of tags) {
         const key = normalizeTagId(t.tag) || t.tag
-        const stored: TagValue = { ...t, tag: key }
-        next[key] = stored
-        if (t.alarmState && t.alarmState !== 'normal') {
-          const id = `tag:${key}:${t.alarmState}`
-          const existing = alarms.find((a) => a.id === id)
-          if (!existing) {
-            alarms = [
-              {
-                id,
-                tag: key,
-                level: t.alarmState,
-                message: `${key} · ${t.alarmState}`,
-                timestamp: t.timestamp,
-                acknowledged: false,
-              },
-              ...alarms,
-            ].slice(0, 200)
-          }
-        }
+        next[key] = { ...t, tag: key }
       }
-      return { telemetry: next, alarms }
+      // Alarms come from dedicated WS alarm events (addAlarm). Do not invent
+      // synthetic `tag:KEY:LEVEL` ids from telemetry alarmState — those ids are
+      // not in the DB and break POST .../alarms/{id}/ack scoring.
+      return { telemetry: next }
     }),
 
   addAlarm: (alarm) =>

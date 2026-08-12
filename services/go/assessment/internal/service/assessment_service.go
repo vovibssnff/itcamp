@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"github.com/itcamp/ktc/services/assessment/internal/client"
@@ -237,18 +238,94 @@ func (s *AssessmentService) CheckMissedSteps(ctx context.Context, sessionID stri
 }
 
 func matchesReference(event domain.AssessmentEvent, ref domain.ReferenceAction) bool {
-	if event.Target != ref.Expected.Target {
+	if !sameTag(event.Target, ref.Expected.Target) {
 		return false
 	}
-	if event.Action != ref.Expected.Action {
+	if !sameAction(event.Action, ref.Expected.Action) {
 		return false
 	}
 	if ref.Expected.Value != nil {
-		eventValue, _ := json.Marshal(event.Value)
-		expectedValue, _ := json.Marshal(ref.Expected.Value)
-		if string(eventValue) != string(expectedValue) {
+		if !sameExpectedValue(event.Value, ref.Expected.Value) {
 			return false
 		}
 	}
 	return true
+}
+
+func sameTag(a, b string) bool {
+	return normalizeTagKey(a) == normalizeTagKey(b)
+}
+
+func normalizeTagKey(tag string) string {
+	s := strings.ToUpper(strings.TrimSpace(tag))
+	s = strings.ReplaceAll(s, "-", " ")
+	s = strings.ReplaceAll(s, "_", " ")
+	for strings.Contains(s, "  ") {
+		s = strings.ReplaceAll(s, "  ", " ")
+	}
+	return s
+}
+
+func sameAction(a, b string) bool {
+	return strings.EqualFold(strings.TrimSpace(a), strings.TrimSpace(b))
+}
+
+func sameExpectedValue(eventVal, expected any) bool {
+	if eqModeValue(eventVal, expected) {
+		return true
+	}
+	eventJSON, _ := json.Marshal(eventVal)
+	expectedJSON, _ := json.Marshal(expected)
+	return string(eventJSON) == string(expectedJSON)
+}
+
+// eqModeValue treats MANUAL/1 and AUTO/0 as equivalent for set_mode steps.
+func eqModeValue(eventVal, expected any) bool {
+	ev := normalizeModeToken(eventVal)
+	ex := normalizeModeToken(expected)
+	if ev == "" || ex == "" {
+		return false
+	}
+	return ev == ex
+}
+
+func normalizeModeToken(v any) string {
+	switch n := v.(type) {
+	case string:
+		s := strings.ToUpper(strings.TrimSpace(n))
+		switch s {
+		case "MANUAL", "MAN", "1", "TRUE":
+			return "MANUAL"
+		case "AUTO", "AUT", "0", "FALSE":
+			return "AUTO"
+		}
+		return s
+	case float64:
+		if n >= 0.5 {
+			return "MANUAL"
+		}
+		return "AUTO"
+	case float32:
+		if n >= 0.5 {
+			return "MANUAL"
+		}
+		return "AUTO"
+	case int:
+		if n != 0 {
+			return "MANUAL"
+		}
+		return "AUTO"
+	case int64:
+		if n != 0 {
+			return "MANUAL"
+		}
+		return "AUTO"
+	case bool:
+		if n {
+			return "MANUAL"
+		}
+		return "AUTO"
+	default:
+		return ""
+	}
 }

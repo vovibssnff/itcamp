@@ -29,10 +29,25 @@ func (c *HTTPAssessmentClient) SendEvent(ctx context.Context, sessionID, scenari
 		var fields map[string]any
 		if err := json.Unmarshal(raw, &fields); err == nil {
 			for k, v := range fields {
+				// OperatorAction/AlarmEvent carry their own "type"/time fields; never let
+				// them clobber the assessment event type the caller requested.
+				if k == "type" || k == "session_id" {
+					continue
+				}
 				payload[k] = v
+			}
+			// AlarmEvent uses raised_model_time; assessment expects model_time.
+			if _, ok := payload["model_time"]; !ok {
+				if raised, ok := fields["raised_model_time"]; ok {
+					payload["model_time"] = raised
+				}
 			}
 		}
 	}
+	// Re-assert after merge so nested structs cannot change the event kind.
+	payload["type"] = eventType
+	payload["session_id"] = sessionID
+
 	body, _ := json.Marshal(payload)
 	urlStr := c.url + "/assessment/event"
 	if scenarioID != "" {

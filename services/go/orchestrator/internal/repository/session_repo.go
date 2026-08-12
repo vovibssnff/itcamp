@@ -170,8 +170,14 @@ func (r *SessionRepo) RecordAlarm(ctx context.Context, a domain.AlarmEvent) erro
 	return err
 }
 
-func (r *SessionRepo) AckAlarm(ctx context.Context, alarmID string, modelTime float64, userID string) error {
-	_, err := r.db.Pool.Exec(ctx, `UPDATE alarm_events SET ack_model_time = $2, ack_user_id = $3 WHERE id = $1`,
-		alarmID, modelTime, userID)
-	return err
+// AckAlarm marks an alarm acknowledged and returns its tag_id for assessment scoring.
+func (r *SessionRepo) AckAlarm(ctx context.Context, alarmID string, modelTime float64, userID string) (tagID string, err error) {
+	err = r.db.Pool.QueryRow(ctx,
+		`UPDATE alarm_events SET ack_model_time = $2, ack_user_id = $3 WHERE id = $1 RETURNING tag_id`,
+		alarmID, modelTime, userID,
+	).Scan(&tagID)
+	if err != nil {
+		return "", err
+	}
+	return tagID, nil
 }

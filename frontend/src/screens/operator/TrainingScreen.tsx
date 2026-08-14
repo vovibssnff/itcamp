@@ -18,6 +18,7 @@ import { componentsApi } from '@/api/components'
 import { reportsApi } from '@/api/reports'
 import { toErrorMessage } from '@/api/errors'
 import { isMockApi } from '@/utils/env'
+import { routeFaceplateCommand } from './faceplateCommand'
 
 const STATUS_LABELS: Record<string, string> = {
   idle: 'Ожидание',
@@ -164,17 +165,17 @@ export default function TrainingScreen() {
         out: reg?.out ?? 0,
       })
     }
-    if (type === 'regulator_sp') {
-      send({ type: 'regulator_sp', tag, sp: value })
-    } else if (type === 'regulator_out') {
-      send({ type: 'regulator_out', tag, out: value })
-    } else if (type === 'regulator_mode') {
-      send({ type: 'regulator_mode', tag, mode: value === 1 ? 'auto' : 'manual' })
-    } else if (sessionId) {
+    const route = routeFaceplateCommand(type, tag, value)
+    if (!route) return
+    if (route.channel === 'ws') {
+      send(route.message)
+      return
+    }
+    if (sessionId) {
       // Актюаторы шлём только по HTTP (авторитетный путь, пишет событие в журнал
       // один раз). Дублирование по WS + HTTP приводило к задвоению событий.
-      void sessionsApi.actuator(sessionId, tag, value).catch((err) => {
-        void message.error(toErrorMessage(err, `Команда ${tag} не принята симулятором`))
+      void sessionsApi.actuator(sessionId, route.tag, route.value).catch((err) => {
+        void message.error(toErrorMessage(err, `Команда ${route.tag} не принята симулятором`))
       })
     }
   }

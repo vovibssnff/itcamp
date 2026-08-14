@@ -17,6 +17,7 @@ import { componentsApi } from '@/api/components'
 import { reportsApi } from '@/api/reports'
 import { toErrorMessage } from '@/api/errors'
 import { isMockApi } from '@/utils/env'
+import { routeFaceplateCommand } from './faceplateCommand'
 
 const EXAM_DURATION_S = 3600
 
@@ -233,17 +234,21 @@ export default function ExamScreen() {
         telemetry={telemetry}
         regulators={regulators}
         onSendCommand={(type, tag, value) => {
-          if (type === 'regulator_sp') {
-            send({ type: 'regulator_sp', tag, sp: value })
-          } else if (type === 'regulator_out') {
-            send({ type: 'regulator_out', tag, out: value })
-          } else if (type === 'regulator_mode') {
-            send({ type: 'regulator_mode', tag, mode: value === 1 ? 'auto' : 'manual' })
-          } else {
-            send({ type: 'actuator', tag, value })
+          // Same routing as TrainingScreen: actuators HTTP-only, regulators WS-only.
+          // Dual WS+HTTP used to double-fire HandleActuator, journal rows, and assessment.
+          const route = routeFaceplateCommand(type, tag, value)
+          if (!route) {
+            void message.warning('Нет тега для команды — проверьте привязку узла')
+            return
+          }
+          if (route.channel === 'ws') {
+            send(route.message)
+            return
           }
           if (sessionId) {
-            void sessionsApi.actuator(sessionId, tag, value).catch(() => {})
+            void sessionsApi.actuator(sessionId, route.tag, route.value).catch((err) => {
+              void message.error(toErrorMessage(err, `Команда ${route.tag} не принята симулятором`))
+            })
           }
         }}
       />

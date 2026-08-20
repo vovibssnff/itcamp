@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"github.com/itcamp/ktc/services/assessment/internal/client"
@@ -16,6 +17,7 @@ type AssessmentStore interface {
 	SetVerdict(ctx context.Context, sessionID string, verdict domain.Verdict, score int) error
 	SetOverride(ctx context.Context, sessionID string, score int, verdict domain.Verdict, byUserID, comment string) error
 	GetReplayData(ctx context.Context, sessionID string) (domain.ReplayData, error)
+	GetSessionScenarioID(ctx context.Context, sessionID string) (string, error)
 }
 
 type AssessmentService struct {
@@ -48,17 +50,34 @@ func (s *AssessmentService) loadScenario(ctx context.Context, sessionID, scenari
 	if err != nil {
 		return err
 	}
+	score := domain.Score{SessionID: sessionID, Verdict: domain.VerdictPending, TotalScore: data.Criteria.MaxScore}
+	hydrated := false
+	if existing, err := s.repo.GetBySession(ctx, sessionID); err == nil {
+		score = existing
+		hydrated = true
+	}
+
+	completed := make(map[int]bool)
+	if hydrated {
+		completed = completedStepsFromPenalties(score.Penalties)
+		if replay, err := s.repo.GetReplayData(ctx, sessionID); err == nil {
+			markCompletedFromActions(completed, data.ReferenceActions, replay.Actions)
+		}
+	}
+
 	state := &sessionState{
 		scenario:       data,
 		engine:         NewScoringEngine(data.Criteria),
-		score:          domain.Score{SessionID: sessionID, Verdict: domain.VerdictPending, TotalScore: data.Criteria.MaxScore},
-		completedSteps: make(map[int]bool),
+		score:          score,
+		completedSteps: completed,
 		alarmTimes:     make(map[string]float64),
 	}
 	s.mu.Lock()
 	s.sessions[sessionID] = state
 	s.mu.Unlock()
-	IncAssessmentSessionStarted()
+	if !hydrated {
+		IncAssessmentSessionStarted()
+	}
 	return nil
 }
 
@@ -176,7 +195,7 @@ func (s *AssessmentService) Finalize(ctx context.Context, sessionID string) (dom
 		if score.Verdict == domain.VerdictPending {
 			verdict := score.Verdict
 			if score.TotalScore > 0 || hasCritical {
-				verdict = s.engineFromScore(score).CalculateVerdict(score.TotalScore, hasCritical)
+				verdict = s.engineForSession(ctx, sessionID).CalculateVerdict(score.TotalScore, hasCritical)
 			}
 			score.Verdict = verdict
 			_ = s.repo.SetVerdict(ctx, sessionID, verdict, score.TotalScore)
@@ -196,10 +215,18 @@ func (s *AssessmentService) Finalize(ctx context.Context, sessionID string) (dom
 	return state.score, nil
 }
 
-// engineFromScore строит временный ScoringEngine из сохранённой оценки.
-// Используется при потере in-memory state (рестарт сервиса).
-func (s *AssessmentService) engineFromScore(score domain.Score) *ScoringEngine {
-	return NewScoringEngine(domain.Criteria{PassThreshold: 1})
+// engineForSession builds a ScoringEngine from the session's scenario criteria.
+// Used when in-memory state was lost (assessment process restart).
+func (s *AssessmentService) engineForSession(ctx context.Context, sessionID string) *ScoringEngine {
+	scenarioID, err := s.repo.GetSessionScenarioID(ctx, sessionID)
+	if err == nil && scenarioID != "" {
+		if data, err := s.client.GetScenario(ctx, scenarioID); err == nil {
+			return NewScoringEngine(data.Criteria)
+		}
+	}
+	// Fail closed relative to the historical PassThreshold:1 bug (which marked
+	// almost every non-zero score as pass). Prefer a typical seed threshold.
+	return NewScoringEngine(domain.Criteria{PassThreshold: 70})
 }
 
 func (s *AssessmentService) Override(ctx context.Context, req domain.Override) (domain.Score, error) {
@@ -224,6 +251,7 @@ func (s *AssessmentService) CheckMissedSteps(ctx context.Context, sessionID stri
 	if !ok {
 		return
 	}
+	changed := false
 	for _, ref := range state.scenario.ReferenceActions {
 		if state.completedSteps[ref.Step] {
 			continue
@@ -232,7 +260,16 @@ func (s *AssessmentService) CheckMissedSteps(ctx context.Context, sessionID stri
 		if missed {
 			state.score.Penalties = append(state.score.Penalties, penalty)
 			state.completedSteps[ref.Step] = true
+			changed = true
 		}
+	}
+	if changed {
+		state.score.TotalScore = state.engine.ApplyPenalties(
+			state.scenario.Criteria.MaxScore,
+			state.score.Penalties,
+			state.score.CriticalErrors,
+		)
+		_ = s.repo.Upsert(ctx, state.score)
 	}
 }
 
@@ -251,4 +288,74 @@ func matchesReference(event domain.AssessmentEvent, ref domain.ReferenceAction) 
 		}
 	}
 	return true
+}
+
+// completedStepsFromPenalties reconstructs which reference steps already produced
+// LATE_STEP / MISSED_STEP penalties so cold-load does not double-penalize.
+func completedStepsFromPenalties(penalties []domain.Penalty) map[int]bool {
+	out := make(map[int]bool)
+	for _, p := range penalties {
+		if p.Code != "LATE_STEP" && p.Code != "MISSED_STEP" {
+			continue
+		}
+		if step, ok := parseStepNumber(p.Description); ok {
+			out[step] = true
+		}
+	}
+	return out
+}
+
+func parseStepNumber(description string) (int, bool) {
+	// Descriptions are produced by ScoringEngine: "шаг N просрочен" /
+	// "обязательный шаг N пропущен".
+	const marker = "шаг "
+	idx := strings.Index(description, marker)
+	if idx < 0 {
+		return 0, false
+	}
+	idx += len(marker)
+	if idx >= len(description) {
+		return 0, false
+	}
+	n := 0
+	found := false
+	for ; idx < len(description); idx++ {
+		c := description[idx]
+		if c < '0' || c > '9' {
+			break
+		}
+		found = true
+		n = n*10 + int(c-'0')
+	}
+	return n, found
+}
+
+// markCompletedFromActions marks reference steps already performed (even when
+// on-time completions left no penalty row).
+func markCompletedFromActions(completed map[int]bool, refs []domain.ReferenceAction, actions []any) {
+	for _, ref := range refs {
+		if completed[ref.Step] {
+			continue
+		}
+		for _, raw := range actions {
+			m, ok := raw.(map[string]any)
+			if !ok {
+				continue
+			}
+			target, _ := m["target"].(string)
+			action, _ := m["action"].(string)
+			if target != ref.Expected.Target || action != ref.Expected.Action {
+				continue
+			}
+			if ref.Expected.Value != nil {
+				got, _ := json.Marshal(m["value"])
+				want, _ := json.Marshal(ref.Expected.Value)
+				if string(got) != string(want) {
+					continue
+				}
+			}
+			completed[ref.Step] = true
+			break
+		}
+	}
 }

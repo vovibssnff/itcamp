@@ -45,6 +45,19 @@ func (r *AssessmentRepo) GetBySession(ctx context.Context, sessionID string) (do
 	return s, nil
 }
 
+func (r *AssessmentRepo) GetSessionScenarioID(ctx context.Context, sessionID string) (string, error) {
+	var scenarioID string
+	err := r.db.Pool.QueryRow(ctx, `SELECT scenario_id FROM sessions WHERE id = $1`, sessionID).
+		Scan(&scenarioID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", domain.ErrSessionNotFound
+		}
+		return "", err
+	}
+	return scenarioID, nil
+}
+
 func (r *AssessmentRepo) Upsert(ctx context.Context, s domain.Score) error {
 	penaltiesJSON, _ := json.Marshal(s.Penalties)
 	criticalJSON, _ := json.Marshal(s.CriticalErrors)
@@ -99,7 +112,13 @@ func (r *AssessmentRepo) GetReplayData(ctx context.Context, sessionID string) (d
 			if err := rows.Scan(&t, &target, &action, &valueJSON, &mt); err != nil {
 				return domain.ReplayData{}, err
 			}
-			replay.Actions = append(replay.Actions, map[string]any{"type": t, "target": target, "action": action, "model_time": mt})
+			var value any
+			if len(valueJSON) > 0 && string(valueJSON) != "null" {
+				_ = json.Unmarshal(valueJSON, &value)
+			}
+			replay.Actions = append(replay.Actions, map[string]any{
+				"type": t, "target": target, "action": action, "value": value, "model_time": mt,
+			})
 		}
 	}
 

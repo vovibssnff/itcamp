@@ -56,6 +56,17 @@ func (r *ReportRepo) ListBySession(ctx context.Context, sessionID string) ([]dom
 	return reports, rows.Err()
 }
 
+// UserCanAccessSession — true, если userID в operator_ids сессии или является instructor_id.
+func (r *ReportRepo) UserCanAccessSession(ctx context.Context, sessionID, userID string) (bool, error) {
+	var ok bool
+	err := r.db.Pool.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM sessions
+			WHERE id = $1 AND (operator_ids @> to_jsonb($2::text) OR instructor_id = $2)
+		)`, sessionID, userID).Scan(&ok)
+	return ok, err
+}
+
 // ListAll возвращает все отчёты (для admin/instructor) либо только те, что
 // относятся к сессиям указанного оператора. Если operatorID пуст — все отчёты.
 func (r *ReportRepo) ListAll(ctx context.Context, operatorID string) ([]domain.Report, error) {

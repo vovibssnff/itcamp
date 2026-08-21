@@ -33,6 +33,8 @@ func mapError(err error) (int, string) {
 		return http.StatusNotFound, "not_found"
 	case errors.Is(err, domain.ErrReportNotReady):
 		return http.StatusConflict, "not_ready"
+	case errors.Is(err, domain.ErrForbidden):
+		return http.StatusForbidden, "forbidden"
 	default:
 		return http.StatusInternalServerError, "internal"
 	}
@@ -56,6 +58,9 @@ func (h *ReportHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, domain.ErrBadRequest)
 		return
 	}
+	if !h.ensureSessionAccess(w, r, req.SessionID) {
+		return
+	}
 	if req.Type == "" {
 		req.Type = domain.ReportSession
 	}
@@ -74,6 +79,9 @@ func (h *ReportHandler) Get(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
+	if !h.ensureSessionAccess(w, r, rep.SessionID) {
+		return
+	}
 	writeJSON(w, http.StatusOK, toReportResponse(rep))
 }
 
@@ -83,7 +91,11 @@ func (h *ReportHandler) List(w http.ResponseWriter, r *http.Request) {
 		// Журнал отчётов: admin/instructor видят все, operator — только свои.
 		operatorID := ""
 		if !isPrivileged(r) {
-			operatorID = r.Header.Get("X-User-ID")
+			operatorID = strings.TrimSpace(r.Header.Get("X-User-ID"))
+			if operatorID == "" {
+				writeError(w, domain.ErrForbidden)
+				return
+			}
 		}
 		reports, err := h.svc.ListAll(r.Context(), operatorID)
 		if err != nil {
@@ -95,6 +107,9 @@ func (h *ReportHandler) List(w http.ResponseWriter, r *http.Request) {
 			resp = append(resp, toReportResponse(rep))
 		}
 		writeJSON(w, http.StatusOK, resp)
+		return
+	}
+	if !h.ensureSessionAccess(w, r, sessionID) {
 		return
 	}
 	reports, err := h.svc.ListBySession(r.Context(), sessionID)
@@ -109,23 +124,14 @@ func (h *ReportHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// isPrivileged — admin/instructor видят все отчёты; operator — только свои.
-func isPrivileged(r *http.Request) bool {
-	raw := strings.TrimSpace(r.Header.Get("X-Roles"))
-	for _, p := range strings.Split(raw, ",") {
-		p = strings.TrimSpace(p)
-		if p == "admin" || p == "instructor" {
-			return true
-		}
-	}
-	return false
-}
-
 func (h *ReportHandler) Download(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	rep, err := h.svc.Get(r.Context(), id)
 	if err != nil {
 		writeError(w, err)
+		return
+	}
+	if !h.ensureSessionAccess(w, r, rep.SessionID) {
 		return
 	}
 	if rep.Status != domain.StatusReady {
@@ -147,6 +153,14 @@ func (h *ReportHandler) Download(w http.ResponseWriter, r *http.Request) {
 
 func (h *ReportHandler) File(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	rep, err := h.svc.Get(r.Context(), id)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	if !h.ensureSessionAccess(w, r, rep.SessionID) {
+		return
+	}
 	pdfBytes, err := h.svc.Download(r.Context(), id)
 	if err != nil {
 		writeError(w, err)

@@ -99,4 +99,5 @@ var (
 	ErrReportNotFound   = errors.New("report not found")
 	ErrReportNotReady   = errors.New("report is not ready")
 	ErrGenerationFailed = errors.New("report generation failed")
+	ErrForbidden        = errors.New("forbidden")
 )

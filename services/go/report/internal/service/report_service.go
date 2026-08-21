@@ -71,6 +71,29 @@ func (s *ReportService) ListAll(ctx context.Context, operatorID string) ([]domai
 	return s.repo.ListAll(ctx, operatorID)
 }
 
+// UserCanAccessSession — состоит ли пользователь в сессии (operator/instructor).
+func (s *ReportService) UserCanAccessSession(ctx context.Context, sessionID, userID string) (bool, error) {
+	return s.repo.UserCanAccessSession(ctx, sessionID, userID)
+}
+
+// AuthorizeSessionAccess — admin/instructor проходят всегда; иначе нужна членство в сессии.
+func (s *ReportService) AuthorizeSessionAccess(ctx context.Context, sessionID, userID string, privileged bool) error {
+	if privileged {
+		return nil
+	}
+	if userID == "" || sessionID == "" {
+		return domain.ErrForbidden
+	}
+	ok, err := s.repo.UserCanAccessSession(ctx, sessionID, userID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return domain.ErrForbidden
+	}
+	return nil
+}
+
 // Download возвращает PDF-байты готового отчёта из хранилища.
 func (s *ReportService) Download(ctx context.Context, id string) ([]byte, error) {
 	rep, err := s.repo.GetByID(ctx, id)

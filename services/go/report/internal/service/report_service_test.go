@@ -107,6 +107,24 @@ func TestGeneratePDF_EmptyData(t *testing.T) {
 	}
 }
 
+func TestPdfFromCanonical_EmptyKeyRegenerates(t *testing.T) {
+	canonical := `{"session_id":"sess-nil-storage","mode":"exam","score":70,"verdict":"pass"}`
+	pdfBytes, err := pdfFromCanonical(canonical)
+	if err != nil {
+		t.Fatalf("pdfFromCanonical: %v", err)
+	}
+	if !bytes.HasPrefix(pdfBytes, []byte("%PDF")) {
+		t.Fatal("expected PDF header from canonical_json regeneration")
+	}
+}
+
+func TestPdfFromCanonical_EmptyJSON(t *testing.T) {
+	_, err := pdfFromCanonical("")
+	if err != domain.ErrReportNotReady {
+		t.Fatalf("expected ErrReportNotReady, got %v", err)
+	}
+}
+
 func TestGeneratePDF_AllSections(t *testing.T) {
 	data := domain.SessionData{
 		SessionID:    "sess-full",

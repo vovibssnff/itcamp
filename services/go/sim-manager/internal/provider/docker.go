@@ -76,8 +76,10 @@ func (p *DockerProvider) EnsureInstance(ctx context.Context, sessionID string, s
 		return p.statusFromJSON(sessionID, existing), nil
 	}
 
+	// Prefer the provider's configured image; ignore client-supplied overrides
+	// so docker.sock cannot be used to pull arbitrary images.
 	image := p.image
-	if spec.Image != "" {
+	if image == "" {
 		image = spec.Image
 	}
 	if err := p.ensureImage(ctx, image); err != nil {

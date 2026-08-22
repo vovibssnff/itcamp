@@ -71,7 +71,8 @@ func (s *ReportService) ListAll(ctx context.Context, operatorID string) ([]domai
 	return s.repo.ListAll(ctx, operatorID)
 }
 
-// Download возвращает PDF-байты готового отчёта из хранилища.
+// Download возвращает PDF-байты готового отчёта: из object storage при наличии
+// storage_key, иначе регенерирует PDF из сохранённого canonical_json.
 func (s *ReportService) Download(ctx context.Context, id string) ([]byte, error) {
 	rep, err := s.repo.GetByID(ctx, id)
 	if err != nil {
@@ -80,10 +81,21 @@ func (s *ReportService) Download(ctx context.Context, id string) ([]byte, error)
 	if rep.Status != domain.StatusReady {
 		return nil, domain.ErrReportNotReady
 	}
-	if s.storage == nil || rep.StorageKey == "" {
+	if s.storage != nil && rep.StorageKey != "" {
+		return s.storage.Load(ctx, rep.StorageKey)
+	}
+	return pdfFromCanonical(rep.CanonicalJSON)
+}
+
+func pdfFromCanonical(canonicalJSON string) ([]byte, error) {
+	if canonicalJSON == "" {
 		return nil, domain.ErrReportNotReady
 	}
-	return s.storage.Load(ctx, rep.StorageKey)
+	var data domain.SessionData
+	if err := json.Unmarshal([]byte(canonicalJSON), &data); err != nil {
+		return nil, fmt.Errorf("decode canonical_json: %w", err)
+	}
+	return GeneratePDF(data)
 }
 
 func (s *ReportService) ProcessTask(ctx context.Context, task domain.ReportTask) error {
@@ -109,9 +121,12 @@ func (s *ReportService) ProcessTask(ctx context.Context, task domain.ReportTask)
 		return err
 	}
 
-	storageKey := fmt.Sprintf("reports/%s/%s.pdf", task.SessionID, task.ReportID)
-
+	// Only persist a storage_key when object storage is actually configured.
+	// Otherwise Download treated a non-empty key as "file is elsewhere" and
+	// redirected to /file, which then failed with ErrReportNotReady.
+	storageKey := ""
 	if s.storage != nil {
+		storageKey = fmt.Sprintf("reports/%s/%s.pdf", task.SessionID, task.ReportID)
 		if err := s.storage.Save(ctx, storageKey, pdfBytes); err != nil {
 			s.log.Error("pdf save failed", "error", err)
 			_ = s.repo.UpdateStatus(ctx, task.ReportID, domain.StatusFailed, err.Error())

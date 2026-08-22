@@ -161,3 +161,67 @@ func TestListSessions_AfterStop(t *testing.T) {
 		t.Errorf("expected 1 session after stop, got %d", resp.Total)
 	}
 }
+
+// failOnceProvider fails the first EnsureInstance, then delegates to in-memory.
+type failOnceProvider struct {
+	inner     provider.RuntimeProvider
+	failCount int
+	lastImage string
+}
+
+func (p *failOnceProvider) EnsureInstance(ctx context.Context, sessionID string, spec domain.InstanceSpec) (domain.InstanceStatus, error) {
+	p.lastImage = spec.Image
+	if p.failCount > 0 {
+		p.failCount--
+		return domain.InstanceStatus{}, domain.ErrInstanceFailed
+	}
+	return p.inner.EnsureInstance(ctx, sessionID, spec)
+}
+
+func (p *failOnceProvider) StopInstance(ctx context.Context, sessionID string) error {
+	return p.inner.StopInstance(ctx, sessionID)
+}
+
+func (p *failOnceProvider) GetStatus(ctx context.Context, sessionID string) (domain.InstanceStatus, error) {
+	return p.inner.GetStatus(ctx, sessionID)
+}
+
+func (p *failOnceProvider) ListInstances(ctx context.Context) ([]domain.InstanceStatus, error) {
+	return p.inner.ListInstances(ctx)
+}
+
+func TestCreateSession_FailedThenRetry(t *testing.T) {
+	inner := provider.NewInMemoryProvider(50060)
+	fp := &failOnceProvider{inner: inner, failCount: 1}
+	svc := NewManagerService(fp, 50, "sim-worker:latest", "1000m", "512Mi", testLog)
+
+	_, err := svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-retry"})
+	if err == nil {
+		t.Fatal("expected first create to fail")
+	}
+
+	status, err := svc.CreateSession(context.Background(), domain.CreateSessionRequest{SessionID: "sess-retry"})
+	if err != nil {
+		t.Fatalf("retry CreateSession: %v", err)
+	}
+	if status.Phase != domain.PhaseReady {
+		t.Fatalf("expected ready after retry, got %s (err field=%q)", status.Phase, status.Error)
+	}
+}
+
+func TestCreateSession_IgnoresClientImage(t *testing.T) {
+	inner := provider.NewInMemoryProvider(50060)
+	fp := &failOnceProvider{inner: inner}
+	svc := NewManagerService(fp, 50, "sim-worker:latest", "1000m", "512Mi", testLog)
+
+	_, err := svc.CreateSession(context.Background(), domain.CreateSessionRequest{
+		SessionID: "sess-img",
+		Image:     "evil/malware:latest",
+	})
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	if fp.lastImage != "sim-worker:latest" {
+		t.Fatalf("expected configured worker image, got %q", fp.lastImage)
+	}
+}

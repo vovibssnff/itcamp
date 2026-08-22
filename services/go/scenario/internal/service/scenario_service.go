@@ -117,6 +117,7 @@ func (s *ScenarioService) Seed(ctx context.Context, scenarios []domain.Scenario)
 		if err := s.repo.Upsert(ctx, sc); err != nil {
 			return err
 		}
+		s.invalidateCache(ctx, sc.ID)
 	}
 	return nil
 }
@@ -161,6 +162,7 @@ func (s *ScenarioService) Import(ctx context.Context, scenarios []domain.Scenari
 			result.Errors = append(result.Errors, ImportItemError{ID: sc.ID, Index: i, Message: err.Error()})
 			continue
 		}
+		s.invalidateCache(ctx, sc.ID)
 		if exists {
 			result.Updated++
 			audit.Emit(ctx, s.log, "scenario.imported", "id", sc.ID, "action", "updated")

@@ -106,6 +106,7 @@ func (s *ComponentService) Seed(ctx context.Context, components []domain.Compone
 		if err := s.repo.Upsert(ctx, c); err != nil {
 			return err
 		}
+		s.invalidateCache(ctx, c.ID)
 	}
 	return nil
 }

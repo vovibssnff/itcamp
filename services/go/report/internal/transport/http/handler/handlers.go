@@ -132,8 +132,17 @@ func (h *ReportHandler) Download(w http.ResponseWriter, r *http.Request) {
 		writeError(w, domain.ErrReportNotReady)
 		return
 	}
+	// Prefer serving PDF bytes directly (works with nil storage via canonical_json).
+	pdfBytes, err := h.svc.Download(r.Context(), id)
+	if err == nil {
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"report-%s.pdf\"", id))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(pdfBytes)
+		return
+	}
 	if rep.DownloadURL != "" {
-		// Redirect to the gateway-routed path (files are served behind /api/v1).
+		// Fallback redirect for external/object-storage URLs behind /api/v1.
 		loc := rep.DownloadURL
 		if !strings.HasPrefix(loc, "/api/v1/") {
 			loc = "/api/v1" + loc
@@ -142,7 +151,7 @@ func (h *ReportHandler) Download(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusFound)
 		return
 	}
-	w.WriteHeader(http.StatusNotFound)
+	writeError(w, err)
 }
 
 func (h *ReportHandler) File(w http.ResponseWriter, r *http.Request) {

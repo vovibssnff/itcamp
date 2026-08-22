@@ -46,8 +46,15 @@ func (s *ManagerService) CreateSession(ctx context.Context, req domain.CreateSes
 
 	s.mu.Lock()
 	if existing, ok := s.sessions[req.SessionID]; ok {
-		s.mu.Unlock()
-		return existing, nil
+		// A prior EnsureInstance failure left PhaseFailed in the map. Returning
+		// that status with a nil error made HTTP handlers answer 201 and blocked
+		// retries for the same session_id. Drop the failed entry and recreate.
+		if existing.Phase == domain.PhaseFailed {
+			delete(s.sessions, req.SessionID)
+		} else {
+			s.mu.Unlock()
+			return existing, nil
+		}
 	}
 	if len(s.sessions) >= s.maxInstances {
 		s.mu.Unlock()
@@ -56,14 +63,11 @@ func (s *ManagerService) CreateSession(ctx context.Context, req domain.CreateSes
 	s.sessions[req.SessionID] = domain.InstanceStatus{SessionID: req.SessionID, Phase: domain.PhaseCreated}
 	s.mu.Unlock()
 
-	image := s.workerImage
-	if req.Image != "" {
-		image = req.Image
-	}
-
+	// Always use the configured worker image. Honoring req.Image would let any
+	// caller pull/run an arbitrary image via the manager's docker.sock.
 	spec := domain.InstanceSpec{
 		SessionID:    req.SessionID,
-		Image:        image,
+		Image:        s.workerImage,
 		InitStateRef: req.InitStateRef,
 		CPURequest:   s.cpuRequest,
 		MemRequest:   s.memRequest,

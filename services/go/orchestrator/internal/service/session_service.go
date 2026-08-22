@@ -170,19 +170,34 @@ func (s *SessionService) Start(ctx context.Context, id string) (domain.Session, 
 	return sess, nil
 }
 
+// currentModelTime prefers live sim state so Pause/Resume do not wipe the clock.
+func (s *SessionService) currentModelTime(ctx context.Context, id string, fallback float64) float64 {
+	if s.sim != nil {
+		if state, err := s.sim.GetState(ctx, id); err == nil && state.SessionID != "" {
+			return state.ModelTime
+		}
+	}
+	return fallback
+}
+
 func (s *SessionService) Pause(ctx context.Context, id string) (domain.Session, error) {
+	sess, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return domain.Session{}, err
+	}
 	s.mu.Lock()
 	runner, ok := s.runners[id]
 	s.mu.Unlock()
 	if ok {
 		runner.pause()
 	}
-	if err := s.repo.UpdateStatus(ctx, id, domain.StatusPaused, 0); err != nil {
+	mt := s.currentModelTime(ctx, id, sess.ModelTime)
+	if err := s.repo.UpdateStatus(ctx, id, domain.StatusPaused, mt); err != nil {
 		return domain.Session{}, err
 	}
 	IncSessionPaused()
 	_ = s.publisher.PublishSessionEvent(ctx, id, "paused", nil)
-	audit.Emit(ctx, s.log, "session.paused", "id", id)
+	audit.Emit(ctx, s.log, "session.paused", "id", id, "model_time", mt)
 	return s.repo.GetByID(ctx, id)
 }
 
@@ -212,12 +227,13 @@ func (s *SessionService) Resume(ctx context.Context, id string) (domain.Session,
 	}
 	runner.resume()
 
-	if err := s.repo.UpdateStatus(ctx, id, domain.StatusRunning, 0); err != nil {
+	mt := s.currentModelTime(ctx, id, sess.ModelTime)
+	if err := s.repo.UpdateStatus(ctx, id, domain.StatusRunning, mt); err != nil {
 		return domain.Session{}, err
 	}
 	IncSessionResumed()
 	_ = s.publisher.PublishSessionEvent(ctx, id, "resumed", nil)
-	audit.Emit(ctx, s.log, "session.resumed", "id", id)
+	audit.Emit(ctx, s.log, "session.resumed", "id", id, "model_time", mt)
 	return s.repo.GetByID(ctx, id)
 }
 
@@ -428,7 +444,9 @@ func (s *SessionService) broadcastSimSnapshot(ctx context.Context, sessionID str
 			}
 			scenarioID = sess.ScenarioID
 		}
-		_ = s.repo.UpdateStatus(ctx, sessionID, domain.SessionStatus(status), state.ModelTime)
+		// Only advance model_time. Rewriting status here raced with Pause:
+		// GetByID(running) → Pause(paused) → UpdateStatus(running) undid pause.
+		_ = s.repo.UpdateModelTime(ctx, sessionID, state.ModelTime)
 	}
 	s.hub.BroadcastSessionStatus(sessionID, status, state.ModelTime, speed)
 
@@ -585,6 +603,17 @@ func (r *SessionRunner) tick(ctx context.Context) {
 			mt := 0.0
 			if sess, err := r.svc.repo.GetByID(ctx, r.sessionID); err == nil {
 				mt = sess.ModelTime
+			}
+			mt = r.svc.currentModelTime(ctx, r.sessionID, mt)
+			// Match Stop(): tear down sim + finalize assessment so exams are not left unscored.
+			_ = r.svc.sim.DestroySession(ctx, r.sessionID)
+			if r.svc.assessment != nil {
+				if err := r.svc.assessment.Finalize(ctx, r.sessionID); err != nil {
+					r.log.Warn("assessment finalize failed after sim failures", "session", r.sessionID, "error", err)
+				}
+			}
+			if r.svc.cache != nil {
+				_ = r.svc.cache.DeleteTelemetry(ctx, r.sessionID)
 			}
 			_ = r.svc.repo.UpdateStatus(ctx, r.sessionID, domain.StatusStopped, mt)
 			r.svc.mu.Lock()

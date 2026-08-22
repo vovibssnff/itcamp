@@ -82,11 +82,19 @@ func main() {
 	hub := service.NewWSHub()
 	sessionRepo := repository.NewSessionRepo(pg)
 
-	if n, err := sessionRepo.MarkOrphanedActiveStopped(ctx); err != nil {
+	if orphanIDs, err := sessionRepo.MarkOrphanedActiveStopped(ctx); err != nil {
 		log.Error("failed to close orphaned sessions", "error", err)
 		os.Exit(1)
-	} else if n > 0 {
-		log.Info("closed orphaned sessions left running after prior process exit", "count", n)
+	} else if len(orphanIDs) > 0 {
+		log.Info("closed orphaned sessions left running after prior process exit", "count", len(orphanIDs))
+		for _, id := range orphanIDs {
+			if err := simClient.DestroySession(ctx, id); err != nil {
+				log.Warn("destroy orphaned sim session failed", "session", id, "error", err)
+			}
+			if err := assessmentClient.Finalize(ctx, id); err != nil {
+				log.Warn("finalize orphaned session assessment failed", "session", id, "error", err)
+			}
+		}
 	}
 
 	sessionSvc := service.NewSessionService(

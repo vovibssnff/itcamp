@@ -27,6 +27,29 @@ func TestSessionRunner_PauseAndResume(t *testing.T) {
 	}
 }
 
+func TestCurrentModelTime_PrefersSimState(t *testing.T) {
+	sim := client.NewMockSimClient()
+	ctx := context.Background()
+	if err := sim.CreateSession(ctx, "s1", nil, 0); err != nil {
+		t.Fatal(err)
+	}
+	st := sim.States["s1"]
+	st.ModelTime = 180.5
+	sim.States["s1"] = st
+
+	svc := &SessionService{sim: sim}
+	if got := svc.currentModelTime(ctx, "s1", 0); got != 180.5 {
+		t.Fatalf("currentModelTime = %v, want 180.5 (must not fall back to 0)", got)
+	}
+}
+
+func TestCurrentModelTime_FallbackWhenSimMissing(t *testing.T) {
+	svc := &SessionService{sim: client.NewMockSimClient()}
+	if got := svc.currentModelTime(context.Background(), "missing", 42); got != 42 {
+		t.Fatalf("currentModelTime = %v, want fallback 42", got)
+	}
+}
+
 func TestMockSimStepTags(t *testing.T) {
 	sim := client.NewMockSimClient()
 	ctx := context.Background()

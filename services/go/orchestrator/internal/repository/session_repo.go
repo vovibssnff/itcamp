@@ -106,6 +106,19 @@ func (r *SessionRepo) UpdateStatus(ctx context.Context, id string, status domain
 	return nil
 }
 
+// UpdateModelTime advances persisted sim clock without changing lifecycle status.
+// Broadcast ticks must use this so an in-flight tick cannot undo Pause/Stop.
+func (r *SessionRepo) UpdateModelTime(ctx context.Context, id string, modelTime float64) error {
+	tag, err := r.db.Pool.Exec(ctx, `UPDATE sessions SET model_time = $2 WHERE id = $1`, id, modelTime)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrSessionNotFound
+	}
+	return nil
+}
+
 func (r *SessionRepo) SetStarted(ctx context.Context, id string) error {
 	now := time.Now()
 	tag, err := r.db.Pool.Exec(ctx, `UPDATE sessions SET status = 'running', started_at = $2 WHERE id = $1`,
@@ -119,19 +132,28 @@ func (r *SessionRepo) SetStarted(ctx context.Context, id string) error {
 	return nil
 }
 
-// MarkOrphanedActiveStopped sets running/paused sessions to stopped.
-// Call on process start: in-memory runners do not survive restart, so DB
-// "running" rows would otherwise stay open forever in operator lists.
-func (r *SessionRepo) MarkOrphanedActiveStopped(ctx context.Context) (int64, error) {
-	tag, err := r.db.Pool.Exec(ctx, `
+// MarkOrphanedActiveStopped flips running/paused rows to stopped after a process
+// restart and returns their IDs so callers can DestroySession / Finalize.
+func (r *SessionRepo) MarkOrphanedActiveStopped(ctx context.Context) ([]string, error) {
+	rows, err := r.db.Pool.Query(ctx, `
 		UPDATE sessions
 		SET status = 'stopped',
 		    stopped_at = COALESCE(stopped_at, now())
-		WHERE status IN ('running', 'paused')`)
+		WHERE status IN ('running', 'paused')
+		RETURNING id`)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return tag.RowsAffected(), nil
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 func (r *SessionRepo) UpdateSpeed(ctx context.Context, id string, speed float64) error {

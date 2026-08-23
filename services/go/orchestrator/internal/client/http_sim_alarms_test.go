@@ -36,3 +36,21 @@ func TestWorkerState_ToDomainAttachesAlarms(t *testing.T) {
 		t.Fatalf("%+v", dom.Alarms)
 	}
 }
+
+func TestWorkerState_ToDomainKeepsInternalState(t *testing.T) {
+	internal := json.RawMessage(`{"pumps":{"P-101":{"state":"STOPPED","flow_multiplier":0}},"loops":{"LRCA-641":{"pv":1.5,"setpoint":2,"mode":"MANUAL","manual_output":0.4,"output":0.4,"integral":0.1}}}`)
+	st := workerState{
+		SessionID:     "s1",
+		ModelTimeS:    42,
+		Seed:          7,
+		TagValues:     map[string]float64{"LRCA-641": 1.5},
+		InternalState: internal,
+	}
+	dom := st.toDomain("fallback")
+	if dom.ComponentsState != string(internal) {
+		t.Fatalf("components_state=%q", dom.ComponentsState)
+	}
+	if dom.ModelTime != 42 || dom.Seed != 7 || dom.SessionID != "s1" {
+		t.Fatalf("meta: %+v", dom)
+	}
+}

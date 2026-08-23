@@ -175,14 +175,28 @@ func (c *HTTPSimClient) GetState(ctx context.Context, sessionID string) (domain.
 }
 
 func (c *HTTPSimClient) SetState(ctx context.Context, sessionID string, state domain.SimState) error {
-	overrides := make(map[string]float64, len(state.Tags))
-	for _, t := range state.Tags {
-		overrides[t.TagID] = t.Value
+	body := map[string]any{
+		"model_time_s": state.ModelTime,
 	}
-	payload, _ := json.Marshal(map[string]any{
-		"tag_overrides": overrides,
-		"model_time_s":  state.ModelTime,
-	})
+	// Checkpoint/restore must apply Network.export_internal. Tag overrides alone
+	// cannot restore pump states, controller modes, integrals, or setpoints.
+	if strings.TrimSpace(state.ComponentsState) != "" {
+		var internal any
+		if err := json.Unmarshal([]byte(state.ComponentsState), &internal); err != nil {
+			return fmt.Errorf("sim set state: invalid internal_state: %w", err)
+		}
+		body["internal_state"] = internal
+	} else if len(state.Tags) > 0 {
+		overrides := make(map[string]float64, len(state.Tags))
+		for _, t := range state.Tags {
+			overrides[t.TagID] = t.Value
+		}
+		body["tag_overrides"] = overrides
+	}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("sim set state: marshal: %w", err)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.base+"/v1/sessions/"+sessionID+"/state", bytes.NewReader(payload))
 	if err != nil {
 		return err
@@ -318,9 +332,12 @@ type workerAlarm struct {
 type workerState struct {
 	SessionID       string             `json:"session_id"`
 	ModelTimeS      float64            `json:"model_time_s"`
+	Seed            int64              `json:"seed"`
 	TagValues       map[string]float64 `json:"tag_values"`
 	EquipmentStates map[string]string  `json:"equipment_states"`
 	ControllerModes map[string]string  `json:"controller_modes"`
+	// InternalState is Network.export_internal — required for accurate restore.
+	InternalState json.RawMessage `json:"internal_state"`
 	// ActiveAlarms accepts both REST list and snapshot map forms.
 	ActiveAlarms json.RawMessage `json:"active_alarms"`
 }
@@ -418,11 +435,17 @@ func (s workerState) toDomain(sessionID string) domain.SimState {
 			Mode:  modeNorm,
 		})
 	}
+	componentsState := ""
+	if len(s.InternalState) > 0 && string(s.InternalState) != "null" {
+		componentsState = string(s.InternalState)
+	}
 	return domain.SimState{
-		SessionID:  sessionID,
-		ModelTime:  s.ModelTimeS,
-		Tags:       tags,
-		Regulators: regs,
-		Alarms:     alarms,
+		SessionID:       sessionID,
+		ModelTime:       s.ModelTimeS,
+		Seed:            s.Seed,
+		Tags:            tags,
+		Regulators:      regs,
+		Alarms:          alarms,
+		ComponentsState: componentsState,
 	}
 }

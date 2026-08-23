@@ -25,7 +25,13 @@ from ..observability import metrics
 logger = logging.getLogger(__name__)
 
 
-def _state_body(session_id: str, engine, state) -> dict[str, Any]:
+def _state_body(
+    session_id: str,
+    engine,
+    state,
+    *,
+    include_internal: bool = False,
+) -> dict[str, Any]:
     session = engine.sessions[session_id]
     body = state.snapshot()
     body["session_id"] = session_id
@@ -42,6 +48,11 @@ def _state_body(session_id: str, engine, state) -> dict[str, Any]:
         }
         for a in state.active_alarms.values()
     ]
+    # Full Network.export_internal snapshot is required for checkpoint/restore.
+    # Omit on high-frequency step responses to keep tick payloads small.
+    if include_internal:
+        body["internal_state"] = session.network.export_internal()
+        body["seed"] = session.seed
     return body
 
 
@@ -111,7 +122,7 @@ def create_app(application: Application | None = None) -> FastAPI:
             ps = current().engine.get_state(session_id)
         except UnknownSessionError:
             raise HTTPException(status_code=404, detail="UNKNOWN_SESSION") from None
-        return _state_body(session_id, current().engine, ps)
+        return _state_body(session_id, current().engine, ps, include_internal=True)
 
     @app.put("/v1/sessions/{session_id}/state")
     def set_state(session_id: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -128,7 +139,7 @@ def create_app(application: Application | None = None) -> FastAPI:
             )
         except UnknownSessionError:
             raise HTTPException(status_code=404, detail="UNKNOWN_SESSION") from None
-        return _state_body(session_id, engine, ps)
+        return _state_body(session_id, engine, ps, include_internal=True)
 
     @app.post("/v1/sessions/{session_id}/step")
     def step(session_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:

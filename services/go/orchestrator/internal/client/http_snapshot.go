@@ -68,6 +68,9 @@ func (c *HTTPSnapshotClient) Restore(ctx context.Context, snapshotID string) (do
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return domain.SimState{}, fmt.Errorf("snapshot restore: decode: %w", err)
 	}
+	if !result.SHA256Valid {
+		return domain.SimState{}, fmt.Errorf("snapshot restore: sha256 mismatch")
+	}
 	state := result.PayloadJSON
 	if state.ModelTime == 0 {
 		state.ModelTime = result.ModelTime

@@ -52,9 +52,9 @@ export default function ModeSelectScreen() {
 
   const modes: ModeCard[] = []
   let num = 1
-  modes.push({ ...BASE_MODES[0]!, num: String(num++).padStart(2, '0') })
 
-  // Show exam card when the session was created in exam mode.
+  // Exam sessions must not offer training on the same scored session
+  // (AI hints / unlimited time would compromise exam integrity).
   if (sessionMode === 'exam') {
     modes.push({
       key: 'exam',
@@ -63,6 +63,8 @@ export default function ModeSelectScreen() {
       desc: 'Экзаменационный режим без подсказок ИИ. Результат фиксируется в журнале.',
       route: 'exam',
     })
+  } else {
+    modes.push({ ...BASE_MODES[0]!, num: String(num++).padStart(2, '0') })
   }
 
   // Knowledge base is available in all modes.
@@ -78,8 +80,9 @@ export default function ModeSelectScreen() {
           Выберите режим
         </h1>
         <p className="lede" style={{ marginTop: 12 }}>
-          Тренировка доступна в любое время. Экзамен появляется здесь только после назначения
-          инструктором и со сроком сдачи.
+          {sessionMode === 'exam'
+            ? 'Назначен квалификационный экзамен — режим без подсказок ИИ с фиксацией результата.'
+            : 'Тренировка доступна в любое время. Экзамен появляется здесь только после назначения инструктором.'}
         </p>
       </div>
 

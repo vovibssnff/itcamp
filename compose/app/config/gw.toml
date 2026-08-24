@@ -116,7 +116,15 @@ upstream     = "orchestrator"
 strip_prefix = "/api/v1"
 auth         = true
 
-# --- Assessment (instructor/admin/operator) ---
+# --- Assessment override (instructor/admin only; more specific than /assessment) ---
+[[routes]]
+prefix       = "/api/v1/assessment/override"
+upstream     = "assessment"
+strip_prefix = "/api/v1"
+auth         = true
+roles        = ["instructor", "admin"]
+
+# --- Assessment (instructor/admin/operator read own score/replay) ---
 [[routes]]
 prefix       = "/api/v1/assessment"
 upstream     = "assessment"

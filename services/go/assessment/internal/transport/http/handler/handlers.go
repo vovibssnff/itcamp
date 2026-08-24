@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/itcamp/ktc/services/assessment/internal/domain"
 	"github.com/itcamp/ktc/services/assessment/internal/service"
@@ -31,6 +32,8 @@ func mapError(err error) (int, string) {
 		return http.StatusConflict, "already_finalized"
 	case errors.Is(err, domain.ErrOverrideNoComment):
 		return http.StatusBadRequest, "override_no_comment"
+	case errors.Is(err, domain.ErrForbidden):
+		return http.StatusForbidden, "forbidden"
 	case errors.Is(err, domain.ErrScenarioNotLoaded):
 		return http.StatusBadRequest, "scenario_not_loaded"
 	default:
@@ -40,6 +43,22 @@ func mapError(err error) (int, string) {
 
 func userIDFromHeader(r *http.Request) string {
 	return r.Header.Get("X-User-ID")
+}
+
+func rolesFromHeader(r *http.Request) []string {
+	raw := strings.TrimSpace(r.Header.Get("X-Roles"))
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 type AssessmentHandler struct {
@@ -85,6 +104,10 @@ func (h *AssessmentHandler) Result(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AssessmentHandler) Override(w http.ResponseWriter, r *http.Request) {
+	if !domain.CanOverrideScore(rolesFromHeader(r)) {
+		writeError(w, domain.ErrForbidden)
+		return
+	}
 	var req domain.Override
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, err)

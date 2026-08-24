@@ -215,7 +215,10 @@ export default function OperatorSessionsScreen() {
 
   function handleOpen(row: SessionRecord) {
     if (isActiveStatus(row.status)) {
-      void navigate(`/sessions/${row.id}/operator`)
+      // Exam sessions must use ExamScreen (timer, no AI hints), not training.
+      void navigate(
+        row.mode === 'exam' ? `/sessions/${row.id}/exam` : `/sessions/${row.id}/operator`,
+      )
       return
     }
     void openTimeline(row)

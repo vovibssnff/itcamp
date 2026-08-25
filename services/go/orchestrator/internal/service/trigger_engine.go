@@ -150,10 +150,6 @@ func (e *TriggerEngine) CheckTriggers(
 			continue
 		}
 
-		e.mu.Lock()
-		e.firedMap[key] = true
-		e.mu.Unlock()
-
 		simFaultID := MapSimFaultID(fault.FaultID)
 		req := domain.InjectFaultReq{
 			SessionID:           sessionID,
@@ -164,9 +160,15 @@ func (e *TriggerEngine) CheckTriggers(
 		}
 
 		if err := sim.InjectFault(ctx, req); err != nil {
+			// Do not mark fired — a transient sim failure must not permanently
+			// skip the scenario fault on later ticks.
 			e.log.Error("inject fault failed", "session", sessionID, "fault", simFaultID, "error", err)
 			continue
 		}
+
+		e.mu.Lock()
+		e.firedMap[key] = true
+		e.mu.Unlock()
 
 		faultEvent := domain.FaultEvent{
 			ID:             newUUID(),

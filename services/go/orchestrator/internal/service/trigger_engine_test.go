@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"testing"
@@ -161,6 +162,32 @@ func TestTriggerEngine_Reset(t *testing.T) {
 	engine.mu.Unlock()
 	if exists {
 		t.Fatal("scenario should be removed after reset")
+	}
+}
+
+func TestTriggerEngine_RetriesAfterInjectFailure(t *testing.T) {
+	engine := testTriggerEngine()
+	sim := client.NewMockSimClient()
+	sim.InjectFaultErr = errors.New("sim unavailable")
+
+	t10 := float64(10)
+	engine.LoadScenario("sess-1", ScenarioData{
+		Faults: []ScenarioFaultData{
+			{ID: "f1", FaultID: "FLT-K1-PRESSURE-HIGH", ComponentInstanceID: "column-k1",
+				Params:  FaultParamsData{SeverityPct: 100, RampSeconds: 0},
+				Trigger: TriggerData{Type: "time", AtModelTime: &t10}},
+		},
+	})
+
+	fired := engine.CheckTriggers(context.Background(), "sess-1", 10, nil, sim, nil, nil)
+	if len(fired) != 0 || len(sim.Faults) != 0 {
+		t.Fatalf("expected no fire on inject error, fired=%d faults=%d", len(fired), len(sim.Faults))
+	}
+
+	sim.InjectFaultErr = nil
+	fired = engine.CheckTriggers(context.Background(), "sess-1", 11, nil, sim, nil, nil)
+	if len(fired) != 1 || len(sim.Faults) != 1 {
+		t.Fatalf("expected retry inject after recovery, fired=%d faults=%d", len(fired), len(sim.Faults))
 	}
 }
 

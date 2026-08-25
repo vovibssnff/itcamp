@@ -158,3 +158,55 @@ func TestTokenService_Revoke(t *testing.T) {
 		t.Fatal("expected error after revoke")
 	}
 }
+
+func TestTokenService_Refresh_RejectsLockedUser(t *testing.T) {
+	store := newMockRefreshStore()
+	users := &mockUserLookup{
+		user: domain.User{
+			ID:     "u-123",
+			Login:  "testuser",
+			Roles:  []domain.Role{domain.RoleInstructor},
+			Status: domain.UserStatusLocked,
+		},
+	}
+	ts := NewTokenService(testTokenConfig(), store, users)
+
+	pair, err := ts.Issue(testCtx(), testUser())
+	if err != nil {
+		t.Fatalf("issue failed: %v", err)
+	}
+
+	_, err = ts.Refresh(testCtx(), pair.RefreshToken)
+	if err != domain.ErrUserLocked {
+		t.Fatalf("expected ErrUserLocked, got %v", err)
+	}
+
+	// Refresh token must be revoked so the lockout cannot be retried.
+	_, err = ts.Refresh(testCtx(), pair.RefreshToken)
+	if err == nil {
+		t.Fatal("expected refresh token revoked after locked rejection")
+	}
+}
+
+func TestTokenService_Refresh_RejectsDisabledUser(t *testing.T) {
+	store := newMockRefreshStore()
+	users := &mockUserLookup{
+		user: domain.User{
+			ID:     "u-123",
+			Login:  "testuser",
+			Roles:  []domain.Role{domain.RoleInstructor},
+			Status: domain.UserStatusDisabled,
+		},
+	}
+	ts := NewTokenService(testTokenConfig(), store, users)
+
+	pair, err := ts.Issue(testCtx(), testUser())
+	if err != nil {
+		t.Fatalf("issue failed: %v", err)
+	}
+
+	_, err = ts.Refresh(testCtx(), pair.RefreshToken)
+	if err != domain.ErrUserDisabled {
+		t.Fatalf("expected ErrUserDisabled, got %v", err)
+	}
+}

@@ -8,4 +8,5 @@ var (
 	ErrInvalidTrigger   = errors.New("invalid trigger specification")
 	ErrValidationFailed = errors.New("validation failed")
 	ErrCloneFailed      = errors.New("clone failed")
+	ErrForbidden        = errors.New("insufficient role")
 )

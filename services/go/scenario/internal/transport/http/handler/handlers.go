@@ -30,6 +30,11 @@ func (h *ScenarioHandler) List(w http.ResponseWriter, r *http.Request) {
 	if scenarios == nil {
 		scenarios = []domain.Scenario{}
 	}
+	if domain.MustRedactAnswerKey(rolesFromHeader(r)) {
+		for i := range scenarios {
+			scenarios[i] = domain.RedactAnswerKey(scenarios[i])
+		}
+	}
 	writeJSON(w, http.StatusOK, scenarios)
 }
 
@@ -40,10 +45,13 @@ func (h *ScenarioHandler) Get(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, s)
+	writeJSON(w, http.StatusOK, maybeRedact(r, s))
 }
 
 func (h *ScenarioHandler) Create(w http.ResponseWriter, r *http.Request) {
+	if !requireManage(w, r) {
+		return
+	}
 	var s domain.Scenario
 	if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
 		writeError(w, err)
@@ -59,6 +67,9 @@ func (h *ScenarioHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ScenarioHandler) Update(w http.ResponseWriter, r *http.Request) {
+	if !requireManage(w, r) {
+		return
+	}
 	id := r.PathValue("id")
 	var s domain.Scenario
 	if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
@@ -75,6 +86,9 @@ func (h *ScenarioHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ScenarioHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	if !requireManage(w, r) {
+		return
+	}
 	id := r.PathValue("id")
 	if err := h.svc.Delete(r.Context(), id); err != nil {
 		writeError(w, err)
@@ -84,6 +98,9 @@ func (h *ScenarioHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ScenarioHandler) Clone(w http.ResponseWriter, r *http.Request) {
+	if !requireManage(w, r) {
+		return
+	}
 	id := r.PathValue("id")
 	var req struct {
 		TemplateID string `json:"template_id"`
@@ -104,7 +121,7 @@ func (h *ScenarioHandler) GetFull(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, s)
+	writeJSON(w, http.StatusOK, maybeRedact(r, s))
 }
 
 func (h *ScenarioHandler) GetRandomExam(w http.ResponseWriter, r *http.Request) {
@@ -114,7 +131,7 @@ func (h *ScenarioHandler) GetRandomExam(w http.ResponseWriter, r *http.Request) 
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, s)
+	writeJSON(w, http.StatusOK, maybeRedact(r, s))
 }
 
 type importScenariosReq struct {
@@ -122,6 +139,9 @@ type importScenariosReq struct {
 }
 
 func (h *ScenarioHandler) Import(w http.ResponseWriter, r *http.Request) {
+	if !requireManage(w, r) {
+		return
+	}
 	var req importScenariosReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, err)
@@ -171,6 +191,9 @@ type importFaultsReq struct {
 }
 
 func (h *FaultHandler) Import(w http.ResponseWriter, r *http.Request) {
+	if !requireManage(w, r) {
+		return
+	}
 	var req importFaultsReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, err)

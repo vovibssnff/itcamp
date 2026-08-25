@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/itcamp/ktc/services/scenario/internal/domain"
 )
@@ -28,6 +29,8 @@ func mapError(err error) (int, string) {
 	switch {
 	case errors.Is(err, domain.ErrScenarioNotFound), errors.Is(err, domain.ErrFaultNotFound):
 		return http.StatusNotFound, "not_found"
+	case errors.Is(err, domain.ErrForbidden):
+		return http.StatusForbidden, "forbidden"
 	case errors.Is(err, domain.ErrInvalidTrigger), errors.Is(err, domain.ErrValidationFailed):
 		return http.StatusUnprocessableEntity, "validation_failed"
 	case errors.Is(err, domain.ErrCloneFailed):
@@ -39,6 +42,36 @@ func mapError(err error) (int, string) {
 
 func userIDFromHeader(r *http.Request) string {
 	return r.Header.Get("X-User-ID")
+}
+
+func rolesFromHeader(r *http.Request) []string {
+	raw := r.Header.Get("X-Roles")
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func requireManage(w http.ResponseWriter, r *http.Request) bool {
+	if domain.CanManageScenario(rolesFromHeader(r)) {
+		return true
+	}
+	writeError(w, domain.ErrForbidden)
+	return false
+}
+
+func maybeRedact(r *http.Request, s domain.Scenario) domain.Scenario {
+	if domain.MustRedactAnswerKey(rolesFromHeader(r)) {
+		return domain.RedactAnswerKey(s)
+	}
+	return s
 }
 
 func queryInt(r *http.Request, key string, def int) int {

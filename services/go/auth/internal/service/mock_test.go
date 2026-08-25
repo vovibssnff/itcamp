@@ -70,3 +70,26 @@ func (m *mockRefreshStore) RevokeAllForUser(_ context.Context, userID string) er
 	}
 	return nil
 }
+
+type mockUserLookup struct {
+	user  domain.User
+	roles []domain.Role
+	err   error
+}
+
+func (m *mockUserLookup) GetByID(_ context.Context, _ string) (domain.User, error) {
+	if m.err != nil {
+		return domain.User{}, m.err
+	}
+	return m.user, nil
+}
+
+func (m *mockUserLookup) GetRoles(_ context.Context, _ string) ([]domain.Role, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if m.roles != nil {
+		return m.roles, nil
+	}
+	return m.user.Roles, nil
+}

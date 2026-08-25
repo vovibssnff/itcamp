@@ -51,6 +51,10 @@ type createTemplateReq struct {
 }
 
 func (h *TemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
+	if !domain.CanEditTemplate(rolesFromHeader(r)) {
+		writeError(w, domain.ErrForbidden)
+		return
+	}
 	var req createTemplateReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, err)
@@ -115,6 +119,10 @@ type copyReq struct {
 }
 
 func (h *TemplateHandler) Copy(w http.ResponseWriter, r *http.Request) {
+	if !domain.CanEditTemplate(rolesFromHeader(r)) {
+		writeError(w, domain.ErrForbidden)
+		return
+	}
 	id := r.PathValue("id")
 	var req copyReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

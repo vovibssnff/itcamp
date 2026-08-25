@@ -106,6 +106,17 @@ func (s *TokenService) Refresh(ctx context.Context, refreshPlain string) (domain
 		}
 	}
 
+	// Locked/disabled accounts must not mint new access tokens via refresh
+	// (login already enforces this; refresh previously bypassed FR-AUTH-05).
+	switch user.Status {
+	case domain.UserStatusLocked:
+		_ = s.refresh.RevokeAllForUser(ctx, user.ID)
+		return domain.TokenPair{}, domain.ErrUserLocked
+	case domain.UserStatusDisabled:
+		_ = s.refresh.RevokeAllForUser(ctx, user.ID)
+		return domain.TokenPair{}, domain.ErrUserDisabled
+	}
+
 	newPair, err := s.Issue(ctx, user)
 	if err != nil {
 		return domain.TokenPair{}, err

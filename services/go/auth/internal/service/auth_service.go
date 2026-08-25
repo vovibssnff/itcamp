@@ -209,6 +209,8 @@ func (s *AuthService) recordFailedAttempt(ctx context.Context, login, ip, userID
 		count, err := s.attempts.CountFailed(ctx, login, since)
 		if err == nil && count >= s.cfg.LockoutThreshold {
 			_ = s.userRepo.UpdateStatus(ctx, userID, domain.UserStatusLocked)
+			// Invalidate outstanding refresh tokens so lockout cannot be bypassed.
+			_ = s.token.RevokeAllForUser(ctx, userID)
 			s.audit.Log(ctx, AuditUserLocked, userID, ip)
 		}
 	}

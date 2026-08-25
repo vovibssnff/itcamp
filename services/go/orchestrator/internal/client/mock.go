@@ -62,15 +62,16 @@ var mockFaultEffects = map[string]struct {
 }
 
 type MockSimClient struct {
-	Sessions  map[string]bool
-	States    map[string]domain.SimState
-	Speeds    map[string]float64
-	Faults    []domain.InjectFaultReq
-	Actuators []string // "session:tag=value" for tests
-	Commands  []string // "session:TYPE:target=value" for tests
-	overrides map[string]map[string]float64
-	faultBias map[string]map[string]float64
-	ackAlarms map[string]map[string]bool
+	Sessions       map[string]bool
+	States         map[string]domain.SimState
+	Speeds         map[string]float64
+	Faults         []domain.InjectFaultReq
+	Actuators      []string // "session:tag=value" for tests
+	Commands       []string // "session:TYPE:target=value" for tests
+	InjectFaultErr error    // when set, InjectFault returns this and does not record
+	overrides      map[string]map[string]float64
+	faultBias      map[string]map[string]float64
+	ackAlarms      map[string]map[string]bool
 }
 
 func NewMockSimClient() *MockSimClient {
@@ -230,6 +231,9 @@ func (m *MockSimClient) SetState(_ context.Context, sessionID string, state doma
 }
 
 func (m *MockSimClient) InjectFault(_ context.Context, req domain.InjectFaultReq) error {
+	if m.InjectFaultErr != nil {
+		return m.InjectFaultErr
+	}
 	m.Faults = append(m.Faults, req)
 	if m.faultBias[req.SessionID] == nil {
 		m.faultBias[req.SessionID] = make(map[string]float64)

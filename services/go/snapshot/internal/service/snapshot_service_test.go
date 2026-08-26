@@ -157,7 +157,7 @@ func TestSnapshotService_Restore(t *testing.T) {
 		st := &mockStorage{}
 		svc := NewSnapshotService(repo, st, discardLogger())
 
-		_, err := svc.Restore(context.Background(), "snap-1")
+		_, err := svc.Restore(context.Background(), "snap-1", "sess-a")
 		if !errors.Is(err, domain.ErrSnapshotNotFound) {
 			t.Fatalf("expected ErrSnapshotNotFound, got %v", err)
 		}
@@ -167,11 +167,11 @@ func TestSnapshotService_Restore(t *testing.T) {
 	})
 
 	t.Run("StorageFailed", func(t *testing.T) {
-		repo := &mockRepo{meta: domain.SnapshotMeta{StorageKey: "k1"}}
+		repo := &mockRepo{meta: domain.SnapshotMeta{SessionID: "sess-a", StorageKey: "k1"}}
 		st := &mockStorage{loadErr: errors.New("s3 down")}
 		svc := NewSnapshotService(repo, st, discardLogger())
 
-		_, err := svc.Restore(context.Background(), "snap-1")
+		_, err := svc.Restore(context.Background(), "snap-1", "sess-a")
 		if !errors.Is(err, domain.ErrStorageFailed) {
 			t.Fatalf("expected ErrStorageFailed, got %v", err)
 		}
@@ -179,11 +179,13 @@ func TestSnapshotService_Restore(t *testing.T) {
 
 	t.Run("SHA256Valid", func(t *testing.T) {
 		sha := storage.ComputeSHA256(payload)
-		repo := &mockRepo{meta: domain.SnapshotMeta{StorageKey: "k1", SHA256: sha, SchemaVersion: "2.0", ModelTime: 1.5}}
+		repo := &mockRepo{meta: domain.SnapshotMeta{
+			SessionID: "sess-a", StorageKey: "k1", SHA256: sha, SchemaVersion: "2.0", ModelTime: 1.5,
+		}}
 		st := &mockStorage{data: payload}
 		svc := NewSnapshotService(repo, st, discardLogger())
 
-		resp, err := svc.Restore(context.Background(), "snap-1")
+		resp, err := svc.Restore(context.Background(), "snap-1", "sess-a")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -196,19 +198,64 @@ func TestSnapshotService_Restore(t *testing.T) {
 		if resp.SchemaVersion != "2.0" {
 			t.Fatal("schema version mismatch")
 		}
+		if resp.SessionID != "sess-a" {
+			t.Fatalf("session_id = %q, want sess-a", resp.SessionID)
+		}
 	})
 
 	t.Run("SHA256Invalid", func(t *testing.T) {
-		repo := &mockRepo{meta: domain.SnapshotMeta{StorageKey: "k1", SHA256: "wronghash"}}
+		repo := &mockRepo{meta: domain.SnapshotMeta{SessionID: "sess-a", StorageKey: "k1", SHA256: "wronghash"}}
 		st := &mockStorage{data: payload}
 		svc := NewSnapshotService(repo, st, discardLogger())
 
-		resp, err := svc.Restore(context.Background(), "snap-1")
+		resp, err := svc.Restore(context.Background(), "snap-1", "sess-a")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if resp.SHA256Valid {
 			t.Fatal("expected sha256 invalid")
+		}
+	})
+
+	t.Run("WrongSessionRejected", func(t *testing.T) {
+		repo := &mockRepo{meta: domain.SnapshotMeta{SessionID: "exam-1", StorageKey: "k1", IsPreset: false}}
+		st := &mockStorage{data: payload}
+		svc := NewSnapshotService(repo, st, discardLogger())
+
+		_, err := svc.Restore(context.Background(), "snap-1", "training-2")
+		if !errors.Is(err, domain.ErrSnapshotWrongSession) {
+			t.Fatalf("expected ErrSnapshotWrongSession, got %v", err)
+		}
+		if st.loadCalls != 0 {
+			t.Fatal("storage.Load must not run for cross-session restore")
+		}
+	})
+
+	t.Run("PresetAllowedAcrossSessions", func(t *testing.T) {
+		sha := storage.ComputeSHA256(payload)
+		repo := &mockRepo{meta: domain.SnapshotMeta{
+			SessionID: "origin", StorageKey: "k1", SHA256: sha, IsPreset: true,
+		}}
+		st := &mockStorage{data: payload}
+		svc := NewSnapshotService(repo, st, discardLogger())
+
+		resp, err := svc.Restore(context.Background(), "preset-1", "any-session")
+		if err != nil {
+			t.Fatalf("preset restore: %v", err)
+		}
+		if !resp.IsPreset {
+			t.Fatal("expected is_preset true")
+		}
+	})
+
+	t.Run("EmptyForSessionSkipsBindingCheck", func(t *testing.T) {
+		sha := storage.ComputeSHA256(payload)
+		repo := &mockRepo{meta: domain.SnapshotMeta{SessionID: "exam-1", StorageKey: "k1", SHA256: sha}}
+		st := &mockStorage{data: payload}
+		svc := NewSnapshotService(repo, st, discardLogger())
+
+		if _, err := svc.Restore(context.Background(), "snap-1", ""); err != nil {
+			t.Fatalf("empty forSessionID should skip binding: %v", err)
 		}
 	})
 }

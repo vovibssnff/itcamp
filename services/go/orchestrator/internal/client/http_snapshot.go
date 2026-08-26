@@ -48,13 +48,22 @@ func (c *HTTPSnapshotClient) Save(ctx context.Context, sessionID, name string, i
 	return result.SnapshotID, result.SHA256, nil
 }
 
-func (c *HTTPSnapshotClient) Restore(ctx context.Context, snapshotID string) (domain.SimState, error) {
-	payload, _ := json.Marshal(map[string]string{"snapshot_id": snapshotID})
+func (c *HTTPSnapshotClient) Restore(ctx context.Context, snapshotID, sessionID string) (domain.SimState, error) {
+	payload, _ := json.Marshal(map[string]string{
+		"snapshot_id": snapshotID,
+		"session_id":  sessionID,
+	})
 	resp, err := c.client.Post(c.url+"/snapshots/restore", "application/json", bytes.NewReader(payload))
 	if err != nil {
 		return domain.SimState{}, fmt.Errorf("snapshot restore: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusConflict {
+		return domain.SimState{}, domain.ErrSnapshotWrongSession
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return domain.SimState{}, domain.ErrSnapshotNotFound
+	}
 	if resp.StatusCode >= 400 {
 		return domain.SimState{}, fmt.Errorf("snapshot restore: status %d", resp.StatusCode)
 	}

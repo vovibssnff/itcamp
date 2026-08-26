@@ -10,6 +10,7 @@ var (
 	ErrInvalidSpeed          = errors.New("invalid speed (must be 0.1..10)")
 	ErrSnapshotNotFound      = errors.New("snapshot not found")
 	ErrExamRestoreForbidden  = errors.New("restore forbidden in exam mode for operator")
+	ErrSnapshotWrongSession  = errors.New("snapshot does not belong to this session")
 	ErrForbidden             = errors.New("forbidden")
 	ErrSimUnavailable        = errors.New("simulation engine unavailable")
 	ErrInvalidCommand        = errors.New("invalid simulation command")

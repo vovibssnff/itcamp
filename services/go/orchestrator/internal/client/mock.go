@@ -402,26 +402,43 @@ func (m *MockAssessmentClient) CheckMissedSteps(_ context.Context, _ string, _ f
 
 type MockSnapshotClient struct {
 	Snapshots map[string]domain.SimState
-	counter   int
+	Meta      map[string]struct {
+		SessionID string
+		IsPreset  bool
+	}
+	counter int
 }
 
 func NewMockSnapshotClient() *MockSnapshotClient {
 	return &MockSnapshotClient{
 		Snapshots: make(map[string]domain.SimState),
+		Meta: make(map[string]struct {
+			SessionID string
+			IsPreset  bool
+		}),
 	}
 }
 
-func (m *MockSnapshotClient) Save(_ context.Context, sessionID, name string, _ bool, state domain.SimState) (string, string, error) {
+func (m *MockSnapshotClient) Save(_ context.Context, sessionID, name string, isPreset bool, state domain.SimState) (string, string, error) {
 	m.counter++
 	id := "snap-" + sessionID + "-" + name
 	m.Snapshots[id] = state
+	m.Meta[id] = struct {
+		SessionID string
+		IsPreset  bool
+	}{SessionID: sessionID, IsPreset: isPreset}
 	return id, "sha256-mock", nil
 }
 
-func (m *MockSnapshotClient) Restore(_ context.Context, snapshotID string) (domain.SimState, error) {
+func (m *MockSnapshotClient) Restore(_ context.Context, snapshotID, sessionID string) (domain.SimState, error) {
 	s, ok := m.Snapshots[snapshotID]
 	if !ok {
 		return domain.SimState{}, domain.ErrSnapshotNotFound
+	}
+	if meta, ok := m.Meta[snapshotID]; ok {
+		if !meta.IsPreset && meta.SessionID != "" && meta.SessionID != sessionID {
+			return domain.SimState{}, domain.ErrSnapshotWrongSession
+		}
 	}
 	return s, nil
 }

@@ -289,7 +289,7 @@ func (s *SessionService) Restore(ctx context.Context, id, snapshotID, userID str
 			}
 		}
 	}
-	state, err := s.snapshot.Restore(ctx, snapshotID)
+	state, err := s.snapshot.Restore(ctx, snapshotID, id)
 	if err != nil {
 		return domain.Session{}, err
 	}

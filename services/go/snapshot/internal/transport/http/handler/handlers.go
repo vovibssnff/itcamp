@@ -33,6 +33,8 @@ func mapError(err error) (int, string) {
 		return http.StatusUnprocessableEntity, "sha256_mismatch"
 	case errors.Is(err, domain.ErrStorageFailed):
 		return http.StatusServiceUnavailable, "storage_failed"
+	case errors.Is(err, domain.ErrSnapshotWrongSession):
+		return http.StatusConflict, "snapshot_wrong_session"
 	default:
 		return http.StatusInternalServerError, "internal"
 	}
@@ -124,7 +126,7 @@ func (h *SnapshotHandler) Restore(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	resp, err := h.svc.Restore(r.Context(), req.SnapshotID)
+	resp, err := h.svc.Restore(r.Context(), req.SnapshotID, req.SessionID)
 	if err != nil {
 		writeError(w, err)
 		return

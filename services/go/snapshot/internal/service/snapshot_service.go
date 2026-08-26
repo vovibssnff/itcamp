@@ -70,10 +70,16 @@ func (s *SnapshotService) Save(ctx context.Context, req domain.SaveRequest, auth
 	return domain.SaveResponse{SnapshotID: snapshotID, SHA256: sha, StorageKey: storageKey}, nil
 }
 
-func (s *SnapshotService) Restore(ctx context.Context, snapshotID string) (domain.RestoreResponse, error) {
+func (s *SnapshotService) Restore(ctx context.Context, snapshotID, forSessionID string) (domain.RestoreResponse, error) {
 	meta, err := s.repo.GetByID(ctx, snapshotID)
 	if err != nil {
 		return domain.RestoreResponse{}, err
+	}
+
+	// Non-preset checkpoints are bound to their source session. Restoring into
+	// another session would silently transplant plant state across exams.
+	if forSessionID != "" && !meta.IsPreset && meta.SessionID != forSessionID {
+		return domain.RestoreResponse{}, domain.ErrSnapshotWrongSession
 	}
 
 	data, err := s.storage.Load(ctx, meta.StorageKey)
@@ -94,6 +100,8 @@ func (s *SnapshotService) Restore(ctx context.Context, snapshotID string) (domai
 		ModelTime:     meta.ModelTime,
 		SHA256Valid:   shaValid,
 		SchemaVersion: meta.SchemaVersion,
+		SessionID:     meta.SessionID,
+		IsPreset:      meta.IsPreset,
 	}, nil
 }
 

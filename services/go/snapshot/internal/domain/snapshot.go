@@ -39,6 +39,8 @@ type SaveResponse struct {
 
 type RestoreRequest struct {
 	SnapshotID string `json:"snapshot_id"`
+	// SessionID, when set, must match the snapshot's owning session unless IsPreset.
+	SessionID string `json:"session_id,omitempty"`
 }
 
 type RestoreResponse struct {
@@ -47,6 +49,8 @@ type RestoreResponse struct {
 	Seed          int64           `json:"seed"`
 	SHA256Valid   bool            `json:"sha256_valid"`
 	SchemaVersion string          `json:"schema_version"`
+	SessionID     string          `json:"session_id,omitempty"`
+	IsPreset      bool            `json:"is_preset,omitempty"`
 }
 
 var (
@@ -54,4 +58,5 @@ var (
 	ErrSHA256Mismatch        = errors.New("sha256 mismatch")
 	ErrPresetDeleteForbidden = errors.New("cannot delete preset")
 	ErrStorageFailed         = errors.New("storage operation failed")
+	ErrSnapshotWrongSession  = errors.New("snapshot does not belong to this session")
 )

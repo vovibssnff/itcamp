@@ -47,6 +47,10 @@ func mapError(err error) (int, string) {
 		return http.StatusBadRequest, "invalid_speed"
 	case errors.Is(err, domain.ErrExamRestoreForbidden):
 		return http.StatusForbidden, "exam_restore_forbidden"
+	case errors.Is(err, domain.ErrSnapshotWrongSession):
+		return http.StatusConflict, "snapshot_wrong_session"
+	case errors.Is(err, domain.ErrSnapshotNotFound):
+		return http.StatusNotFound, "snapshot_not_found"
 	case errors.Is(err, domain.ErrForbidden):
 		return http.StatusForbidden, "forbidden"
 	case errors.Is(err, domain.ErrSimUnavailable):

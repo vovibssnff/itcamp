@@ -30,7 +30,7 @@ type AssessmentClient interface {
 
 type SnapshotClient interface {
 	Save(ctx context.Context, sessionID, name string, isPreset bool, state domain.SimState) (snapshotID, sha256 string, err error)
-	Restore(ctx context.Context, snapshotID string) (domain.SimState, error)
+	Restore(ctx context.Context, snapshotID, sessionID string) (domain.SimState, error)
 }
 
 type ConstructorClient interface {

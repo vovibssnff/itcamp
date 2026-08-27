@@ -160,6 +160,29 @@ func TestAssessmentService_Finalize_NotLoaded(t *testing.T) {
 	}
 }
 
+// Cold Finalize (no in-memory session) must still mark total_score==0 as fail,
+// matching warm Finalize — otherwise a process restart leaves exams "pending".
+func TestAssessmentService_Finalize_ColdZeroScoreFails(t *testing.T) {
+	svc, _ := testAssessmentService()
+	store := svc.repo.(*mockAssessmentStore)
+	store.scores["sess-cold"] = domain.Score{
+		SessionID:  "sess-cold",
+		TotalScore: 0,
+		Verdict:    domain.VerdictPending,
+	}
+
+	score, err := svc.Finalize(context.Background(), "sess-cold")
+	if err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+	if score.Verdict != domain.VerdictFail {
+		t.Fatalf("expected fail for zero score, got %s", score.Verdict)
+	}
+	if store.scores["sess-cold"].Verdict != domain.VerdictFail {
+		t.Fatalf("expected persisted fail, got %s", store.scores["sess-cold"].Verdict)
+	}
+}
+
 func TestAssessmentService_AckAlarm(t *testing.T) {
 	svc, client := testAssessmentService()
 	client.data["sc-1"] = testScenarioData()

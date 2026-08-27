@@ -39,6 +39,8 @@ export default function ExamScreen() {
   })
   const telemetry = useSessionStore((s) => s.telemetry)
   const regulators = useSessionStore((s) => s.regulators)
+  const status = useSessionStore((s) => s.status)
+  const setStatus = useSessionStore((s) => s.setStatus)
 
   const [template, setTemplate] = useState<Template>(TEMPLATES[0]!)
   const [componentTypes, setComponentTypes] = useState<ComponentType[]>(COMPONENT_TYPES)
@@ -66,23 +68,29 @@ export default function ExamScreen() {
         // Backend "created" is mapped to "idle" for the SPA.
         if (session.status === 'idle') {
           await sessionsApi.action(sessionId, 'start')
+          setStatus('running')
+        } else if (session.status === 'running' || session.status === 'paused') {
+          setStatus(session.status)
         }
         setSessionReady(true)
       } catch (err) {
         if (!isMockApi()) {
           void message.error(toErrorMessage(err, 'Не удалось запустить экзамен'))
         } else {
+          setStatus('running')
           setSessionReady(true)
         }
       }
     })()
-  }, [sessionId])
+  }, [sessionId, setStatus])
 
+  // Wall-clock exam budget must freeze while the session is paused (instructor
+  // pause); otherwise exams auto-finish early during a pause.
   useEffect(() => {
-    if (!sessionReady) return
+    if (!sessionReady || status !== 'running') return
     const id = setInterval(() => setElapsed((e) => e + 1), 1000)
     return () => clearInterval(id)
-  }, [sessionReady])
+  }, [sessionReady, status])
 
   async function finishExam() {
     if (!sessionId) return
@@ -217,7 +225,7 @@ export default function ExamScreen() {
           width={canvasSize.w}
           height={canvasSize.h}
           interactive={true}
-          flowing
+          flowing={status === 'running'}
           onNodeClick={(node) => {
             setSelectedNode(node)
             setFaceplateOpen(true)

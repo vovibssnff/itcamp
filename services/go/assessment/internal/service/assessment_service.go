@@ -174,10 +174,10 @@ func (s *AssessmentService) Finalize(ctx context.Context, sessionID string) (dom
 		}
 		hasCritical := len(score.CriticalErrors) > 0
 		if score.Verdict == domain.VerdictPending {
-			verdict := score.Verdict
-			if score.TotalScore > 0 || hasCritical {
-				verdict = s.engineFromScore(score).CalculateVerdict(score.TotalScore, hasCritical)
-			}
+			// Always compute a terminal verdict — including total_score==0 with no
+			// criticals (warm Finalize already fails that case). Skipping here left
+			// exams stuck as "pending" after an assessment process restart.
+			verdict := s.engineFromScore(score).CalculateVerdict(score.TotalScore, hasCritical)
 			score.Verdict = verdict
 			_ = s.repo.SetVerdict(ctx, sessionID, verdict, score.TotalScore)
 		}

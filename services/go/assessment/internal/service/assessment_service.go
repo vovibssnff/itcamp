@@ -16,6 +16,7 @@ type AssessmentStore interface {
 	SetVerdict(ctx context.Context, sessionID string, verdict domain.Verdict, score int) error
 	SetOverride(ctx context.Context, sessionID string, score int, verdict domain.Verdict, byUserID, comment string) error
 	GetReplayData(ctx context.Context, sessionID string) (domain.ReplayData, error)
+	UserCanAccessSession(ctx context.Context, sessionID, userID string) (bool, error)
 }
 
 type AssessmentService struct {
@@ -151,6 +152,26 @@ func (s *AssessmentService) AckAlarm(ctx context.Context, sessionID, tagID strin
 		rt.AlarmID = tagID
 		state.score.ReactionTimes = append(state.score.ReactionTimes, rt)
 	}
+}
+
+// AuthorizeSessionAccess — admin/instructor bypass; иначе требуется членство в сессии.
+// Пустой userID (вызов orchestrator → assessment без заголовков) допускается только
+// вместе с privileged=true; для user-facing хендлеров передавайте реальный X-User-ID.
+func (s *AssessmentService) AuthorizeSessionAccess(ctx context.Context, sessionID, userID string, privileged bool) error {
+	if privileged {
+		return nil
+	}
+	if userID == "" || sessionID == "" {
+		return domain.ErrForbidden
+	}
+	ok, err := s.repo.UserCanAccessSession(ctx, sessionID, userID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return domain.ErrForbidden
+	}
+	return nil
 }
 
 func (s *AssessmentService) GetScore(ctx context.Context, sessionID string) (domain.Score, error) {

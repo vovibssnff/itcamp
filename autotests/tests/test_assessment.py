@@ -34,7 +34,8 @@ def test_event_no_scenario_returns_404_not_500(assessment_client):
                "type": "action", "user_id": "u1", "target": "t1",
                "action": "valve_open", "value": 1, "tag_id": "tag1", "priority": "H",
                "model_time": 1.0, "server_time": "2026-08-09T10:30:00Z"}
-    r = assessment_client.post("/assessment/event", headers=ADMIN_H, json=payload)
+    # S2S (orchestrator→assessment) не шлёт X-User-ID; user-facing вызовы через gw отклоняются.
+    r = assessment_client.post("/assessment/event", json=payload)
     assert r.status_code == 404, r.text
     assert r.json().get("title") == "not_found"
 

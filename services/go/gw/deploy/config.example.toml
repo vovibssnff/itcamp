@@ -118,6 +118,9 @@ strip_prefix = "/api/v1"
 auth         = true
 
 # --- Assessment (instructor/admin/operator) ---
+# Event/Result/CheckMissed — только S2S (orchestrator→assessment напрямую).
+# Через gw assessment отклоняет запросы с X-User-ID (score fraud / forced finalize).
+# Score/Replay дополнительно проверяют членство в сессии для operator.
 [[routes]]
 prefix       = "/api/v1/assessment"
 upstream     = "assessment"

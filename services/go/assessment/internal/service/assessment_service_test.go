@@ -12,11 +12,19 @@ import (
 var testLog = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 type mockAssessmentStore struct {
-	scores map[string]domain.Score
+	scores  map[string]domain.Score
+	members map[string]map[string]bool
 }
 
 func newMockAssessmentStore() *mockAssessmentStore {
 	return &mockAssessmentStore{scores: make(map[string]domain.Score)}
+}
+
+func (m *mockAssessmentStore) UserCanAccessSession(_ context.Context, sessionID, userID string) (bool, error) {
+	if m.members == nil {
+		return false, nil
+	}
+	return m.members[sessionID][userID], nil
 }
 
 func (m *mockAssessmentStore) GetBySession(_ context.Context, sessionID string) (domain.Score, error) {

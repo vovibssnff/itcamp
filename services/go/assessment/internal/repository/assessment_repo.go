@@ -20,6 +20,17 @@ func NewAssessmentRepo(pg *Postgres) *AssessmentRepo {
 	return &AssessmentRepo{db: pg}
 }
 
+// UserCanAccessSession — состоит ли пользователь в сессии (operator_ids / instructor_id).
+func (r *AssessmentRepo) UserCanAccessSession(ctx context.Context, sessionID, userID string) (bool, error) {
+	var ok bool
+	err := r.db.Pool.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM sessions
+			WHERE id = $1 AND (operator_ids @> to_jsonb($2::text) OR instructor_id = $2)
+		)`, sessionID, userID).Scan(&ok)
+	return ok, err
+}
+
 func (r *AssessmentRepo) GetBySession(ctx context.Context, sessionID string) (domain.Score, error) {
 	var s domain.Score
 	var penaltiesJSON, criticalJSON, reactionJSON []byte

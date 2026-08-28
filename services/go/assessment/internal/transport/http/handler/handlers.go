@@ -31,15 +31,13 @@ func mapError(err error) (int, string) {
 		return http.StatusConflict, "already_finalized"
 	case errors.Is(err, domain.ErrOverrideNoComment):
 		return http.StatusBadRequest, "override_no_comment"
+	case errors.Is(err, domain.ErrForbidden):
+		return http.StatusForbidden, "forbidden"
 	case errors.Is(err, domain.ErrScenarioNotLoaded):
 		return http.StatusBadRequest, "scenario_not_loaded"
 	default:
 		return http.StatusInternalServerError, "internal"
 	}
-}
-
-func userIDFromHeader(r *http.Request) string {
-	return r.Header.Get("X-User-ID")
 }
 
 type AssessmentHandler struct {
@@ -51,6 +49,10 @@ func NewAssessmentHandler(svc *service.AssessmentService) *AssessmentHandler {
 }
 
 func (h *AssessmentHandler) Event(w http.ResponseWriter, r *http.Request) {
+	if err := rejectUserFacingInternal(r); err != nil {
+		writeError(w, err)
+		return
+	}
 	var event domain.AssessmentEvent
 	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
 		writeError(w, err)
@@ -66,6 +68,9 @@ func (h *AssessmentHandler) Event(w http.ResponseWriter, r *http.Request) {
 
 func (h *AssessmentHandler) Score(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if !h.ensureSessionAccess(w, r, id) {
+		return
+	}
 	score, err := h.svc.GetScore(r.Context(), id)
 	if err != nil {
 		writeError(w, err)
@@ -75,6 +80,10 @@ func (h *AssessmentHandler) Score(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AssessmentHandler) Result(w http.ResponseWriter, r *http.Request) {
+	if err := rejectUserFacingInternal(r); err != nil {
+		writeError(w, err)
+		return
+	}
 	id := r.PathValue("id")
 	score, err := h.svc.Finalize(r.Context(), id)
 	if err != nil {
@@ -101,6 +110,9 @@ func (h *AssessmentHandler) Override(w http.ResponseWriter, r *http.Request) {
 
 func (h *AssessmentHandler) Replay(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if !h.ensureSessionAccess(w, r, id) {
+		return
+	}
 	replay, err := h.svc.GetReplay(r.Context(), id)
 	if err != nil {
 		writeError(w, err)
@@ -110,6 +122,10 @@ func (h *AssessmentHandler) Replay(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AssessmentHandler) CheckMissed(w http.ResponseWriter, r *http.Request) {
+	if err := rejectUserFacingInternal(r); err != nil {
+		writeError(w, err)
+		return
+	}
 	id := r.PathValue("id")
 	var req struct {
 		ModelTime float64 `json:"model_time"`

@@ -60,6 +60,15 @@ func canAccessSession(r *http.Request, sess domain.Session) bool {
 	return false
 }
 
+// canControlSessionTiming gates pause / resume / speed.
+// Exam candidates must not freeze or stretch model time; instructors/admins may.
+func canControlSessionTiming(r *http.Request, sess domain.Session) bool {
+	if sess.Mode != domain.ModeExam {
+		return canAccessSession(r, sess)
+	}
+	return isPrivileged(rolesFromHeader(r))
+}
+
 func canCreateSession(r *http.Request, mode string, operatorIDs []string) bool {
 	roles := rolesFromHeader(r)
 	if isPrivileged(roles) {

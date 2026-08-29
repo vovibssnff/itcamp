@@ -47,6 +47,8 @@ func mapError(err error) (int, string) {
 		return http.StatusBadRequest, "invalid_speed"
 	case errors.Is(err, domain.ErrExamRestoreForbidden):
 		return http.StatusForbidden, "exam_restore_forbidden"
+	case errors.Is(err, domain.ErrExamTimingForbidden):
+		return http.StatusForbidden, "exam_timing_forbidden"
 	case errors.Is(err, domain.ErrForbidden):
 		return http.StatusForbidden, "forbidden"
 	case errors.Is(err, domain.ErrSimUnavailable):
@@ -137,28 +139,38 @@ func (h *SessionHandler) Start(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionHandler) Pause(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if _, ok := loadSessionOrDeny(h, w, r, id); !ok {
+	sess, ok := loadSessionOrDeny(h, w, r, id)
+	if !ok {
 		return
 	}
-	sess, err := h.svc.Pause(r.Context(), id)
+	if !canControlSessionTiming(r, sess) {
+		writeError(w, domain.ErrExamTimingForbidden)
+		return
+	}
+	out, err := h.svc.Pause(r.Context(), id)
 	if err != nil {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, sess)
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (h *SessionHandler) Resume(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if _, ok := loadSessionOrDeny(h, w, r, id); !ok {
+	sess, ok := loadSessionOrDeny(h, w, r, id)
+	if !ok {
 		return
 	}
-	sess, err := h.svc.Resume(r.Context(), id)
+	if !canControlSessionTiming(r, sess) {
+		writeError(w, domain.ErrExamTimingForbidden)
+		return
+	}
+	out, err := h.svc.Resume(r.Context(), id)
 	if err != nil {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, sess)
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (h *SessionHandler) Stop(w http.ResponseWriter, r *http.Request) {
@@ -176,7 +188,12 @@ func (h *SessionHandler) Stop(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionHandler) Speed(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if _, ok := loadSessionOrDeny(h, w, r, id); !ok {
+	sess, ok := loadSessionOrDeny(h, w, r, id)
+	if !ok {
+		return
+	}
+	if !canControlSessionTiming(r, sess) {
+		writeError(w, domain.ErrExamTimingForbidden)
 		return
 	}
 	var req struct {
@@ -186,12 +203,12 @@ func (h *SessionHandler) Speed(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	sess, err := h.svc.SetSpeed(r.Context(), id, req.Factor)
+	out, err := h.svc.SetSpeed(r.Context(), id, req.Factor)
 	if err != nil {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, sess)
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (h *SessionHandler) Checkpoint(w http.ResponseWriter, r *http.Request) {

@@ -75,3 +75,35 @@ func TestCanAccessSession_OperatorOnRoster(t *testing.T) {
 		t.Fatal("unrelated operator must not access")
 	}
 }
+
+func TestCanControlSessionTiming_ExamRequiresPrivileged(t *testing.T) {
+	t.Parallel()
+	exam := domain.Session{
+		Mode:         domain.ModeExam,
+		OperatorIDs:  []string{"op-1"},
+		InstructorID: "inst-1",
+	}
+	if canControlSessionTiming(reqWith("operator", "op-1"), exam) {
+		t.Fatal("exam operator must not pause/resume/speed")
+	}
+	if !canControlSessionTiming(reqWith("instructor", "inst-1"), exam) {
+		t.Fatal("instructor should control exam timing")
+	}
+	if !canControlSessionTiming(reqWith("admin", "admin-1"), exam) {
+		t.Fatal("admin should control exam timing")
+	}
+}
+
+func TestCanControlSessionTiming_TrainingAllowsOperator(t *testing.T) {
+	t.Parallel()
+	training := domain.Session{
+		Mode:        domain.ModeTraining,
+		OperatorIDs: []string{"op-1"},
+	}
+	if !canControlSessionTiming(reqWith("operator", "op-1"), training) {
+		t.Fatal("training operator on roster should control timing")
+	}
+	if canControlSessionTiming(reqWith("operator", "op-2"), training) {
+		t.Fatal("unrelated operator must not control timing")
+	}
+}

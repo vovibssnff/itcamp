@@ -64,8 +64,16 @@ export default function ExamScreen() {
           }
         }
         // Backend "created" is mapped to "idle" for the SPA.
+        let startedAt = session.startedAt
         if (session.status === 'idle') {
-          await sessionsApi.action(sessionId, 'start')
+          const started = await sessionsApi.action(sessionId, 'start')
+          startedAt = started.startedAt ?? startedAt
+        }
+        // Seed wall-clock from server started_at so remount/refresh cannot
+        // reset the exam duration budget.
+        if (startedAt) {
+          const elapsedSec = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
+          setElapsed(Math.min(EXAM_DURATION_S, Math.max(0, elapsedSec)))
         }
         setSessionReady(true)
       } catch (err) {

@@ -306,6 +306,9 @@ func (s *SessionService) HandleActuator(ctx context.Context, id, userID, target 
 	if err != nil {
 		return err
 	}
+	if sess.Status != domain.StatusRunning {
+		return domain.ErrSessionNotRunning
+	}
 	if err := s.sim.SetActuator(ctx, id, target, value); err != nil {
 		return err
 	}
@@ -331,6 +334,9 @@ func (s *SessionService) HandleOperatorCommand(ctx context.Context, id, userID, 
 	sess, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return err
+	}
+	if sess.Status != domain.StatusRunning {
+		return domain.ErrSessionNotRunning
 	}
 	if err := s.sim.Command(ctx, id, cmdType, target, value); err != nil {
 		return err

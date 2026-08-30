@@ -170,6 +170,17 @@ func (s *SessionService) Start(ctx context.Context, id string) (domain.Session, 
 	return sess, nil
 }
 
+// currentModelTime prefers live sim state so Stop/Pause do not wipe the clock
+// when GetState fails (destroyed worker, blip) or returns an empty payload.
+func (s *SessionService) currentModelTime(ctx context.Context, id string, fallback float64) float64 {
+	if s.sim != nil {
+		if state, err := s.sim.GetState(ctx, id); err == nil && state.SessionID != "" {
+			return state.ModelTime
+		}
+	}
+	return fallback
+}
+
 func (s *SessionService) Pause(ctx context.Context, id string) (domain.Session, error) {
 	s.mu.Lock()
 	runner, ok := s.runners[id]
@@ -222,6 +233,16 @@ func (s *SessionService) Resume(ctx context.Context, id string) (domain.Session,
 }
 
 func (s *SessionService) Stop(ctx context.Context, id string) (domain.Session, error) {
+	sess, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return domain.Session{}, err
+	}
+	// Idempotent: ExamScreen auto-finish re-enters Stop every second after the
+	// duration cap; a second call must not rewrite model_time to 0 after Destroy.
+	if sess.Status == domain.StatusStopped || sess.Status == domain.StatusFinished {
+		return sess, nil
+	}
+
 	s.mu.Lock()
 	runner, ok := s.runners[id]
 	delete(s.runners, id)
@@ -230,23 +251,25 @@ func (s *SessionService) Stop(ctx context.Context, id string) (domain.Session, e
 		runner.stop()
 	}
 
-	state, _ := s.sim.GetState(ctx, id)
-	modelTime := 0.0
-	if state.SessionID != "" {
-		modelTime = state.ModelTime
-	}
+	modelTime := s.currentModelTime(ctx, id, sess.ModelTime)
 
 	_ = s.sim.DestroySession(ctx, id)
-	if err := s.assessment.Finalize(ctx, id); err != nil {
-		s.log.WarnContext(ctx, "assessment finalize failed", "session", id, "error", err)
+	if s.assessment != nil {
+		if err := s.assessment.Finalize(ctx, id); err != nil {
+			s.log.WarnContext(ctx, "assessment finalize failed", "session", id, "error", err)
+		}
 	}
-	_ = s.cache.DeleteTelemetry(ctx, id)
+	if s.cache != nil {
+		_ = s.cache.DeleteTelemetry(ctx, id)
+	}
 
 	if err := s.repo.UpdateStatus(ctx, id, domain.StatusStopped, modelTime); err != nil {
 		return domain.Session{}, err
 	}
 	IncSessionStopped()
-	_ = s.publisher.PublishSessionEvent(ctx, id, "stopped", nil)
+	if s.publisher != nil {
+		_ = s.publisher.PublishSessionEvent(ctx, id, "stopped", nil)
+	}
 	audit.Emit(ctx, s.log, "session.stopped", "id", id, "model_time", modelTime)
 	return s.repo.GetByID(ctx, id)
 }

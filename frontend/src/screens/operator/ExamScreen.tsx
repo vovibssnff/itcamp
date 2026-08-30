@@ -32,6 +32,7 @@ export default function ExamScreen() {
   const setTheme = useUIStore((s) => s.setTheme)
 
   const [sessionReady, setSessionReady] = useState(false)
+  const finishingRef = useRef(false)
   const { send } = useWebSocket({
     sessionId: sessionId ?? null,
     channel: 'operator',
@@ -84,8 +85,18 @@ export default function ExamScreen() {
     return () => clearInterval(id)
   }, [sessionReady])
 
+  async function handleAckAlarms(ids: string[]) {
+    for (const id of ids) {
+      send({ type: 'ack_alarm', id })
+      if (sessionId) {
+        void sessionsApi.ackAlarm(sessionId, id).catch(() => {})
+      }
+    }
+  }
+
   async function finishExam() {
-    if (!sessionId) return
+    if (!sessionId || finishingRef.current) return
+    finishingRef.current = true
     try {
       await sessionsApi.action(sessionId, 'stop')
       try {
@@ -95,6 +106,7 @@ export default function ExamScreen() {
       }
       void navigate(`/reports/${sessionId}`)
     } catch (err) {
+      finishingRef.current = false
       void message.error(toErrorMessage(err, 'Не удалось завершить экзамен'))
     }
   }
@@ -133,7 +145,7 @@ export default function ExamScreen() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <AlarmBanner />
+      <AlarmBanner onAcknowledge={handleAckAlarms} />
 
       <div className="topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>

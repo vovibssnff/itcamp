@@ -40,6 +40,9 @@ message ProcessStateMsg {
   repeated string active_faults = 7;
   repeated string tripped_interlocks = 8;
   double speed = 9;
+  // Faceplate SP/OUT (REST already exposes these; reserved for gRPC consumers).
+  map<string, double> controller_setpoints = 10;
+  map<string, double> controller_outputs = 11;
 }
 
 message AlarmEventMsg {

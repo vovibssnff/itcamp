@@ -36,3 +36,52 @@ func TestWorkerState_ToDomainAttachesAlarms(t *testing.T) {
 		t.Fatalf("%+v", dom.Alarms)
 	}
 }
+
+func TestWorkerState_ToDomainUsesRealSPAndOUT(t *testing.T) {
+	st := workerState{
+		SessionID:  "s1",
+		ModelTimeS: 10,
+		TagValues: map[string]float64{
+			"LRCA 602": 55.0,
+		},
+		ControllerModes: map[string]string{
+			"LRCA 602": "AUTO",
+		},
+		ControllerSetpoints: map[string]float64{
+			"LRCA 602": 60.0,
+		},
+		ControllerOutputs: map[string]float64{
+			"LRCA 602": 42.5,
+		},
+	}
+	dom := st.toDomain("s1")
+	if len(dom.Regulators) != 1 {
+		t.Fatalf("regs: %+v", dom.Regulators)
+	}
+	r := dom.Regulators[0]
+	if r.TagID != "LRCA 602" || r.PV != 55.0 || r.SP != 60.0 || r.OUT != 42.5 || r.Mode != "AUTO" {
+		t.Fatalf("got %+v", r)
+	}
+}
+
+func TestWorkerState_ToDomainDoesNotFabricateSPEqualsPV(t *testing.T) {
+	// Missing SP/OUT maps: SP may fall back to PV for display, but OUT must not
+	// equal PV (that made faceplates snap SP/OUT to process value after SET_SP).
+	st := workerState{
+		SessionID:       "s1",
+		ModelTimeS:      1,
+		TagValues:       map[string]float64{"PRCA 351": 3.2},
+		ControllerModes: map[string]string{"PRCA 351": "MANUAL"},
+	}
+	dom := st.toDomain("s1")
+	if len(dom.Regulators) != 1 {
+		t.Fatalf("regs: %+v", dom.Regulators)
+	}
+	r := dom.Regulators[0]
+	if r.OUT == r.PV {
+		t.Fatalf("OUT must not be fabricated as PV when worker omits outputs: %+v", r)
+	}
+	if r.Mode != "MANUAL" {
+		t.Fatalf("mode: %+v", r)
+	}
+}

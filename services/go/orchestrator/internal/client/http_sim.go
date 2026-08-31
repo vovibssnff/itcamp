@@ -321,6 +321,10 @@ type workerState struct {
 	TagValues       map[string]float64 `json:"tag_values"`
 	EquipmentStates map[string]string  `json:"equipment_states"`
 	ControllerModes map[string]string  `json:"controller_modes"`
+	// ControllerSetpoints / ControllerOutputs are SP and OUT per loop tag.
+	// Older sim-workers may omit them; toDomain falls back carefully.
+	ControllerSetpoints map[string]float64 `json:"controller_setpoints"`
+	ControllerOutputs   map[string]float64 `json:"controller_outputs"`
 	// ActiveAlarms accepts both REST list and snapshot map forms.
 	ActiveAlarms json.RawMessage `json:"active_alarms"`
 }
@@ -410,11 +414,26 @@ func (s workerState) toDomain(sessionID string) domain.SimState {
 		if modeNorm != "MANUAL" {
 			modeNorm = "AUTO"
 		}
+		sp := pv
+		if s.ControllerSetpoints != nil {
+			if v, ok := s.ControllerSetpoints[id]; ok {
+				sp = v
+			}
+		}
+		out := 0.0
+		if s.ControllerOutputs != nil {
+			if v, ok := s.ControllerOutputs[id]; ok {
+				out = v
+			}
+		} else {
+			// Legacy workers omitted OUT; avoid fabricating OUT=PV (breaks faceplates).
+			out = 0
+		}
 		regs = append(regs, domain.Regulator{
 			TagID: id,
 			PV:    pv,
-			SP:    pv, // worker state has no separate SP; SPA still shows live PV
-			OUT:   pv,
+			SP:    sp,
+			OUT:   out,
 			Mode:  modeNorm,
 		})
 	}

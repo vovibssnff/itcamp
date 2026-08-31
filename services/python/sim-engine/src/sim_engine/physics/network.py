@@ -268,6 +268,20 @@ class Network:
             modes[f.fuel.tag_id] = f.fuel.mode.value
         return modes
 
+    def controller_setpoints(self) -> dict[str, float]:
+        sps = {loop.tag_id: loop.setpoint for loop in self.loops.values()}
+        for f in self.furnaces.values():
+            sps[f.flow.tag_id] = f.flow.setpoint
+            sps[f.fuel.tag_id] = f.fuel.setpoint
+        return sps
+
+    def controller_outputs(self) -> dict[str, float]:
+        outs = {loop.tag_id: loop.output for loop in self.loops.values()}
+        for f in self.furnaces.values():
+            outs[f.flow.tag_id] = f.flow.output
+            outs[f.fuel.tag_id] = f.fuel.output
+        return outs
+
     # -- сохранение/восстановление состояния (Model API set_state) ---------
 
     def export_internal(self) -> dict[str, Any]:

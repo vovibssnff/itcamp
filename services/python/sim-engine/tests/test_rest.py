@@ -48,6 +48,44 @@ class TestRestApi(unittest.TestCase):
         r = self.client.delete("/v1/sessions/rest-1")
         self.assertEqual(r.status_code, 200)
 
+    def test_state_exposes_controller_sp_and_out(self) -> None:
+        sid = "rest-sp-out"
+        r = self.client.post("/v1/sessions", json={"session_id": sid, "seed": 1})
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertIn("controller_setpoints", body)
+        self.assertIn("controller_outputs", body)
+        self.assertIn("LRCA 602", body["controller_setpoints"])
+        self.assertIn("LRCA 602", body["controller_outputs"])
+
+        # Change SP without waiting for PV to catch up — SP must differ from PV.
+        before_pv = body["tag_values"]["LRCA 602"]
+        new_sp = before_pv + 5.0
+        r = self.client.post(
+            f"/v1/sessions/{sid}/command",
+            json={"type": "SET_SP", "target": "LRCA 602", "value_to": new_sp},
+        )
+        self.assertEqual(r.status_code, 200)
+
+        r = self.client.get(f"/v1/sessions/{sid}/state")
+        self.assertEqual(r.status_code, 200)
+        state = r.json()
+        self.assertAlmostEqual(state["controller_setpoints"]["LRCA 602"], new_sp, places=3)
+        self.assertNotAlmostEqual(
+            state["controller_setpoints"]["LRCA 602"],
+            state["tag_values"]["LRCA 602"],
+            places=2,
+        )
+        # OUT is a real actuator signal, not a copy of PV.
+        self.assertNotAlmostEqual(
+            state["controller_outputs"]["LRCA 602"],
+            state["tag_values"]["LRCA 602"],
+            places=1,
+        )
+
+        r = self.client.delete(f"/v1/sessions/{sid}")
+        self.assertEqual(r.status_code, 200)
+
 
 if __name__ == "__main__":
     unittest.main()

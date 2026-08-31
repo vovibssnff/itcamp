@@ -28,6 +28,7 @@ type AssessmentService struct {
 }
 
 type sessionState struct {
+	mu             sync.Mutex
 	scenario       domain.ScenarioData
 	engine         *ScoringEngine
 	score          domain.Score
@@ -43,10 +44,17 @@ func NewAssessmentService(repo AssessmentStore, client client.ScenarioClient, lo
 	}
 }
 
-func (s *AssessmentService) loadScenario(ctx context.Context, sessionID, scenarioID string) error {
+func (s *AssessmentService) getSession(sessionID string) (*sessionState, bool) {
+	s.mu.Lock()
+	state, ok := s.sessions[sessionID]
+	s.mu.Unlock()
+	return state, ok
+}
+
+func (s *AssessmentService) loadScenario(ctx context.Context, sessionID, scenarioID string) (*sessionState, error) {
 	data, err := s.client.GetScenario(ctx, scenarioID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	state := &sessionState{
 		scenario:       data,
@@ -56,25 +64,28 @@ func (s *AssessmentService) loadScenario(ctx context.Context, sessionID, scenari
 		alarmTimes:     make(map[string]float64),
 	}
 	s.mu.Lock()
+	if existing, ok := s.sessions[sessionID]; ok {
+		s.mu.Unlock()
+		return existing, nil
+	}
 	s.sessions[sessionID] = state
 	s.mu.Unlock()
 	IncAssessmentSessionStarted()
-	return nil
+	return state, nil
 }
 
 func (s *AssessmentService) ProcessEvent(ctx context.Context, event domain.AssessmentEvent, scenarioID string) error {
-	s.mu.Lock()
-	state, ok := s.sessions[event.SessionID]
-	s.mu.Unlock()
-
+	state, ok := s.getSession(event.SessionID)
 	if !ok {
-		if err := s.loadScenario(ctx, event.SessionID, scenarioID); err != nil {
+		var err error
+		state, err = s.loadScenario(ctx, event.SessionID, scenarioID)
+		if err != nil {
 			return err
 		}
-		s.mu.Lock()
-		state = s.sessions[event.SessionID]
-		s.mu.Unlock()
 	}
+
+	state.mu.Lock()
+	defer state.mu.Unlock()
 
 	switch event.Type {
 	case "session_start":
@@ -140,12 +151,12 @@ func (s *AssessmentService) processAlarmAck(state *sessionState, event domain.As
 }
 
 func (s *AssessmentService) AckAlarm(ctx context.Context, sessionID, tagID string, ackModelTime float64) {
-	s.mu.Lock()
-	state, ok := s.sessions[sessionID]
-	s.mu.Unlock()
+	state, ok := s.getSession(sessionID)
 	if !ok {
 		return
 	}
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	if alarmTime, exists := state.alarmTimes[tagID]; exists {
 		rt := state.engine.CalculateReactionTime(alarmTime, ackModelTime)
 		rt.AlarmID = tagID
@@ -154,19 +165,17 @@ func (s *AssessmentService) AckAlarm(ctx context.Context, sessionID, tagID strin
 }
 
 func (s *AssessmentService) GetScore(ctx context.Context, sessionID string) (domain.Score, error) {
-	s.mu.Lock()
-	state, ok := s.sessions[sessionID]
-	s.mu.Unlock()
+	state, ok := s.getSession(sessionID)
 	if ok {
+		state.mu.Lock()
+		defer state.mu.Unlock()
 		return state.score, nil
 	}
 	return s.repo.GetBySession(ctx, sessionID)
 }
 
 func (s *AssessmentService) Finalize(ctx context.Context, sessionID string) (domain.Score, error) {
-	s.mu.Lock()
-	state, ok := s.sessions[sessionID]
-	s.mu.Unlock()
+	state, ok := s.getSession(sessionID)
 	if !ok {
 		score, err := s.repo.GetBySession(ctx, sessionID)
 		if err != nil {
@@ -184,6 +193,9 @@ func (s *AssessmentService) Finalize(ctx context.Context, sessionID string) (dom
 		IncAssessmentSessionFinalized(string(score.Verdict))
 		return score, nil
 	}
+
+	state.mu.Lock()
+	defer state.mu.Unlock()
 
 	hasCritical := len(state.score.CriticalErrors) > 0
 	verdict := state.engine.CalculateVerdict(state.score.TotalScore, hasCritical)
@@ -218,12 +230,15 @@ func (s *AssessmentService) GetReplay(ctx context.Context, sessionID string) (do
 }
 
 func (s *AssessmentService) CheckMissedSteps(ctx context.Context, sessionID string, currentModelTime float64) {
-	s.mu.Lock()
-	state, ok := s.sessions[sessionID]
-	s.mu.Unlock()
+	state, ok := s.getSession(sessionID)
 	if !ok {
 		return
 	}
+
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	changed := false
 	for _, ref := range state.scenario.ReferenceActions {
 		if state.completedSteps[ref.Step] {
 			continue
@@ -232,7 +247,19 @@ func (s *AssessmentService) CheckMissedSteps(ctx context.Context, sessionID stri
 		if missed {
 			state.score.Penalties = append(state.score.Penalties, penalty)
 			state.completedSteps[ref.Step] = true
+			changed = true
 		}
+	}
+	if !changed {
+		return
+	}
+	state.score.TotalScore = state.engine.ApplyPenalties(
+		state.scenario.Criteria.MaxScore,
+		state.score.Penalties,
+		state.score.CriticalErrors,
+	)
+	if err := s.repo.Upsert(ctx, state.score); err != nil && s.log != nil {
+		s.log.WarnContext(ctx, "check missed upsert failed", "session", sessionID, "error", err)
 	}
 }
 

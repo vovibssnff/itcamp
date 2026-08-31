@@ -36,6 +36,8 @@ class SimSession:
             tag_values=self.network.tag_values(),
             equipment_states=self.network.equipment_states(),
             controller_modes=self.network.controller_modes(),
+            controller_setpoints=self.network.controller_setpoints(),
+            controller_outputs=self.network.controller_outputs(),
             active_alarms=dict(self.interlock_state.active_alarms),
             active_faults=list(self.fault_injector.active.keys()),
             tripped_interlocks=sorted(self.interlock_state.tripped),

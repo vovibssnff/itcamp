@@ -93,6 +93,9 @@ class ProcessState:
     tag_values: dict[str, float] = field(default_factory=dict)
     equipment_states: dict[str, str] = field(default_factory=dict)
     controller_modes: dict[str, str] = field(default_factory=dict)
+    # SP/OUT per controller tag — required by HMI faceplates (PV alone is not enough).
+    controller_setpoints: dict[str, float] = field(default_factory=dict)
+    controller_outputs: dict[str, float] = field(default_factory=dict)
     active_alarms: dict[str, AlarmEvent] = field(default_factory=dict)
     active_faults: list[str] = field(default_factory=list)
     tripped_interlocks: list[str] = field(default_factory=list)
@@ -103,6 +106,8 @@ class ProcessState:
             "tag_values": dict(self.tag_values),
             "equipment_states": dict(self.equipment_states),
             "controller_modes": dict(self.controller_modes),
+            "controller_setpoints": dict(self.controller_setpoints),
+            "controller_outputs": dict(self.controller_outputs),
             "active_alarms": {
                 k: {
                     "tag_id": a.tag_id,

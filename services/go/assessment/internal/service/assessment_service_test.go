@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/itcamp/ktc/services/assessment/internal/domain"
@@ -12,6 +13,7 @@ import (
 var testLog = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 type mockAssessmentStore struct {
+	mu     sync.Mutex
 	scores map[string]domain.Score
 }
 
@@ -20,6 +22,8 @@ func newMockAssessmentStore() *mockAssessmentStore {
 }
 
 func (m *mockAssessmentStore) GetBySession(_ context.Context, sessionID string) (domain.Score, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	s, ok := m.scores[sessionID]
 	if !ok {
 		return domain.Score{}, domain.ErrAssessmentNotFound
@@ -28,11 +32,15 @@ func (m *mockAssessmentStore) GetBySession(_ context.Context, sessionID string) 
 }
 
 func (m *mockAssessmentStore) Upsert(_ context.Context, s domain.Score) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.scores[s.SessionID] = s
 	return nil
 }
 
 func (m *mockAssessmentStore) SetVerdict(_ context.Context, sessionID string, verdict domain.Verdict, score int) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if s, ok := m.scores[sessionID]; ok {
 		s.Verdict = verdict
 		s.TotalScore = score
@@ -42,6 +50,8 @@ func (m *mockAssessmentStore) SetVerdict(_ context.Context, sessionID string, ve
 }
 
 func (m *mockAssessmentStore) SetOverride(_ context.Context, sessionID string, score int, verdict domain.Verdict, _, _ string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if s, ok := m.scores[sessionID]; ok {
 		s.TotalScore = score
 		s.Verdict = verdict
@@ -70,11 +80,11 @@ func (m *mockScenarioClient) GetScenario(_ context.Context, scenarioID string) (
 	return d, nil
 }
 
-func testAssessmentService() (*AssessmentService, *mockScenarioClient) {
+func testAssessmentService() (*AssessmentService, *mockScenarioClient, *mockAssessmentStore) {
 	client := newMockScenarioClient()
 	store := newMockAssessmentStore()
 	svc := NewAssessmentService(store, client, testLog)
-	return svc, client
+	return svc, client, store
 }
 
 func testScenarioData() domain.ScenarioData {
@@ -88,7 +98,7 @@ func testScenarioData() domain.ScenarioData {
 }
 
 func TestAssessmentService_ProcessEvent_Action(t *testing.T) {
-	svc, client := testAssessmentService()
+	svc, client, _ := testAssessmentService()
 	client.data["sc-1"] = testScenarioData()
 
 	err := svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
@@ -105,7 +115,7 @@ func TestAssessmentService_ProcessEvent_Action(t *testing.T) {
 }
 
 func TestAssessmentService_ProcessEvent_Alarm(t *testing.T) {
-	svc, client := testAssessmentService()
+	svc, client, _ := testAssessmentService()
 	client.data["sc-1"] = testScenarioData()
 
 	err := svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
@@ -117,7 +127,7 @@ func TestAssessmentService_ProcessEvent_Alarm(t *testing.T) {
 }
 
 func TestAssessmentService_ProcessEvent_CriticalAction(t *testing.T) {
-	svc, client := testAssessmentService()
+	svc, client, _ := testAssessmentService()
 	client.data["sc-1"] = testScenarioData()
 
 	err := svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
@@ -134,7 +144,7 @@ func TestAssessmentService_ProcessEvent_CriticalAction(t *testing.T) {
 }
 
 func TestAssessmentService_Finalize(t *testing.T) {
-	svc, client := testAssessmentService()
+	svc, client, _ := testAssessmentService()
 	client.data["sc-1"] = testScenarioData()
 
 	if err := svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
@@ -153,7 +163,7 @@ func TestAssessmentService_Finalize(t *testing.T) {
 }
 
 func TestAssessmentService_Finalize_NotLoaded(t *testing.T) {
-	svc, _ := testAssessmentService()
+	svc, _, _ := testAssessmentService()
 	_, err := svc.Finalize(context.Background(), "unknown-session")
 	if err == nil {
 		t.Fatal("expected error for unloaded session")
@@ -161,7 +171,7 @@ func TestAssessmentService_Finalize_NotLoaded(t *testing.T) {
 }
 
 func TestAssessmentService_AckAlarm(t *testing.T) {
-	svc, client := testAssessmentService()
+	svc, client, _ := testAssessmentService()
 	client.data["sc-1"] = testScenarioData()
 
 	if err := svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
@@ -182,9 +192,14 @@ func TestAssessmentService_AckAlarm(t *testing.T) {
 }
 
 func TestAssessmentService_CheckMissedSteps(t *testing.T) {
-	svc, client := testAssessmentService()
+	svc, client, store := testAssessmentService()
 	client.data["sc-1"] = testScenarioData()
 
+	if err := svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
+		SessionID: "sess-1", Type: "session_start", ModelTime: 100,
+	}, "sc-1"); err != nil {
+		t.Fatalf("session_start failed: %v", err)
+	}
 	if err := svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
 		SessionID: "sess-1", Type: "action", Target: "TRC-3", Action: "decrease", ModelTime: 110,
 	}, "sc-1"); err != nil {
@@ -202,5 +217,63 @@ func TestAssessmentService_CheckMissedSteps(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected missed step penalty for step 2")
+	}
+	want := testCriteria().MaxScore - testCriteria().PenaltyMiss
+	if score.TotalScore != want {
+		t.Errorf("expected total score %d, got %d", want, score.TotalScore)
+	}
+	persisted, err := store.GetBySession(context.Background(), "sess-1")
+	if err != nil {
+		t.Fatalf("expected missed steps to be upserted: %v", err)
+	}
+	if persisted.TotalScore != score.TotalScore {
+		t.Errorf("persisted score %d != in-memory %d", persisted.TotalScore, score.TotalScore)
+	}
+}
+
+// Concurrent ProcessEvent + CheckMissedSteps must not lose penalties or panic on map/slice races.
+func TestAssessmentService_ProcessEvent_CheckMissed_NoRace(t *testing.T) {
+	svc, client, store := testAssessmentService()
+	client.data["sc-1"] = testScenarioData()
+
+	if err := svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
+		SessionID: "sess-race", Type: "session_start", ModelTime: 0,
+	}, "sc-1"); err != nil {
+		t.Fatalf("session_start failed: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(2)
+		go func(n int) {
+			defer wg.Done()
+			_ = svc.ProcessEvent(context.Background(), domain.AssessmentEvent{
+				SessionID: "sess-race",
+				Type:      "action",
+				Target:    "TRC-3",
+				Action:    "decrease",
+				ModelTime: float64(10 + n),
+			}, "sc-1")
+		}(i)
+		go func(n int) {
+			defer wg.Done()
+			svc.CheckMissedSteps(context.Background(), "sess-race", float64(100+n))
+		}(i)
+	}
+	wg.Wait()
+
+	score, err := svc.GetScore(context.Background(), "sess-race")
+	if err != nil {
+		t.Fatalf("get score: %v", err)
+	}
+	persisted, err := store.GetBySession(context.Background(), "sess-race")
+	if err != nil {
+		t.Fatalf("persisted score missing: %v", err)
+	}
+	if score.TotalScore != persisted.TotalScore {
+		t.Errorf("in-memory total %d != persisted %d", score.TotalScore, persisted.TotalScore)
+	}
+	if len(score.Penalties) != len(persisted.Penalties) {
+		t.Errorf("in-memory penalties %d != persisted %d", len(score.Penalties), len(persisted.Penalties))
 	}
 }
